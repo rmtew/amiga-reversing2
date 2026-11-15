@@ -23,8 +23,8 @@ def setup(memory,selector=0,family=0,kind=1):
     for off,v in [(44,32768),(46,65535),(48,1)]:put(memory,OBJECT+off,v,2)
 
 
-def centre(memory,selector,family,cross):
-    tx,tz=TABLES[family];x=signed32(10000+get(memory,tx+4*selector));z=signed32(20000+get(memory,tz+4*selector))
+def centre(memory,selector,family,cross,*,tables=TABLES):
+    tx,tz=tables[family];x=signed32(10000+get(memory,tx+4*selector));z=signed32(20000+get(memory,tz+4*selector))
     if selector<=2:
         correction=0 if selector==0 else signed32(cross-z)
         if selector==2:correction=signed32(-correction)
@@ -36,8 +36,8 @@ def centre(memory,selector,family,cross):
     return signed32(z+correction),'z'
 
 
-def expected(memory,selector,family,position,player):
-    x,y,z=map(signed32,position);target,axis=centre(memory,selector,family,z if selector<=2 else x)
+def expected(memory,selector,family,position,player,*,tables=TABLES):
+    x,y,z=map(signed32,position);target,axis=centre(memory,selector,family,z if selector<=2 else x,tables=tables)
     difference=signed32(target-(x if axis=='x'else z));radius=500 if player else 550
     clamped=False
     if difference>=radius+1 or difference<=-radius-1:
@@ -52,8 +52,8 @@ def expected(memory,selector,family,position,player):
     return tuple(v&0xFFFFFFFF for v in [x,y,z]),axis,clamped,yclamped
 
 
-def position_at(memory,selector,family,difference,y=-500,cross=0):
-    target,axis=centre(memory,selector,family,cross)
+def position_at(memory,selector,family,difference,y=-500,cross=0,*,tables=TABLES):
+    target,axis=centre(memory,selector,family,cross,tables=tables)
     return(target-difference,y,cross)if axis=='x'else(cross,y,target-difference)
 
 
