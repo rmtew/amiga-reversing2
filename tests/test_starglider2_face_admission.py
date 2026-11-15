@@ -206,7 +206,13 @@ def test_actual_cache_misses_feed_refresh_and_preserve_view_ready_results(origin
 
 @pytest.mark.parametrize('points', [TRIANGLE, ACCEPT, ACCEPT + [(100, 100, 1000)]])
 def test_actual_admission_to_transformation_projection_and_packet_handoff(original_image, memory, slots, points):
+    check_admission_pipeline(original_image,memory,slots,points)
+
+
+def check_admission_pipeline(original_image,memory,slots,points,*,entry=0x4B54,view=None,admitted_buffer=None):
     from tests.test_starglider2_ground_face_packets import project
+    actual_memory=memory
+    if view is not None:memory=view
     cpu, cache, _ = prepare(memory, slots, points, header=(len(points) << 8) | 3, flag=0)
     encoded_fixture(memory, slots, points)
     word(memory, slot(memory, slots, 'model_last_vertex_index'), len(points) - 1)
@@ -217,7 +223,9 @@ def test_actual_admission_to_transformation_projection_and_packet_handoff(origin
     memory[OUTPUT - 4:OUTPUT + 128] = b'\xCC' * 132
     memory[REFS - 4:REFS + 16] = b'\xA5' * 20
     expected = backface_value(points) < 0
-    run(original_image, memory, cpu, {RETURN})
+    cpu.pc=entry
+    if admitted_buffer is not None:cpu.a[5]=admitted_buffer
+    run(original_image, actual_memory, cpu, {RETURN})
     assert get(memory, OBJECT_CACHE) == int(expected) and cpu.a[7] == STACK + 8
     assert get(memory, 0x49A8, 2) == int(expected)
     if expected:
