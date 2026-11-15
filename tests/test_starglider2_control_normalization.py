@@ -51,10 +51,7 @@ def test_autocentre_retains_n_only_overflow_and_dead_band(original_image,memory,
     assert get(m,APP+PITCH,2)==(centre(value) if mode&2 else value&65535)
 
 
-def normalize(image,m,pitch,speed,yaw=0,dock=0,phase=0,bias=0,clamp=0,hold=0):
-    for off,v in [(PITCH,pitch),(SPEED,speed),(YAW,yaw),(PHASE,phase)]:word(m,off,v)
-    for off,v in [(DOCK,dock),(BIAS,bias),(CLAMP,clamp)]:m[APP+off]=v
-    put(m,HOLD,hold,2);before=bytes(m[APP:APP+0x1000])
+def normalized_controls(pitch,speed,yaw=0,dock=0,phase=0,bias=0,clamp=0,hold=0):
     p=max(-1600,min(1600,signed(pitch)));step=0 if -48<=p<=48 else -(p>>4)
     s=max(-479,min(0,signed(speed)))
     if dock:s=0 if phase==30 else -10
@@ -63,8 +60,16 @@ def normalize(image,m,pitch,speed,yaw=0,dock=0,phase=0,bias=0,clamp=0,hold=0):
         if p<0:new_bias=0
         else:new_bias=(bias-1)&255;p-=10
     if clamp or hold:target=max(0,target-4);s=min(0,s+2)
+    return (p,s,(-yaw)&4095,step,target,new_bias)
+
+
+def normalize(image,m,pitch,speed,yaw=0,dock=0,phase=0,bias=0,clamp=0,hold=0):
+    for off,v in [(PITCH,pitch),(SPEED,speed),(YAW,yaw),(PHASE,phase)]:word(m,off,v)
+    for off,v in [(DOCK,dock),(BIAS,bias),(CLAMP,clamp)]:m[APP+off]=v
+    put(m,HOLD,hold,2);before=bytes(m[APP:APP+0x1000])
+    p,s,rot2,step,target,new_bias=normalized_controls(pitch,speed,yaw,dock,phase,bias,clamp,hold)
     cpu=state(m,0x2F71C);run(image,m,cpu,{0x2F7EA})
-    assert [get(m,APP+o,2)for o in [PITCH,SPEED,ROT2,STEP,TARGET]]==[x&65535 for x in [p,s,(-yaw)&4095,step,target]]
+    assert [get(m,APP+o,2)for o in [PITCH,SPEED,ROT2,STEP,TARGET]]==[x&65535 for x in [p,s,rot2,step,target]]
     assert m[APP+BIAS]==new_bias
     guard(m,before,[(PITCH,2),(SPEED,2),(ROT2,2),(STEP,2),(TARGET,2),(BIAS,1)])
     return cpu

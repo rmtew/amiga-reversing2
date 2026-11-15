@@ -29,7 +29,8 @@ def tables(memory):
     return m
 
 
-def expected_vector(m,angles,speed):
+def expected_vector(m,angles,speed,*,tables=(SINE,COS)):
+    SINE,COS=tables
     a0,a1,a2=[a&4095 for a in angles]
     s0,c0,s1,c1,s2=[get(m,table+2*i,2)for table,i in [(SINE,a0),(COS,a0),(SINE,a1),(COS,a1),(SINE,a2)]]
     x=neg_word(doubled_product_swap(doubled_product_swap(speed,s1),c0))
