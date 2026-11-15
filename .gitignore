@@ -104,8 +104,13 @@ targets/**/*
 !targets/starglider2_retail/shared_program.json
 !targets/starglider2_retail/recovery_plan.json
 !targets/starglider2_retail/amiga_handoff_plan.json
-# Retail reconstruction is generated locally from private input.
+# Keep transient inline analysis exports separate from the committed package.
 targets/starglider2_retail/*.s
+!targets/starglider2_retail/.gitattributes
+!targets/starglider2_retail/rendered/*.s
+!targets/starglider2_retail/rendered/source-package-manifest.json
+!targets/starglider2_retail/rendered/assets/cockpit_picture_rle_data.bin
+!targets/starglider2_retail/rendered/assets/argonaut_splash_picture_rle_data.bin
 *.analysis
 
 # Disposable isolated WinUAE/GDB session state.

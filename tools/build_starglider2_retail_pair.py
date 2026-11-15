@@ -1,16 +1,17 @@
 """Build both original retail handoffs from one native rendered source export.
 
 The proven same-disk difference is the high BYTE of the entry flag at $1002.
-The exported source stays unchanged. Private output contains a derived common
-source, two flag wrappers and independently hash-checked raw binaries.
+The checked-in package builds without original media or the native backend.
+Explicit native exports remain supported for analysis verification.
 """
 from __future__ import annotations
 import argparse
 import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import subprocess
+import shutil
 
 ROOT=Path(__file__).resolve().parents[1]
 EXPECTED={
@@ -58,8 +59,60 @@ def render_shared(root=ROOT):
         return render_project_source_with_c_backend(source,metadata_path=metadata)
 
 
+def package_files(root=ROOT):
+    """Validate the committed, manifest-owned assembly input set."""
+    directory=(root/'targets/starglider2_retail/rendered').resolve()
+    envelope=json.loads((directory/'source-package-manifest.json').read_text())
+    manifest=envelope['manifest'];application=manifest.get('application',{})
+    if application.get('profile')!='starglider2-retail-pair-v1':
+        raise ValueError('unsupported retail source package')
+    if set(application.get('wrappers',{}))!=set(EXPECTED):
+        raise ValueError('both platform wrappers are required')
+    expected_manifest=hashlib.sha256((json.dumps(manifest,sort_keys=True,indent=2,ensure_ascii=True)+'\n').encode()).hexdigest()
+    if envelope['sha256']!=expected_manifest:
+        raise ValueError('source-package manifest integrity mismatch')
+    metadata=root/'targets/starglider2_retail/target_metadata.json'
+    if hashlib.sha256(metadata.read_bytes()).hexdigest()!=manifest['metadata_hash']:
+        raise ValueError('annotations changed; regenerate the committed retail source')
+    if application['expected_sha256']!=EXPECTED or application['payload_bytes']!=419308:
+        raise ValueError('retail identity differs from the platform bindings')
+    files={}
+    for record in manifest['files']:
+        relative=record['path'];parts=PurePosixPath(relative)
+        if parts.is_absolute() or '..' in parts.parts or '\\' in relative or relative in files:
+            raise ValueError('invalid package path')
+        path=(directory/relative).resolve()
+        if not path.is_relative_to(directory):
+            raise ValueError('package path escapes its directory')
+        data=path.read_bytes()
+        if len(data)!=record['size'] or hashlib.sha256(data).hexdigest()!=record['sha256']:
+            raise ValueError('changed generated source or include: '+relative)
+        files[relative]=data
+    required={manifest['source'],*application['wrappers'].values()}
+    if not required<=files.keys():
+        raise ValueError('shared listing or platform wrapper missing')
+    return directory,manifest,files
+
+
+def build_packaged(vasm: Path, output: Path, *, project_root=ROOT) -> dict:
+    directory,manifest,_files=package_files(project_root)
+    output=output.resolve();output.mkdir(parents=True,exist_ok=False)
+    executable=shutil.which(str(vasm)) or str(vasm.resolve())
+    results={}
+    for platform,wrapper in manifest['application']['wrappers'].items():
+        raw=output/f'retail-{platform}.raw'
+        subprocess.run([executable,'-m68000','-no-opt','-Fbin','-quiet',
+                        '-o',str(raw),wrapper],cwd=directory,check=True)
+        data=raw.read_bytes();digest=hashlib.sha256(data).hexdigest()
+        if len(data)!=419308 or digest!=EXPECTED[platform]:
+            raise ValueError(f'{platform} output differs from the original retail handoff')
+        results[platform]=dict(size=len(data),sha256=digest)
+    return results
+
+
 def build(vasm: Path, output: Path, source: Path | None=None, *, project_root=ROOT) -> dict:
-    text=source.read_text() if source is not None else render_shared(project_root)
+    if source is None:return build_packaged(vasm,output,project_root=project_root)
+    text=source.read_text()
     output.mkdir(parents=True,exist_ok=False)
     (output/'retail-original-st.s').write_text(text)
     common=output/'retail-shared.s';common.write_text(shared_source(text))
@@ -79,8 +132,8 @@ def build(vasm: Path, output: Path, source: Path | None=None, *, project_root=RO
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--vasm',type=Path,required=True)
-    parser.add_argument('--output',type=Path,required=True,help='Fresh private output directory; contains game binaries')
-    parser.add_argument('--source',type=Path,help='Optional already-rendered private source; default renders the shared target from verified local input')
+    parser.add_argument('--output',type=Path,required=True,help='Fresh output directory for the two raw payloads')
+    parser.add_argument('--source',type=Path,help='Optional inline native source for analysis checks; default uses the committed package')
     args=parser.parse_args()
     import json
     print(json.dumps(build(args.vasm,args.output.resolve(),args.source),indent=2))
