@@ -111,7 +111,10 @@ class MappedExecution:
     def seed(self, address: int, data: bytes):
         if self.failed: raise ValueError('failed execution state cannot be reused')
         start,end = self._span(address,len(data))
-        self.memory[start:end] = data
+        if isinstance(data, bytes):
+            C.memmove(C.addressof(self.memory) + start, data, len(data))
+        else:
+            self.memory[start:end] = data
         self.known[start:end] = b'\1'*len(data)
 
     def allow_write(self, address: int, size: int):
