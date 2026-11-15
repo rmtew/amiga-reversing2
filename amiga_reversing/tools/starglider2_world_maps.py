@@ -1,4 +1,4 @@
-"""Audit original world-placement streams using the $17E52/$17E94 consumers.
+"""Audit qualified older and retail world-placement streams through their consumers.
 
 The finite original catalogue has aliases and two formats. Coordinates remain
 private; this tool reports extents/counts, not game record bytes or a runtime
@@ -11,6 +11,18 @@ import json
 import struct
 from pathlib import Path
 from .starglider2_protection import IMAGE_SHA256
+
+# Addresses belong to reviewed build identities, never a guessed global delta.
+_RETAIL = dict(size=419308, profile='retail-shared', table=0x312D4,
+    constructor=0x19650, next_record=0x19712, extended_record=0x19754,
+    service_initializer=0x1A00C, service_consumer=0xBD0E)
+_PROFILES = {
+    IMAGE_SHA256: dict(size=412736, profile='older-amiga', table=0x2F9FC,
+        constructor=0x17D90, next_record=0x17E52, extended_record=0x17E94,
+        service_initializer=0x1874C, service_consumer=0xBD02),
+    '20c19400180d7e846b78aa615b68446293f8ca54015c4f4a42a77f03b24e8260': _RETAIL,
+    '334f83ec3bdb30e36b2e5c741b7788e4a3489ee15811d11e1e52ef83bd28a938': _RETAIL,
+}
 
 
 def decode_map(payload: bytes, start: int, stride: int) -> dict[str, int]:
@@ -50,7 +62,8 @@ def type94_service_byte(initial: int, world_index: int) -> int:
     return 2 if local == 8 else (local - 4) & 255
 
 
-def depot_service_domain(payload: bytes, maps: list[dict]) -> dict[str, object]:
+def depot_service_domain(payload: bytes, maps: list[dict], *,
+        initializer: int = 0x1874C, consumer: int = 0xBD02) -> dict[str, object]:
     """Keep each world instance of an aliased placement stream distinct."""
     records = []
     for mapping in maps:
@@ -67,8 +80,8 @@ def depot_service_domain(payload: bytes, maps: list[dict]) -> dict[str, object]:
                     source_offset=offset, runtime_address=offset + 0x1000,
                     initial_service_byte=initial,
                     service_id=type94_service_byte(initial, world)))
-    return dict(model_type=94, initializer=0x1874C, object_byte_offset=0x26,
-        consumer=0xBD02, records=records,
+    return dict(model_type=94, initializer=initializer, object_byte_offset=0x26,
+        consumer=consumer, records=records,
         service_ids=sorted({r['service_id'] for r in records}),
         limits=['Original static interior placements only; no inventory-release or arbitrary-call guarantee.',
                 'The original pool clear initializes absent service bytes to zero.',
@@ -76,10 +89,37 @@ def depot_service_domain(payload: bytes, maps: list[dict]) -> dict[str, object]:
                 'This derived domain does not prove every dynamic service selector is in bounds.'])
 
 
+def placement_type_domain(payload: bytes, maps: list[dict]) -> dict[str, object]:
+    """Source tags and the reader's phase-specific high-BYTE extraction only.
+
+    This does not apply type-specific constructors or subsequent gameplay.
+    Retain full exterior WORDs rather than treating the initializer mask as
+    a mutation of the actor's stored type.
+    """
+    tags, exterior, interior = set(), set(), set()
+    for mapping in maps:
+        for index in range(mapping['count']):
+            at = mapping['start'] - 0x1000 + mapping['stride'] * index
+            tag = struct.unpack_from('>H', payload, at)[0]
+            tags.add(tag)
+            (exterior if mapping['stride'] == 10 else interior).add(
+                tag if mapping['stride'] == 10 else tag & 255)
+    effective = exterior | interior
+    special = {tag for tag in effective if tag & 128}
+    normal = effective - special
+    return dict(stored_tags=sorted(tags), exterior_type_words=sorted(exterior),
+        interior_type_words=sorted(interior), model_path_reader_words=sorted(normal),
+        special_draw_reader_words=sorted(special),
+        reader_words_outside_model_id_range=sorted(t for t in normal if not 0 <= t < 104),
+        limits=['Reader outputs only; constructors and later type-changing writes are separate.',
+                'A stored bound is not a universal runtime guard.'])
+
 def audit(payload: bytes) -> dict[str, object]:
-    if len(payload) != 412736 or hashlib.sha256(payload).hexdigest() != IMAGE_SHA256:
-        raise ValueError('Expected the reviewed Starglider 2 main-copy image')
-    base, count = 0x2F9FC, 32
+    identity = hashlib.sha256(payload).hexdigest()
+    profile = _PROFILES.get(identity)
+    if profile is None or len(payload) != profile['size']:
+        raise ValueError('Expected a reviewed older Amiga or retail Starglider 2 image')
+    base, count = profile['table'], 32
     pointers = struct.unpack_from('>32I', payload, base-0x1000)
     if min(pointers) != base+count*4:
         raise ValueError('Pointer table no longer ends at the first placement tag')
@@ -100,13 +140,16 @@ def audit(payload: bytes) -> dict[str, object]:
         raise ValueError('Distinct placement owners overlap')
     if len(ordered) != 14 or sum(m['count'] for m in ordered) != 1139:
         raise ValueError('Original unique map/placement totals changed')
-    return dict(schema_version=1, binary_sha256=IMAGE_SHA256,
+    return dict(schema_version=1, binary_sha256=identity, profile=profile['profile'],
         pointer_table=dict(start=base, end=base+count*4, entries=count),
         unique_maps=ordered, unique_placement_records=1139,
         map_bytes=sum(m['end']-m['start'] for m in ordered),
         max_original_map_records=max(m['count'] for m in ordered),
-        depot_services=depot_service_domain(payload, ordered),
-        constructor=0x17D90, next_record=0x17E52, extended_record=0x17E94,
+        depot_services=depot_service_domain(payload, ordered,
+            initializer=profile['service_initializer'], consumer=profile['service_consumer']),
+        type_domain=placement_type_domain(payload, ordered),
+        constructor=profile['constructor'], next_record=profile['next_record'],
+        extended_record=profile['extended_record'],
         limits=['World index must remain in the original 0..31 catalogue domain',
                 'Shared empty maps guarantee only a 2-byte tag, not a full record pointee',
                 'Extended WORDs copied to object +$24/+$28 remain type-dependent/opaque',

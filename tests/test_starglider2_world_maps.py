@@ -53,3 +53,18 @@ def test_aliased_placement_has_world_dependent_service_identity():
     assert [r['world_index'] for r in result['records']] == [24, 25]
     # A neighboring different type is not given the depot interpretation.
     assert depot_service_domain(b'\x01\x5d' + bytes(14), [mapping])['records'] == []
+
+
+def test_type_domain_distinguishes_exterior_words_from_interior_tags():
+    from amiga_reversing.tools.starglider2_world_maps import placement_type_domain
+    record=bytes.fromhex('8012')+bytes(14)
+    exterior=placement_type_domain(record,[dict(start=0x1000,count=1,stride=10)])
+    interior=placement_type_domain(record,[dict(start=0x1000,count=1,stride=16)])
+    assert exterior['reader_words_outside_model_id_range']==[0x8012]
+    assert interior['interior_type_words']==[18] and not interior['reader_words_outside_model_id_range']
+    assert exterior['stored_tags']==interior['stored_tags']==[0x8012]
+
+
+def test_audit_refuses_an_unqualified_build_before_interpreting_addresses():
+    from amiga_reversing.tools.starglider2_world_maps import audit
+    with pytest.raises(ValueError,match='reviewed'):audit(bytes(419308))
