@@ -20,7 +20,8 @@ def setup(memory,outer_type=2,inner_type=1,outer_flags=0,inner_flags=0,outer_pha
     put(memory,0x27A8,APP)
 
 
-def geometry(memory,outer_type,inner_type,scale,x,z,y):
+def geometry(memory,outer_type,inner_type,scale,x,z,y,*,tables=(H,NEG,POS)):
+    H,NEG,POS=tables
     shift=scale&63
     def word(table,t):return get(memory,table+signed16(2*t),2)
     def horizontal(t):return word(H,t)>>shift if shift<16 else 0
