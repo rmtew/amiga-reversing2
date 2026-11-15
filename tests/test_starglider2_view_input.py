@@ -37,11 +37,11 @@ def fields(tmp_path_factory):
 def word(m,p,v):put(m,p,v&65535,2)
 def sector(v):return(((v+256)&65535)>>9)&7
 
-def prepare(m,f,key=0,mode=0,distance=800,pitch=0,yaw=0,inside=0):
-    m[KEYS:KEYS+128]=bytes(128);m[f['pending_key_scancode']]=key;m[f['view_mode']]=mode;m[f['inside_structure_flag']]=inside
+def prepare(m,f,key=0,mode=0,distance=800,pitch=0,yaw=0,inside=0,*,keys=KEYS,mode_cache=MODE_CACHE,direction_cache=DIRECTION_CACHE,queue=QUEUE):
+    m[keys:keys+128]=bytes(128);m[f['pending_key_scancode']]=key;m[f['view_mode']]=mode;m[f['inside_structure_flag']]=inside
     for name,value in [('view_offset_distance',distance),('view_rotation_offset_0',pitch),('view_rotation_offset_1',yaw),
                        ('pending_message_count',3),('message_display_countdown',9)]:word(m,f[name],value)
-    word(m,MODE_CACHE,0xFFFF);word(m,DIRECTION_CACHE,0x5A5A);put(m,QUEUE-4,0)
+    word(m,mode_cache,0xFFFF);word(m,direction_cache,0x5A5A);put(m,queue-4,0)
     put(m,f['shared_random_state_a'],0x12345678);put(m,f['shared_random_state_b'],0x90ABCDEF)
     for axis,value in zip('xyz',[0x12340010,0xFFF01234,0x56789ABC]):put(m,f['player_world_'+axis],value)
     m[f['point_field_world_positions']:f['point_field_world_positions']+120]=b'\xA5'*120
@@ -63,9 +63,9 @@ def check_reinitialized_points(m,f,changed):
 
 
 def message_pointer(image,base,index):return base+signed(int.from_bytes(image[0][base-4096+2*index:base-4096+2*index+2],'big'))
-def check_message(m,f,pointer):
+def check_message(m,f,pointer,*,queue=QUEUE,blank=0xE0B8):
     assert get(m,f['pending_message_count'],2)==2 and get(m,f['message_display_countdown'],2)==0
-    assert get(m,QUEUE)==pointer and get(m,QUEUE+4)==0xE0B8
+    assert get(m,queue)==pointer and get(m,queue+4)==blank
 
 
 @pytest.mark.parametrize('key',range(1,9))
