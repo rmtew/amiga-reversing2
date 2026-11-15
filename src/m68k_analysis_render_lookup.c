@@ -8,6 +8,13 @@
 
 #include "m68k_affine_entry_value.inc"
 
+/* Record fields are CPU data-flow facts; OS/hardware identities remain
+ * platform-owned even when the same solver carries custom record pointers. */
+static int lookup_uses_amiga_semantics(const M68kRenderLookup *lookup) {
+  return lookup && lookup->object &&
+    lookup->object->platform_backend_kind == M68K_PLATFORM_BACKEND_AMIGA_HUNK;
+}
+
 static M68kRenderTypedStorageSlot *typed_storage_reserve_identity(M68kRenderLookup *lookup,
     uint8_t kind, size_t section_index, int32_t displacement, uint32_t address, int *out_added);
 
@@ -2719,7 +2726,8 @@ int render_lookup_struct_field_expression(const M68kRenderLookup *lookup, uint16
 }
 
 static void typed_state_apply_policy_register_seeds(M68kRenderTypedState *state,
-    const M68kAnalysisPolicy *policy, size_t section_index, uint32_t offset) {
+    const M68kRenderLookup *lookup, size_t section_index, uint32_t offset) {
+  const M68kAnalysisPolicy *policy = lookup ? lookup->policy : NULL;
   uint16_t index;
   if (state == NULL || policy == NULL) return;
   for (index = 0U; index < policy->register_seed_count && index < M68K_ANALYSIS_REGISTER_SEED_LIMIT; ++index) {
@@ -2742,6 +2750,9 @@ static void typed_state_apply_policy_register_seeds(M68kRenderTypedState *state,
     if (struct_name == NULL || struct_name[0] == '\0') continue;
     struct_id = lookup_policy_struct_id_by_name(policy, struct_name);
     if (lookup_policy_struct_name_by_id(policy, struct_id) == NULL) continue;
+    if (!lookup_uses_amiga_semantics(lookup) &&
+        (seed->kind != M68K_ANALYSIS_REGISTER_SEED_STRUCT_PTR ||
+         lookup_policy_custom_struct_by_id(policy, struct_id) == NULL)) continue;
     provenance = typed_provenance_make(M68K_PLATFORM_TYPE_PROVENANCE_POLICY_SEED, section_index, offset);
     typed_state_set_reg_struct_id_array(state, seed->reg_kind, seed->reg_index, struct_id,
       seed->array_element_count, 0U, &provenance);
@@ -10732,6 +10743,7 @@ static const AmigaOsLibraryVectorInfo *typed_flow_resolve_vector(M68kRenderLooku
       platform_state == NULL || instruction == NULL) {
     return NULL;
   }
+  if (!lookup_uses_amiga_semantics(lookup)) return NULL;
   platform_vector = attach_amiga_lvo_symbol_if_known(lookup, platform_state, instruction);
   immediate_vector = attach_amiga_lvo_immediate_if_known(lookup, section, accepted_start[section->section_index],
     candidate, instruction);
@@ -10908,6 +10920,7 @@ static const char *typed_layout_base_symbol(const M68kRenderLookup *lookup, uint
 static void typed_state_import_layout_roots(M68kRenderTypedState *typed, const M68kRenderLookup *lookup,
     const M68kRenderPlatformState *platform, size_t section_index, uint32_t offset) {
   uint8_t kind, reg;
+  if (!lookup_uses_amiga_semantics(lookup)) return;
   for (kind = M68K_ANALYSIS_REGISTER_DATA; kind <= M68K_ANALYSIS_REGISTER_ADDRESS; ++kind) {
     for (reg = 0U; reg < 8U; ++reg) {
       uint32_t bit = (uint32_t)1U << reg;
@@ -10955,6 +10968,7 @@ static int typed_raw_hardware_value(const M68kRenderTypedRegValue *value,
 static void typed_state_project_layout_roots(const M68kRenderTypedState *typed, const M68kRenderLookup *lookup,
     M68kRenderPlatformState *platform) {
   uint8_t kind, reg;
+  if (!lookup_uses_amiga_semantics(lookup)) return;
   for (kind = M68K_ANALYSIS_REGISTER_DATA; kind <= M68K_ANALYSIS_REGISTER_ADDRESS; ++kind) {
     for (reg = 0U; reg < 8U; ++reg) {
       const M68kRenderTypedRegValue *value = kind == M68K_ANALYSIS_REGISTER_DATA ?
@@ -10985,11 +10999,13 @@ static void typed_flow_instruction_input(const M68kRenderLookup *lookup,
     M68kRenderTypedState *typed, M68kRenderPlatformState *platform) {
   *typed = node->typed_in;
   *platform = node->platform_in;
-  typed_state_apply_policy_register_seeds(typed, lookup->policy, section->section_index,
+  typed_state_apply_policy_register_seeds(typed, lookup, section->section_index,
     node->candidate->offset);
   typed_state_apply_function_summaries(typed, lookup, section->section_index, node->candidate->offset);
-  platform_state_apply_policy_register_seeds(platform, lookup->policy, section->section_index,
-    node->candidate->offset);
+  if (lookup_uses_amiga_semantics(lookup))
+    platform_state_apply_policy_register_seeds(platform, lookup->policy, section->section_index,
+      node->candidate->offset);
+  else memset(platform, 0, sizeof(*platform));
   typed_state_import_layout_roots(typed, lookup, platform, section->section_index,
     node->candidate->offset);
 }
@@ -11099,9 +11115,9 @@ static int typed_flow_process_node_impl(M68kRenderLookup *lookup, const M68kDeco
        * callback-body walk is permitted as a compatibility transfer path. */
     }
   }
-  if (record_typed_accesses && render_lookup_record_layout_field_uses(lookup, section->section_index,
+  if (record_typed_accesses && lookup_uses_amiga_semantics(lookup) && render_lookup_record_layout_field_uses(lookup, section->section_index,
       out_platform_state, &instruction, node->candidate->offset) != 0) return -1;
-  if (record_typed_accesses && render_lookup_record_base_app_accesses(lookup, section->section_index,
+  if (record_typed_accesses && lookup_uses_amiga_semantics(lookup) && render_lookup_record_base_app_accesses(lookup, section->section_index,
       out_platform_state, &instruction, node->candidate->offset, 0) != 0) return -1;
   if (record_typed_accesses && render_lookup_record_derived_app_accesses(lookup, section->section_index,
       out_typed_state, &instruction, node->candidate->offset) != 0) return -1;
@@ -11109,7 +11125,7 @@ static int typed_flow_process_node_impl(M68kRenderLookup *lookup, const M68kDeco
       out_typed_state, &instruction, node->candidate->offset) != 0) {
     return -1;
   }
-  if (record_typed_accesses && render_lookup_record_hardware_address_uses(lookup, section->section_index,
+  if (record_typed_accesses && lookup_uses_amiga_semantics(lookup) && render_lookup_record_hardware_address_uses(lookup, section->section_index,
       out_platform_state, &instruction, node->candidate->offset) != 0) return -1;
   if (render_lookup_record_typed_struct_accesses(lookup, section->section_index, out_typed_state, out_platform_state, &instruction,
       node->candidate->offset, record_typed_accesses, io_changed, 0) != 0) {
@@ -11228,7 +11244,7 @@ static int typed_flow_process_node_impl(M68kRenderLookup *lookup, const M68kDeco
       section->section_index, node->candidate->offset);
   /* Sequential rendering drops terminal/call contexts. CFG successors may retain
    * literal hardware identities only across unchanged or proven preserved registers. */
-  {
+  if (lookup_uses_amiga_semantics(lookup)) {
     M68kRenderPlatformState before = *out_platform_state;
     const M68kSimFormMetadata *metadata = m68k_sim_metadata_for_instruction(&instruction);
     uint8_t reg;
@@ -11286,7 +11302,8 @@ static int typed_flow_process_node_impl(M68kRenderLookup *lookup, const M68kDeco
     if (may_produce) typed_state_apply_produced_storage_contracts(out_typed_state, lookup,
       section->section_index, node->candidate->offset);
   }
-  platform_state_note_call_result_after_instruction(out_platform_state, &instruction, chosen_vector);
+  if (lookup_uses_amiga_semantics(lookup))
+    platform_state_note_call_result_after_instruction(out_platform_state, &instruction, chosen_vector);
   typed_state_project_layout_roots(out_typed_state, lookup, out_platform_state);
   typed_state_import_layout_roots(out_typed_state, lookup, out_platform_state, section->section_index,
     node->candidate->offset);
@@ -11979,7 +11996,7 @@ static int hardware_relative_analyze_graph(M68kRenderLookup *lookup, const M68kD
     M68K_RENDER_TYPED_FLOW_DEFAULT_NODE_VISIT_LIMIT);
   ArenaMark mark;
   int result = -1;
-  if (graph->node_count == 0U) return 0;
+  if (!lookup_uses_amiga_semantics(lookup) || graph->node_count == 0U) return 0;
   /* Reuse existing node storage, not a second retained scalar-state array.
    * Failed/incomplete solves leave unknown values, never a stale proof. */
   for (index = 0U; index < graph->node_count; ++index) {
@@ -12226,7 +12243,7 @@ typedef struct TypedFlowVisitTrace {
   size_t platform_first_changed_byte, typed_first_changed_byte;
 } TypedFlowVisitTrace;
 
-static int render_lookup_analyze_amiga_typed_refs_for_section(M68kRenderLookup *lookup, const M68kDecodeIR *decode,
+static int render_lookup_analyze_typed_refs_for_section(M68kRenderLookup *lookup, const M68kDecodeIR *decode,
     uint8_t **accepted_start, const M68kDecodeSectionIR *section, M68kRenderTypedFlowGraph *graph,
     int final_pass, int *io_changed, Arena *arena) {
   size_t iteration_limit = typed_flow_limit_from_env("AMIGA_REVERSING_TYPED_FLOW_MAX_ITERATIONS",
@@ -12483,12 +12500,26 @@ static int render_lookup_has_typed_flow_sources(const M68kRenderLookup *lookup, 
 static int callable_dispatch_capture(M68kRenderLookup *lookup, const M68kDecodeIR *decode,
     const M68kRenderTypedFlowWorkflow *flow);
 
+static int lookup_has_custom_record_seed(const M68kRenderLookup *lookup) {
+  if (!lookup || !lookup->object || !lookup->policy ||
+      lookup->object->platform_backend_kind != M68K_PLATFORM_BACKEND_ATARI_ST) return 0;
+  for (uint16_t i = 0U; i < lookup->policy->register_seed_count &&
+      i < M68K_ANALYSIS_REGISTER_SEED_LIMIT; ++i) {
+    const M68kAnalysisRegisterSeed *seed = &lookup->policy->register_seeds[i];
+    if (seed->kind == M68K_ANALYSIS_REGISTER_SEED_STRUCT_PTR &&
+        lookup_policy_custom_struct_by_id(lookup->policy,
+          lookup_policy_struct_id_by_name(lookup->policy, seed->type_name))) return 1;
+  }
+  return 0;
+}
+
+
 static int typed_flow_workflow_prepare(M68kRenderTypedFlowWorkflow *workflow,
     M68kRenderLookup *lookup, const M68kDecodeIR *decode, uint8_t **accepted_start) {
   size_t section_index;
   if (workflow == NULL || lookup == NULL || decode == NULL || accepted_start == NULL) return -1;
   memset(workflow, 0, sizeof(*workflow));
-  if (lookup->object == NULL || lookup->object->platform_backend_kind != M68K_PLATFORM_BACKEND_AMIGA_HUNK ||
+  if ((!lookup_uses_amiga_semantics(lookup) && !lookup_has_custom_record_seed(lookup)) ||
       !render_lookup_has_typed_flow_sources(lookup, decode, accepted_start)) {
     return 0;
   }
@@ -12511,7 +12542,7 @@ fail:
   return -1;
 }
 
-static int render_lookup_analyze_amiga_typed_refs(M68kRenderLookup *lookup,
+static int render_lookup_analyze_typed_refs(M68kRenderLookup *lookup,
     const M68kDecodeIR *decode, uint8_t **accepted_start, M68kRenderTypedFlowWorkflow *workflow,
     int record_final_accesses) {
   int pass;
@@ -12537,7 +12568,7 @@ static int render_lookup_analyze_amiga_typed_refs(M68kRenderLookup *lookup,
       lookup->affine_address_use_count = 0U;
     }
     for (section_index = 0U; section_index < decode->section_count; ++section_index) {
-      if (render_lookup_analyze_amiga_typed_refs_for_section(lookup, decode, accepted_start,
+      if (render_lookup_analyze_typed_refs_for_section(lookup, decode, accepted_start,
           &decode->sections[section_index], &workflow->graphs[section_index], final_pass,
           final_pass ? NULL : &changed, workflow->arena) != 0) {
         goto cleanup;
@@ -12588,7 +12619,7 @@ static int typed_flow_solve_call_inputs(M68kRenderLookup *lookup, const M68kDeco
     }
     lookup->app_slot_ref_count = kept;
     for (size_t i = 0U; i < workflow->section_count; ++i) {
-      if (render_lookup_analyze_amiga_typed_refs_for_section(lookup, decode, accepted,
+      if (render_lookup_analyze_typed_refs_for_section(lookup, decode, accepted,
           &decode->sections[i], &workflow->graphs[i], 1, NULL, workflow->arena) != 0) return -1;
     }
     ++epochs;
@@ -13013,14 +13044,14 @@ static int append_render_lookup_typed_accesses_for_section(const M68kRenderLooku
     M68kSectionAnalysisIR *section_analysis) {
   size_t index;
   if (lookup == NULL || section_analysis == NULL || lookup->object == NULL ||
-      lookup->object->platform_backend_kind != M68K_PLATFORM_BACKEND_AMIGA_HUNK) {
+      (!lookup_uses_amiga_semantics(lookup) && !lookup_has_custom_record_seed(lookup))) {
     return 0;
   }
   for (index = 0U; index < lookup->typed_access_count; ++index) {
     const M68kRenderTypedAccess *access = &lookup->typed_accesses[index];
     if (access->section_index != section_analysis->section_index) continue;
     if (m68k_ir_section_analysis_append_recovered_platform_typed_access(section_analysis,
-        M68K_PLATFORM_BACKEND_AMIGA_HUNK, access->offset, access->operand_index, access->base_reg,
+        lookup->object->platform_backend_kind, access->offset, access->operand_index, access->base_reg,
         access->displacement, access->base_cursor, access->field_offset, access->struct_size, access->field_size,
         access->root_struct_name, access->owner_struct_name, access->field_name, access->field_expr,
         access->inherited, access->nested, access->provenance.kind, access->provenance.producer_operand_index, access->provenance.section_index,
@@ -13378,14 +13409,14 @@ static int append_render_lookup_unresolved_typed_accesses_for_section(const M68k
     M68kSectionAnalysisIR *section_analysis) {
   size_t index;
   if (lookup == NULL || section_analysis == NULL || lookup->object == NULL ||
-      lookup->object->platform_backend_kind != M68K_PLATFORM_BACKEND_AMIGA_HUNK) {
+      (!lookup_uses_amiga_semantics(lookup) && !lookup_has_custom_record_seed(lookup))) {
     return 0;
   }
   for (index = 0U; index < lookup->unresolved_typed_access_count; ++index) {
     const M68kRenderUnresolvedTypedAccess *access = &lookup->unresolved_typed_accesses[index];
     if (access->section_index != section_analysis->section_index) continue;
     if (m68k_ir_section_analysis_append_recovered_platform_unresolved_typed_access(section_analysis,
-        M68K_PLATFORM_BACKEND_AMIGA_HUNK, access->offset, access->operand_index, access->base_reg,
+        lookup->object->platform_backend_kind, access->offset, access->operand_index, access->base_reg,
         access->displacement, access->struct_size, access->access_size, access->root_struct_name, access->classification,
         access->container_candidate_count, access->container_struct_name, access->container_field_expr,
         access->refinement_applied, access->refined_struct_name, access->provenance.kind,
@@ -18328,7 +18359,7 @@ int m68k_analysis_render_lookup_run_platform_passes(M68kRenderLookup *lookup, co
   if (typed_flow_workflow_prepare(&typed_flow_workflow, lookup, decode, accepted_start) != 0) return -1;
   if (stats != NULL) stats->typed_graph_seconds = elapsed_seconds_local(typed_stage_start, clock());
   typed_stage_start = clock();
-  if (render_lookup_analyze_amiga_typed_refs(lookup, decode, accepted_start, &typed_flow_workflow,
+  if (render_lookup_analyze_typed_refs(lookup, decode, accepted_start, &typed_flow_workflow,
       !direct_summaries_ready) != 0) goto typed_flow_fail;
   if (stats != NULL) stats->typed_flow_seconds = elapsed_seconds_local(typed_stage_start, clock());
   typed_stage_start = clock();
@@ -18338,7 +18369,7 @@ int m68k_analysis_render_lookup_run_platform_passes(M68kRenderLookup *lookup, co
   lookup->inferred_function_summaries_ready = 1U;
   if (lookup->inferred_function_summary_count != 0U) {
     if (lookup->inferred_function_summary_count != inferred_summary_count_before_callbacks) {
-      if (render_lookup_analyze_amiga_typed_refs(lookup, decode, accepted_start, &typed_flow_workflow, 1) != 0)
+      if (render_lookup_analyze_typed_refs(lookup, decode, accepted_start, &typed_flow_workflow, 1) != 0)
         goto typed_flow_fail;
     } else if (direct_summaries_ready != 0 &&
         typed_flow_record_final_accesses(lookup, decode, accepted_start, &typed_flow_workflow) != 0) {

@@ -123,3 +123,17 @@ def test_connected_panel_routines_and_bounded_mask_table_are_rendered():
  text=Path(value).read_text()
  for name in ['st_monochrome_contact_dot_masks','draw_platform_contact_panel','amiga_draw_fixed_cockpit_contact_panel','st_colour_read_contact_actor_fields','st_monochrome_read_contact_actor_fields']:
   assert name in text,name
+
+
+def test_verified_actor_contracts_resolve_only_the_three_read_windows():
+ value=os.getenv('SGII_RETAIL_RENDERED_SOURCE')
+ if not value:pytest.skip('set SGII_RETAIL_RENDERED_SOURCE to a fresh export')
+ text=Path(value).read_text()
+ for field in ['contact_flags','contact_x','contact_y','contact_z']:
+  assert text.count('SG2ContactActorPrefix_'+field+'(a4)')==3
+ assert text.count('SG2ContactActorPrefix_kind_colour_index.w(a4)')==3
+ evidence=os.getenv('SGII_RETAIL_ANALYSIS')
+ if evidence:
+  s=json.loads(Path(evidence).read_text())['sections'][0]
+  rows=[r for r in s['recovered_platform_typed_accesses'] if r.get('root_struct_name')=='SG2ContactActorPrefix']
+  assert len(rows)==15

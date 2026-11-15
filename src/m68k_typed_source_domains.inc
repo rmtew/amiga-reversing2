@@ -173,7 +173,7 @@ int m68k_analysis_render_lookup_refine_source_domains(M68kRenderLookup *lookup,
    * scalar proof and all input states; graph/index/CFG storage is reused. */
   M68kRenderTypedFlowWorkflow *flow = lookup->pending_source_flow;
   lookup->unresolved_typed_access_count = 0U;
-  if (render_lookup_analyze_amiga_typed_refs(lookup, decode, accepted_start, flow, 1) ||
+  if (render_lookup_analyze_typed_refs(lookup, decode, accepted_start, flow, 1) ||
       typed_flow_solve_call_inputs(lookup, decode, accepted_start, flow, 0) ||
       render_lookup_record_typed_app_slot_pointer_accesses(lookup, decode, accepted_start)) return -1;
   typed_flow_filter_nonapp_fallbacks(lookup, decode, flow);
