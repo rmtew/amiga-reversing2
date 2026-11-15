@@ -100,6 +100,12 @@ targets/**/*
 !targets/**/container.json
 !targets/**/source_binary.json
 !targets/**/target_metadata.json
+!targets/starglider2_retail/comparison_spec.json
+!targets/starglider2_retail/shared_program.json
+!targets/starglider2_retail/recovery_plan.json
+!targets/starglider2_retail/amiga_handoff_plan.json
+# Retail reconstruction is generated locally from private input.
+targets/starglider2_retail/*.s
 *.analysis
 
 # Disposable isolated WinUAE/GDB session state.

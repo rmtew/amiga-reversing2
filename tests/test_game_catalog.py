@@ -213,3 +213,39 @@ def test_raw_artifact_reproduction_compares_bytes_without_object_container(famil
     assert comparison['full_file_exact'] is (not changed)
     assert profile is None
     assert reproduction._include_dir_for_backend('atari-st-raw', root) == root / 'ext/atarist_includes/devpac_3_10/include'
+
+
+def alternate_origins(family,monkeypatch):
+    root,value,_,_,_=family
+    a,b,out=b'Axy',b'Bxy',b'xy'
+    ah,bh,oh=(hashlib.sha256(v).hexdigest() for v in (a,b,out))
+    for h,data in ((ah,a),(bh,b)):
+        value['artifacts'][h]=dict(size=3,role='synthetic alternative origin')
+        value['sources'][h]=dict(kind='private_media',format='bytes')
+    value['artifacts'][oh]=dict(size=2,role='shared synthetic output')
+    for name,h in [('a_origin',ah),('b_origin',bh)]:
+        plan=dict(schema_version=1,kind='mapped_cpu_recovery',source_sha256=h,memory_size=16,evidence='synthetic',inputs=[dict(id='body',offset=1,size=2)],actions=[dict(op='load',input='body',address=0),dict(op='capture',file='out.bin',address=0,size=2,sha256=oh)])
+        path=root/(name+'.json');path.write_text(json.dumps(plan))
+        value['derivations'][name]=dict(kind='mapped_cpu_recovery',input=h,recipe=path.name,recipe_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),outputs={'out.bin':oh})
+    save(root,value)
+    from amiga_reversing.disasm import mapped_recipe
+    seen=[]
+    def recovery(data,plan,**kwargs):seen.append(data);return {},{'out.bin':data[1:]}
+    monkeypatch.setattr(mapped_recipe,'recover_mapped',recovery)
+    return root,ah,bh,oh,a,b,seen
+
+
+def test_multiple_proven_origins_choose_an_available_recipe_without_losing_identity(family,monkeypatch):
+    root,ah,bh,oh,a,b,seen=alternate_origins(family,monkeypatch)
+    path=root/'b.bin';path.write_bytes(b);catalog.bind_source(root,'fixture',bh,path)
+    assert catalog.available(root,'fixture',oh)
+    assert catalog.materialize(root,'fixture',oh).read_bytes()==b'xy' and seen==[b]
+
+
+def test_corrupt_available_origin_is_not_hidden_by_another_good_recipe(family,monkeypatch):
+    root,ah,bh,oh,a,b,seen=alternate_origins(family,monkeypatch)
+    for name,h,data in [('a',ah,a),('b',bh,b)]:
+        path=root/(name+'.bin');path.write_bytes(data);catalog.bind_source(root,'fixture',h,path)
+    (root/'a.bin').write_bytes(b'BAD')
+    with pytest.raises(ValueError,match='identity mismatch'):catalog.materialize(root,'fixture',oh)
+    assert seen==[] and not (root/'.amiga_reversing/artifacts'/oh).exists()

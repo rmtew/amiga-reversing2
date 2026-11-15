@@ -16,7 +16,7 @@ DISPLAY_ROLES=('print_cursor_text','print_positioned_text','draw_message_line_co
     'probe_display_mode','noop','add_bcd_and_draw_digits','draw_coordinate_digit_pairs','draw_heading_indicator','noop','noop')
 
 
-def image(target='atari_st_starglider2_main'):
+def image(target='starglider2_retail'):
     family=load_family(ROOT,'starglider2')
     return materialize(ROOT,'starglider2',family['targets'][target]['artifact']).read_bytes()
 
@@ -73,7 +73,7 @@ def test_one_megabyte_startup_selects_st_and_installs_vectors_before_hardware(re
         cpu.run(0x3cd42,0x3cd46,1)
 
 
-def test_half_megabyte_witness_stops_before_the_unmodeled_bus_error_probe():
+def test_half_megabyte_witness_stops_before_the_unmodeled_upper_ram_probe():
     cpu,run=ram_prefix(0x80000)
     assert run['stop_pc']==0x3cd00
     assert cpu.read(8,4)==(0x3cf02).to_bytes(4,'big')
@@ -159,7 +159,7 @@ def test_shared_prng_initializer_retains_its_incoming_extend_dependency(seed_wor
 
 def test_committed_code_entries_cover_the_observed_runtime_dispatch_destinations():
     from amiga_reversing.disasm.effective_metadata import effective_target_metadata
-    metadata=effective_target_metadata(ROOT/'targets/atari_st_starglider2_main')
+    metadata=effective_target_metadata(ROOT/'targets/starglider2_retail')
     declared={(entry.addr+0x1000,entry.name) for entry in metadata.seeded_code_entrypoints}
     for mode in ['colour','monochrome']:
         cpu,_=ram_prefix()

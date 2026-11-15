@@ -52,24 +52,34 @@ class Observer(C.Structure):
 
 def assemble_stx_sectors(data: bytes, index_pairs: list[tuple[int, int]], max_size: int,
                          project_root: Path = PROJECT_ROOT) -> bytes:
-    """Use the native reader once for the whole ordered sector assembly."""
+    return _assemble_disk_sectors(data, index_pairs, max_size, project_root, 'stx')
+
+
+def assemble_ipf_sectors(data: bytes, index_pairs: list[tuple[int, int]], max_size: int,
+                         project_root: Path = PROJECT_ROOT) -> bytes:
+    return _assemble_disk_sectors(data, index_pairs, max_size, project_root, 'ipf')
+
+
+def _assemble_disk_sectors(data, index_pairs, max_size, project_root, kind):
+    """One bounded native parse for the complete ordered physical read list."""
     if (not index_pairs or len(index_pairs) > 65536 or type(max_size) is not int or
             not 0 < max_size <= 32*1024*1024 or
             any(not isinstance(pair,(tuple,list)) or len(pair) != 2 for pair in index_pairs) or
             any(type(v) is not int or not 0 <= v < 2**32 for pair in index_pairs for v in pair)):
-        raise ValueError('invalid bounded STX assembly')
+        raise ValueError('invalid bounded disk assembly')
     dll = _platform_disk_dll(project_root)
-    dll.platform_disk_extract_stx_sectors_buffer.argtypes = [C.c_void_p, C.c_size_t,
+    extract = getattr(dll, f'platform_disk_extract_{kind}_sectors_buffer')
+    extract.argtypes = [C.c_void_p, C.c_size_t,
         C.POINTER(C.c_uint32), C.c_size_t, C.c_size_t]
-    dll.platform_disk_extract_stx_sectors_buffer.restype = BufferResult
+    extract.restype = BufferResult
     source = C.create_string_buffer(data)
     pairs = (C.c_uint32*(2*len(index_pairs)))(*(v for p in index_pairs for v in p))
-    result = dll.platform_disk_extract_stx_sectors_buffer(source, len(data), pairs, len(index_pairs), max_size)
+    result = extract(source, len(data), pairs, len(index_pairs), max_size)
     try:
         if result.diagnostics.error():
             raise ValueError(result.diagnostics.error())
         if not result.data:
-            raise ValueError('native STX assembly returned no bytes')
+            raise ValueError('native disk assembly returned no bytes')
         return C.string_at(result.data, result.size)
     finally:
         dll.platform_disk_free_bytes(result.data)

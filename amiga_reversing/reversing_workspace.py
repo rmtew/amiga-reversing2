@@ -45,6 +45,10 @@ PROJECT_SOURCE_IMPORT_FACT_FILE_NAMES = frozenset(
     {
         "manifest.json",
         "target_state.json",
+        "comparison_spec.json",
+        "shared_program.json",
+        "recovery_plan.json",
+        "amiga_handoff_plan.json",
     }
 )
 OBSOLETE_UI_STATE_FILE_NAMES = frozenset(

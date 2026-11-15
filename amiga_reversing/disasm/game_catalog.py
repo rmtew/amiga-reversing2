@@ -63,7 +63,7 @@ def validate(payload, root):
         if artifact not in artifacts or not isinstance(source,dict): raise ValueError('unknown source artifact')
         if source.get('kind') == 'private_media':
             object_keys(source,'kind format')
-            if source['format'] not in ('stx','bytes'): raise ValueError('unsupported media source format')
+            if source['format'] not in ('stx','ipf','bytes'): raise ValueError('unsupported media source format')
         elif source.get('kind') == 'existing_target':
             object_keys(source,'kind target')
             identity(source['target'])
@@ -71,13 +71,13 @@ def validate(payload, root):
     producers={}
     for name,d in payload['derivations'].items():
         identity(name);object_keys(d,'kind input recipe recipe_sha256 outputs')
-        if d['kind'] not in ('stx_cpu_recovery', 'mapped_cpu_recovery') or d['input'] not in artifacts or not isinstance(d['outputs'],dict):
+        if d['kind'] not in ('stx_cpu_recovery', 'ipf_cpu_recovery', 'mapped_cpu_recovery', 'byte_projection') or d['input'] not in artifacts or not isinstance(d['outputs'],dict):
             raise ValueError('unsupported artifact derivation')
         recipe=relative(root,d['recipe'])
         if digest(recipe.read_bytes()) != sha(d['recipe_sha256']): raise ValueError('stale recovery recipe identity')
         plan=json.loads(recipe.read_text())
         expected={a['file']:a['sha256'] for a in plan['actions'] if a.get('op')=='capture'}
-        input_key = 'image_sha256' if d['kind'] == 'stx_cpu_recovery' else 'source_sha256'
+        input_key = 'image_sha256' if d['kind'] in ('stx_cpu_recovery','ipf_cpu_recovery') else 'source_sha256'
         if plan['kind'] != d['kind'] or plan[input_key] != d['input'] or expected != d['outputs']:
             raise ValueError('derivation differs from bound recovery recipe')
         for filename,artifact in d['outputs'].items():
@@ -186,16 +186,17 @@ def available(root,family_id,artifact,seen=frozenset()):
             return binary is not None and binary.path.is_file()
         except (FileNotFoundError,ValueError): return False
     inputs=[d['input'] for d in family['derivations'].values() if artifact in d['outputs'].values()]
-    return len(inputs)==1 and available(root,family_id,inputs[0],seen|{artifact})
+    return any(available(root,family_id,parent,seen|{artifact}) for parent in inputs)
 
 
 def bind_source(root,family_id,artifact,path,member=None):
     family=load_family(root,family_id)
     if artifact not in family['sources']: raise ValueError('only root sources can be bound privately')
     source=family['sources'][artifact]
-    if source.get('format')=='stx':
-        from .stx_recovery import read_stx
-        data,_=read_stx(path,member)
+    if source.get('format') in ('stx','ipf'):
+        from .stx_recovery import read_stx,read_ipf
+        reader=read_ipf if source['format']=='ipf' else read_stx
+        data,_=reader(path,member)
     else:
         if member is not None or path.stat().st_size>32*1024*1024: raise ValueError('invalid private byte source')
         data=path.read_bytes()
@@ -226,9 +227,10 @@ def materialize(root, family_id, artifact, _stack=frozenset()):
         source=private[artifact]
         object_keys(source,'path member')
         fmt=family['sources'].get(artifact,{}).get('format','bytes')
-        if fmt=='stx':
-            from .stx_recovery import read_stx
-            data,_=read_stx(Path(source['path']),source['member'])
+        if fmt in ('stx','ipf'):
+            from .stx_recovery import read_stx,read_ipf
+            reader=read_ipf if fmt=='ipf' else read_stx
+            data,_=reader(Path(source['path']),source['member'])
         else:
             if source['member'] is not None: raise ValueError('byte source cannot name an archive member')
             path=Path(source['path'])
@@ -244,12 +246,20 @@ def materialize(root, family_id, artifact, _stack=frozenset()):
         if binary is None: raise FileNotFoundError('existing target source is unavailable')
         data=checked(binary.read_bytes())
     else:
-        choices=[(d,filename) for d in family['derivations'].values() for filename,a in d['outputs'].items() if a==artifact]
-        if len(choices)!=1: raise ValueError('artifact needs an unambiguous materialization derivation')
-        d,filename=choices[0]
+        choices=[(name,d,filename) for name,d in sorted(family['derivations'].items()) for filename,a in d['outputs'].items() if a==artifact and available(root,family_id,d['input'],_stack|{artifact})]
+        if not choices: raise FileNotFoundError('no available recovery input for artifact: '+artifact)
+        # Alternative origins reproduce one content identity. Select deterministically;
+        # never hide a corrupt available origin by falling back after a failure.
+        _,d,filename=choices[0]
         parent=materialize(root,family_id,d['input'],_stack|{artifact})
         from .stx_recovery import recover
-        if d['kind'] == 'mapped_cpu_recovery':
+        if d['kind'] == 'ipf_cpu_recovery':
+            from .stx_recovery import recover_ipf
+            recover = recover_ipf
+        elif d['kind'] == 'byte_projection':
+            from .byte_projection import recover_projection
+            recover = recover_projection
+        elif d['kind'] == 'mapped_cpu_recovery':
             from .mapped_recipe import recover_mapped
             recover = recover_mapped
         _,outputs=recover(parent.read_bytes(),json.loads(relative(root,d['recipe']).read_text()),project_root=root)

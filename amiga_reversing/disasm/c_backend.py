@@ -2934,7 +2934,7 @@ def _disk_image_path_for_c_backend(path: Path) -> Iterator[Path]:
             members = [
                 member
                 for member in archive.infolist()
-                if not member.is_dir() and Path(member.filename).suffix.lower() in {".adf", ".st", ".msa", ".stx"}
+                if not member.is_dir() and Path(member.filename).suffix.lower() in {".adf", ".st", ".msa", ".stx", ".ipf"}
             ]
             if len(members) != 1:
                 raise ValueError(f"Disk archive must contain exactly one disk image: {path}")

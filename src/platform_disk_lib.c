@@ -3,6 +3,7 @@
 #include "platform_amiga_disk.h"
 #include "platform_atari_st_disk.h"
 #include "platform_atari_stx.h"
+#include "platform_ipf.h"
 #include "platform_common.h"
 #include "platform_disk_lib.h"
 #include "platform_file_lib.h"
@@ -674,8 +675,8 @@ static int extract_atari_entry_from_buffer(const unsigned char *image, size_t im
     unsigned char *data = NULL;
     size_t pos = 0;
     size_t i;
-    if (atari_stx_is_image(image, image_size)) {
-        platform_disk_add_error(diagnostics.list, "STX filesystem not analyzed; use physical sector access");
+    if (atari_stx_is_image(image, image_size) || ipf_is_image(image, image_size)) {
+        platform_disk_add_error(diagnostics.list, "physical disk filesystem not analyzed; use physical sector access");
         return -1;
     }
     if (atari_st_disk_analyze_buffer(image, image_size, &analysis, diagnostics) != 0) return -1;
@@ -1470,15 +1471,35 @@ done:
 
 static int disk_inspect(const char *platform_name, const char *path, const unsigned char *data, size_t size,
     char **out_json, M68kDiagSink diagnostics) {
-    switch (platform_disk_kind_from_name(platform_name)) {
-        case PLATFORM_DISK_KIND_AMIGA:
-            return amiga_disk_inspect(path, data, size, out_json, diagnostics);
-        case PLATFORM_DISK_KIND_ATARI_ST:
-            return atari_st_disk_inspect(path, data, size, out_json, diagnostics);
-        default:
-            platform_disk_add_error(diagnostics.list, "unknown disk platform");
-            return -1;
+    Arena *arena = NULL;
+    unsigned char *owned = NULL;
+    IpfAnalysis ipf = {0};
+    int result = -1;
+    int kind = platform_disk_kind_from_name(platform_name);
+    if (kind != PLATFORM_DISK_KIND_AMIGA && kind != PLATFORM_DISK_KIND_ATARI_ST) {
+        platform_disk_add_error(diagnostics.list, "unknown disk platform");
+        return -1;
     }
+    if (path != NULL) {
+        arena = arena_create(PLATFORM_DISK_WORKFLOW_ARENA_SIZE);
+        if (arena == NULL) { platform_disk_add_error(diagnostics.list, "out of memory"); return -1; }
+        if (read_file_to_arena(path, arena, &owned, &size, diagnostics) != 0) goto done;
+        data = owned;
+    }
+    if (ipf_is_image(data, size)) {
+        if (ipf_analyze(data, size, &ipf, diagnostics) == 0) {
+            result = ipf_inspect_json(&ipf, out_json);
+            if (result != 0) platform_disk_add_error(diagnostics.list, "failed building IPF inspect json");
+        }
+    } else if (kind == PLATFORM_DISK_KIND_AMIGA) {
+        result = amiga_disk_inspect(NULL, data, size, out_json, diagnostics);
+    } else {
+        result = atari_st_disk_inspect(NULL, data, size, out_json, diagnostics);
+    }
+done:
+    ipf_destroy(&ipf);
+    arena_destroy(arena);
+    return result;
 }
 
 PLATFORM_DISK_API PlatformDiskTextResult platform_disk_inspect_path_json(const char *platform_name, const char *path) {
@@ -1509,6 +1530,11 @@ PLATFORM_DISK_API PlatformDiskBufferResult platform_disk_extract_entry_path(cons
         return result;
     }
     if (read_file_to_arena(path, workflow_arena, &image, &image_size, m68k_diag_sink(&result.diagnostics)) != 0) {
+        arena_destroy(workflow_arena);
+        return result;
+    }
+    if (ipf_is_image(image, image_size)) {
+        platform_disk_add_error(&result.diagnostics, "IPF filesystem not analyzed; use physical block or sector access");
         arena_destroy(workflow_arena);
         return result;
     }
@@ -1626,5 +1652,44 @@ PLATFORM_DISK_API PlatformDiskBufferResult platform_disk_extract_stx_sectors_buf
     result.size = total;
 done:
     atari_stx_destroy(&a);
+    return result;
+}
+
+PLATFORM_DISK_API PlatformDiskBufferResult platform_disk_extract_ipf_sectors_buffer(
+    const unsigned char *data, size_t size, const uint32_t *index_pairs,
+    size_t pair_count, size_t max_output_size) {
+    PlatformDiskBufferResult result = {0};
+    IpfAnalysis a = {0};
+    size_t i, total = 0, pos = 0;
+    M68kDiagSink diagnostics = m68k_diag_sink(&result.diagnostics);
+    if (index_pairs == NULL || pair_count == 0 || pair_count > 65536 || max_output_size == 0) {
+        platform_disk_add_error(&result.diagnostics, "invalid IPF sector assembly request");
+        return result;
+    }
+    if (ipf_analyze(data, size, &a, diagnostics) != 0) return result;
+    for (i = 0; i < pair_count; ++i) {
+        size_t length = 0;
+        unsigned status = ipf_read_instance(&a, index_pairs[2*i], index_pairs[2*i+1], NULL, &length);
+        if (status != IPF_READ_OK) {
+            m68k_diag_addf(diagnostics, M68K_DIAG_SEVERITY_ERROR, M68K_DIAG_CODE_PLATFORM_DISK_FAILED,
+                "IPF assembly read %zu refused (result %u)", i, status);
+            goto done;
+        }
+        if (length > max_output_size - total) {
+            platform_disk_add_error(&result.diagnostics, "IPF assembly exceeds output size bound");
+            goto done;
+        }
+        total += length;
+    }
+    result.data = malloc(total ? total : 1);
+    if (result.data == NULL) { platform_disk_add_error(&result.diagnostics, "out of memory"); goto done; }
+    for (i = 0; i < pair_count; ++i) {
+        const IpfSector *sector = &a.tracks[index_pairs[2*i]].sectors[index_pairs[2*i+1]];
+        memcpy(result.data + pos, sector->data, sector->size);
+        pos += sector->size;
+    }
+    result.size = total;
+done:
+    ipf_destroy(&a);
     return result;
 }

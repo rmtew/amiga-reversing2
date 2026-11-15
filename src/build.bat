@@ -126,6 +126,7 @@ cl %CFLAGS% /c /Fo%OUTDIR%\ ^
     src\platform_atari_st.c ^
     src\platform_atari_st_disk.c ^
     src\platform_atari_stx.c ^
+    src\platform_ipf.c ^
     src\generated\amiga_os_runtime.c ^
     src\generated\atari_st_os_runtime.c ^
     src\generated\mac_os_runtime.c ^
@@ -406,6 +407,7 @@ link %LDFLAGS% /OUT:%DISK_EXE% ^
     %OUTDIR%\platform_amiga_disk.obj ^
     %OUTDIR%\platform_atari_st_disk.obj ^
     %OUTDIR%\platform_atari_stx.obj ^
+    %OUTDIR%\platform_ipf.obj ^
     %OUTDIR%\amiga_hunk_file_runtime.obj ^
     %OUTDIR%\amiga_disk_file_runtime.obj ^
     %OUTDIR%\atari_st_prg_file_runtime.obj ^
@@ -480,6 +482,7 @@ link %LDFLAGS% /DLL /OUT:%DISK_DLL% ^
     %OUTDIR%\platform_amiga_disk.obj ^
     %OUTDIR%\platform_atari_st_disk.obj ^
     %OUTDIR%\platform_atari_stx.obj ^
+    %OUTDIR%\platform_ipf.obj ^
     %OUTDIR%\amiga_hunk_file_runtime.obj ^
     %OUTDIR%\amiga_disk_file_runtime.obj ^
     %OUTDIR%\atari_st_prg_file_runtime.obj ^

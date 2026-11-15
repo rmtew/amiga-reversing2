@@ -16,6 +16,20 @@
       "media": [
         "77c633a9270f85361a30ba19175f5940155631ceb6c84b47b1efbb0bf2150ee3"
       ]
+    },
+    "retail_ipf_amiga": {
+      "platform": "amiga",
+      "edition": "Same supplied dual-format SPS 3000 image; original handoff independently observed",
+      "media": [
+        "34ad554ee97e3e7ebb9f227cfbf8d5c45251640f4c0e999175d4b56d5ed8d55f"
+      ]
+    },
+    "retail_ipf_atari_st": {
+      "platform": "atari-st",
+      "edition": "Same supplied dual-format SPS 3000 image; original handoff independently observed",
+      "media": [
+        "34ad554ee97e3e7ebb9f227cfbf8d5c45251640f4c0e999175d4b56d5ed8d55f"
+      ]
     }
   },
   "artifacts": {
@@ -62,6 +76,14 @@
     "de8358853dd9ed9b006a23569bf393aa217ed3be3301a169465d80bfaf839922": {
       "size": 3548,
       "role": "existing reviewed Amiga novella-protection analysis view"
+    },
+    "34ad554ee97e3e7ebb9f227cfbf8d5c45251640f4c0e999175d4b56d5ed8d55f": {
+      "size": 1019021,
+      "role": "Supplied SPS 3000 dual-format retail IPF"
+    },
+    "334f83ec3bdb30e36b2e5c741b7788e4a3489ee15811d11e1e52ef83bd28a938": {
+      "size": 419308,
+      "role": "Retail Amiga main payload at independently observed loader handoff"
     }
   },
   "sources": {
@@ -80,6 +102,10 @@
     "de8358853dd9ed9b006a23569bf393aa217ed3be3301a169465d80bfaf839922": {
       "kind": "existing_target",
       "target": "amiga_raw_starglider2_protection_view"
+    },
+    "34ad554ee97e3e7ebb9f227cfbf8d5c45251640f4c0e999175d4b56d5ed8d55f": {
+      "kind": "private_media",
+      "format": "ipf"
     }
   },
   "derivations": {
@@ -104,6 +130,29 @@
       "recipe_sha256": "d63530061f828f298045b99d11cfb3fc137400cad3c9640ae6657c6c50d3a1cf",
       "outputs": {
         "novella_protection_view.bin": "9be0a7243fce8c7202abb71271994f4f3ef654c15c559f9e1868c86f9c67082d"
+      }
+    },
+    "retail_ipf_loader_recovery": {
+      "kind": "ipf_cpu_recovery",
+      "input": "34ad554ee97e3e7ebb9f227cfbf8d5c45251640f4c0e999175d4b56d5ed8d55f",
+      "recipe": "targets/starglider2_retail/recovery_plan.json",
+      "recipe_sha256": "c9682bf7c03c30aef0850cd3ebad0946b4cd2fb7c7bb84b1dd50902850ee4b53",
+      "outputs": {
+        "boot_loader_known_prefix.bin": "0a1a4417a5de74def579272d4923495dc89c2081eee2a3d63b5aecca1ff8a781",
+        "initial_loader_dma_decoded.bin": "3c8c515e3a696c1bc18caf1facf694d5e9d7eab98cf66b656760f86a438e3014",
+        "main_loader_helper.bin": "7d2a7f8f3c1a842e4a65b3f6873cbb4cc425961dfef24ea96d8b1d6d46f0fde3",
+        "main_decoded.bin": "aca0db39a5657c952c5365e0201ac589cfdb53ea005c88d20a096d5891fae4ff",
+        "main_at_st_handoff.bin": "20c19400180d7e846b78aa615b68446293f8ca54015c4f4a42a77f03b24e8260",
+        "main_dma_buffer_at_handoff.bin": "4d07f199725f1d37b08a4a16432df6c7f708046444669a24fa26cfba87b600ae"
+      }
+    },
+    "retail_amiga_handoff_flags": {
+      "kind": "byte_projection",
+      "input": "aca0db39a5657c952c5365e0201ac589cfdb53ea005c88d20a096d5891fae4ff",
+      "recipe": "targets/starglider2_retail/amiga_handoff_plan.json",
+      "recipe_sha256": "1218331abf8d67a39aea4f50c8330581e015009ff7fa9193b7203c5e538a93b5",
+      "outputs": {
+        "main_at_amiga_handoff.bin": "334f83ec3bdb30e36b2e5c741b7788e4a3489ee15811d11e1e52ef83bd28a938"
       }
     }
   },
@@ -156,6 +205,42 @@
       "artifact": "de8358853dd9ed9b006a23569bf393aa217ed3be3301a169465d80bfaf839922",
       "context": {
         "kind": "existing_target"
+      }
+    },
+    "starglider2_retail": {
+      "release": "retail_ipf_atari_st",
+      "artifact": "20c19400180d7e846b78aa615b68446293f8ca54015c4f4a42a77f03b24e8260",
+      "context": {
+        "kind": "raw",
+        "address_model": "runtime_absolute",
+        "load_address": 4096,
+        "entrypoint": 4096,
+        "code_start_offset": 0,
+        "phase": "handoff"
+      }
+    },
+    "starglider2_retail_amiga": {
+      "release": "retail_ipf_amiga",
+      "artifact": "334f83ec3bdb30e36b2e5c741b7788e4a3489ee15811d11e1e52ef83bd28a938",
+      "context": {
+        "kind": "raw",
+        "address_model": "runtime_absolute",
+        "load_address": 4096,
+        "entrypoint": 4096,
+        "code_start_offset": 0,
+        "phase": "handoff"
+      }
+    },
+    "starglider2_retail_atari_st": {
+      "release": "retail_ipf_atari_st",
+      "artifact": "20c19400180d7e846b78aa615b68446293f8ca54015c4f4a42a77f03b24e8260",
+      "context": {
+        "kind": "raw",
+        "address_model": "runtime_absolute",
+        "load_address": 4096,
+        "entrypoint": 4096,
+        "code_start_offset": 0,
+        "phase": "handoff"
       }
     }
   },

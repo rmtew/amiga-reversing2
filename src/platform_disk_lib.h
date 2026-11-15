@@ -41,6 +41,10 @@ PLATFORM_DISK_API PlatformDiskBufferResult platform_disk_extract_stx_sector_path
 PLATFORM_DISK_API PlatformDiskBufferResult platform_disk_extract_stx_sectors_buffer(
     const unsigned char *data, size_t size, const uint32_t *index_pairs,
     size_t pair_count, size_t max_output_size);
+/* IPF data blocks retain physical identity; decoded bytes are not file slices. */
+PLATFORM_DISK_API PlatformDiskBufferResult platform_disk_extract_ipf_sectors_buffer(
+    const unsigned char *data, size_t size, const uint32_t *index_pairs,
+    size_t pair_count, size_t max_output_size);
 PLATFORM_DISK_API void platform_disk_free_text(char *text);
 PLATFORM_DISK_API void platform_disk_free_bytes(unsigned char *data);
 

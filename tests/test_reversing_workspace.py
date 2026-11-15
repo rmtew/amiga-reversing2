@@ -286,3 +286,17 @@ def test_history_lock_is_generated_but_preserved():
         entry = _classify_file(name)
         assert entry.file_class is TargetFileClass.GENERATED_OUTPUT
         assert entry.action is TargetFileAction.PRESERVE
+
+
+def test_hygiene_preserves_curated_comparison_spec_without_accepting_other_reports(tmp_path: Path) -> None:
+    target = _target(tmp_path)
+    spec = target / "comparison_spec.json"
+    spec.write_text('{"payloads":[],"code_ranges":[]}', encoding="utf-8")
+    report = inspect_target_hygiene("demo", project_root=tmp_path)
+    assert report.safe_to_continue
+    assert _entry(report, spec.name)["class"] == TargetFileClass.SOURCE_IMPORT_FACT
+    assert _entry(report, spec.name)["action"] == TargetFileAction.PRESERVE
+    (target / "comparison_observations.json").write_text("{}", encoding="utf-8")
+    assert inspect_target_hygiene("demo", project_root=tmp_path).unknown_files == ("comparison_observations.json",)
+    assert clean_run_target_workspace("demo", project_root=tmp_path).status == "blocked"
+    assert spec.read_text(encoding="utf-8") == '{"payloads":[],"code_ranges":[]}'
