@@ -154,7 +154,7 @@ def test_rendered_source_exposes_the_partition_and_list_lifetime_contract():
     for name in ('partition_world_actor_lists:','publish_partitioned_actor_list_cursors:',
                  'collect_unused_actor_on_free_stack:','update_partitioned_world_actors:',
                  'actor_near_distance_limits:','SG2FrameListWorkspace_nearby_object_count(a6)',
-                 'SG2PartitionActor_relative_view_x(a4)'):
+                 'SG2ModelCoordinateActor_origin_relative_x(a4)'):
         assert name in text
 
 @pytest.mark.parametrize('kind',(1,128))
