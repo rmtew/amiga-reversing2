@@ -26,8 +26,8 @@ def prepare(memory):
     memory[PENDING]=0;memory[GENERIC]=0;put(memory,ARG,0x1111,2)
 
 
-def install_motion(image,memory):
-    run(image,memory,state(memory,0x1F0E),{RETURN})
+def install_motion(image,memory,entry=0x1F0E):
+    run(image,memory,state(memory,entry),{RETURN})
 
 
 def motion_xz(memory,angles,scale):
@@ -42,7 +42,11 @@ def motion_xz(memory,angles,scale):
 @pytest.mark.parametrize('vy',[-32768,-1,0,10,32764])
 @pytest.mark.parametrize('scale',[0,19,20,21,32768,65535])
 def test_bounce_word_restitution_zero_scale_sound_and_unconditional_tail(original_image,memory,space,y,vy,scale):
-    prepare(memory);install_motion(original_image,memory)
+    check_bounce_contract(original_image,memory,space,y,vy,scale)
+
+
+def check_bounce_contract(original_image,memory,space,y,vy,scale,*,entry=0x368AE,install_entry=0x1F0E):
+    prepare(memory);install_motion(original_image,memory,install_entry)
     memory[APP+0x77D]=space;put(memory,BOMB+8,y&0xFFFFFFFF)
     put(memory,BOMB+46,vy&65535,2);put(memory,BOMB+32,scale,2)
     angles=[3,1024,65535];vx,vz=3,65531;mask=0;pending=False;hit=False
@@ -58,7 +62,7 @@ def test_bounce_word_restitution_zero_scale_sound_and_unconditional_tail(origina
     else:y&=0xFFFFFFFF
     resting=scale==0 and not n32(y-0xFFFFFFE7)
     expected_y=0xFFFFFFE7 if resting else y
-    cpu=state(memory,0x368AE);cpu.a[0]=BOMB;run(original_image,memory,cpu,{RETURN})
+    cpu=state(memory,entry);cpu.a[0]=BOMB;run(original_image,memory,cpu,{RETURN})
     assert [get(memory,BOMB+o)for o in [4,8,12]]==[(65535+signed16(vx))&65535,expected_y,signed16(vz)&65535]
     assert [get(memory,BOMB+o,2)for o in [16,18,20]]==angles
     assert [get(memory,BOMB+o,2)for o in [32,38,44,46,48]]==[scale,mask,vx,vy&65535,vz]
