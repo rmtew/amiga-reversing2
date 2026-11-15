@@ -33,7 +33,7 @@ def update(image,memory,entry=0x9694,d1_upper=0):
     run(image,memory,cpu,{CONTINUE});return cpu
 
 
-def heading(memory,x,z,tx,tz,upper0=0,upper1=0):
+def heading(memory,x,z,tx,tz,upper0=0,upper1=0,*,table_base=0x13D5C):
     x,z,tx,tz=map(signed16,[x,z,tx,tz]);q=(2 if x>=tx else 3)if z>=tz else(1 if x>=tx else 4)
     dx,dz=map(signed16,[x-tx,z-tz]);dx=signed16(-dx)if dx<0 else dx;dz=signed16(-dz)if dz<0 else dz
     def divword(upper,low,divisor):
@@ -45,11 +45,11 @@ def heading(memory,x,z,tx,tz,upper0=0,upper1=0):
     if dx>dz:
         ratio=divword(upper0,dx,dz)
         if ratio>=255:return 1024 if q==1 else 3072
-        a=get(memory,0x13D5C+2*(ratio&255),2)
+        a=get(memory,table_base+2*(ratio&255),2)
         return [a,2048-a,2048+a,4096-a][q-1]&65535
     ratio=divword(upper1,dz,dx)
     if ratio>=255:return 0 if q==1 else 2048
-    a=get(memory,0x13D5C+2*(ratio&255),2)
+    a=get(memory,table_base+2*(ratio&255),2)
     return [1024-a,1024+a,3072-a,3072+a][q-1]&65535
 
 

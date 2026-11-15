@@ -89,6 +89,10 @@ def test_duck_holds_turn_frames_and_zero_sum_skips_motion(original_image, memory
 @pytest.mark.parametrize('counter', [0,1,33,513,65535])
 @pytest.mark.parametrize('upper', [0,0x12340000])
 def test_shared_steering_or_windows_and_byte_mask_leave_counter_high_byte(original_image, memory, fields, x, z, evasion, counter, upper):
+    check_shared_steering_contract(original_image,memory,fields,x,z,evasion,counter,upper)
+
+
+def check_shared_steering_contract(original_image,memory,fields,x,z,evasion,counter,upper,*,entry=0x9500,heading_stop=0xACB0,heading_table_base=0x13D5C):
     prepare(memory, fields, 10)
     put(memory, OBJ+50, x, 2); put(memory, OBJ+54, z, 2)
     put(memory, OBJ+36, counter, 2); put(memory, OBJ+38, evasion, 2)
@@ -100,14 +104,14 @@ def test_shared_steering_or_windows_and_byte_mask_leave_counter_high_byte(origin
     quarter = left != 0 or near
     periodic = not quarter and not((counter-1)&31)
     next_counter = counter if quarter else (counter-2 if periodic else counter-1)&65535
-    cpu = state(memory, 0x9500); cpu.a[0] = OBJ; cpu.d[0] = cpu.d[1] = upper|1
-    run(original_image, memory, cpu, {0xACB0, fields['continue_primary_object_update_loop']}, limit=120)
+    cpu = state(memory, entry); cpu.a[0] = OBJ; cpu.d[0] = cpu.d[1] = upper|1
+    run(original_image, memory, cpu, {heading_stop, fields['continue_primary_object_update_loop']}, limit=120)
     assert get(memory, OBJ+4) == (old_x-1)&65535 and get(memory, OBJ+12) == (old_z-32768)&65535
     assert get(memory, OBJ+38, 2) == (left if left else 50 if near else 0)
     assert get(memory, OBJ+36, 2) == next_counter
-    assert cpu.pc == (0xACB0 if quarter or periodic else fields['continue_primary_object_update_loop'])
+    assert cpu.pc == (heading_stop if quarter or periodic else fields['continue_primary_object_update_loop'])
     if quarter or periodic:
-        base = heading(memory, x, z, 0, 0, upper, upper)
+        base = heading(memory, x, z, 0, 0, upper, upper, table_base=heading_table_base)
         delta = 1024 if quarter else ((next_counter&0xFF1F)-16)&65535
         assert cpu.d[1]&65535 == (base+delta)&65535
 
