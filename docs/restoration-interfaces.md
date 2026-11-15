@@ -552,10 +552,11 @@ Existing add/edit defaults and historical records remain supported.
 `target.data_block.layout.rename` takes an active manual `layout_id` and `name`.
 It reuses the existing sparse layout-edit action, preserving the ID, range,
 role, elements, type bindings and interpreted references. Unknown or removed
-manual IDs are refused before append. This does not rename source symbols;
-use inspected `label.rename` actions for those identities as a separate part
-of the same swath. Seeded-only layouts must first have a supported manual
-layout identity rather than relying on implicit range/default reconstruction.
+IDs are refused before append. A committed metadata owner is loaded into the
+normal edit overlay with its existing elements and bindings; unrelated owners
+stay unchanged. This requires a stable layout ID, not an inferred source range.
+Labels derived from the owner follow its name; unrelated explicit source labels
+still use inspected `label.rename` actions.
 
 `target.data_block.layout.resize` changes only an active raw section-0 owner's
 exclusive `source_end`. Supply `layout_id`, inspected `expected_source_end` and
@@ -565,6 +566,8 @@ ranges, stale endpoints, excluded fields/references, overlaps and runtime views.
 Other source formats are explicitly unsupported; no section bounds are inferred.
 Undo/redo and review use the normal append-only histories. This operation corrects
 a proved source ownership boundary; it does not establish allocation or lifetime.
+Partial projected fields retain pointer domains, owner spans and evidence links.
+An explicit change from pointer to scalar clears the previous pointer contract.
 
 Known compatibility limit: legacy MAL source-style numeric strings are not fully
 normalized by resize and can be refused (or raise `TypeError` for a string start).

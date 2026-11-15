@@ -290,6 +290,12 @@ def manual_action_log_path(target_dir: Path) -> Path:
     return target_dir / MANUAL_ACTION_LOG_FILE_NAME
 
 
+def _canonical_data_block_layouts(target_dir: Path, metadata: TargetMetadata | None = None):
+    from amiga_reversing.disasm.target_metadata import load_target_metadata
+    metadata = metadata if metadata is not None else load_target_metadata(target_dir)
+    return tuple(asdict(layout) for layout in metadata.data_block_layouts) if metadata else ()
+
+
 def append_manual_action(
     target_dir: Path,
     *,
@@ -328,16 +334,24 @@ def append_manual_actions(
         if len({action.action_id for action in parsed}) != len(parsed):
             raise ValueError("duplicate manual action id")
 
+        canonical_layouts = _canonical_data_block_layouts(target_dir)
+
         def replay():
             return _project_actions(
                 path, pinned_target_identity=identity, current_target_identity=identity,
                 binary_source=binary_source, stronger_metadata=None, assembler_profile=VASM_PROFILE,
-                actions=parsed, review_items=[],
+                actions=parsed, review_items=[], canonical_layouts=canonical_layouts,
             )
 
         projection = replay()
         initial_projection = projection
         additions = []
+        def active_layouts():
+            layouts = {str(row["layout_id"]): row for row in canonical_layouts}
+            layouts.update({str(row["layout_id"]): row for row in projection.data_block_layouts})
+            for row in projection.removed_data_block_layouts:
+                layouts.pop(str(row["layout_id"]), None)
+            return layouts
         sequence = max((action.sequence for action in parsed), default=0)
         for kind, payload in actions:
             if not isinstance(kind, ManualActionKind):
@@ -348,17 +362,18 @@ def append_manual_actions(
                 # corrections remain possible. New writes must never create one.
                 _validated_data_block_element(
                     _object(payload.get("data_block_element"), what="data_block_element"),
-                    {str(layout["layout_id"]): layout for layout in projection.data_block_layouts},
+                    active_layouts(),
                 )
             if kind is ManualActionKind.CREATE_MANUAL_DATA_BLOCK_LAYOUT:
                 requested = _object(payload.get("data_block_layout"), what="data_block_layout")
-                if any(layout["layout_id"] == requested.get("layout_id") for layout in projection.data_block_layouts):
+                active = active_layouts().values()
+                if any(layout["layout_id"] == requested.get("layout_id") for layout in active):
                     raise ValueError("an active data-block layout already uses this layout_id")
                 requested_range = tuple(requested.get(key) for key in ("hunk", "source_start", "source_end"))
                 if any(tuple(layout.get(key) for key in ("hunk", "source_start", "source_end")) == requested_range
-                       for layout in projection.data_block_layouts):
+                       for layout in active):
                     raise ValueError("an active data-block layout already covers this exact range")
-                if any(_data_block_layout_overlaps(requested, layout) for layout in projection.data_block_layouts):
+                if any(_data_block_layout_overlaps(requested, layout) for layout in active):
                     raise ValueError("an active data-block layout overlaps this source range")
             sequence += 1
             action = {
@@ -1883,6 +1898,7 @@ def _project_actions(
     assembler_profile: AssemblerProfile,
     actions: list[_ManualAction],
     review_items: list[dict[str, object]],
+    canonical_layouts: Sequence[dict[str, object]] = (),
 ) -> ManualActionLogProjection:
     undone_action_ids: set[str] = set()
     seen_action_ids: set[str] = set()
@@ -1942,6 +1958,23 @@ def _project_actions(
     review_notes: dict[str, dict[str, object]] = {}
     resolutions: dict[str, dict[str, object]] = {}
     active_action_ids: list[str] = []
+    baseline_layouts = {str(row["layout_id"]): row for row in canonical_layouts}
+    def active_layouts():
+        layouts = {**baseline_layouts, **data_block_layouts}
+        return {key: row for key, row in layouts.items() if key not in removed_data_block_layouts}
+    def hydrate_layout(layout_id):
+        if (layout_id in data_block_layouts or layout_id in removed_data_block_layouts
+                or layout_id not in baseline_layouts):
+            return
+        # Edit a committed owner through the same overlay as a journal owner.
+        # Only touched owners enter the projection; unrelated metadata stays intact.
+        layout = dict(baseline_layouts[layout_id])
+        for raw in layout.pop("elements", ()):
+            element = dict(raw)
+            element.setdefault("data_block_element_id", f"{layout_id}:{element['offset']}")
+            data_block_elements[(layout_id, element["offset"])] = element
+        data_block_layouts[layout_id] = layout
+
     inactive_action_ids: list[str] = []
     source_output_policy = None
 
@@ -1950,6 +1983,14 @@ def _project_actions(
             inactive_action_ids.append(action.action_id)
             continue
         active_action_ids.append(action.action_id)
+        if action.kind is not ManualActionKind.CREATE_MANUAL_DATA_BLOCK_LAYOUT:
+            for key in ("data_block_layout", "data_block_element", "data_block_interpreted_ref"):
+                item = action.payload.get(key)
+                if isinstance(item, dict) and isinstance(item.get("layout_id"), str):
+                    hydrate_layout(item["layout_id"])
+            for item in action.payload.get("data_block_element_renames", ()):
+                if isinstance(item, dict):
+                    hydrate_layout(item.get("layout_id"))
         if action.kind is ManualActionKind.SET_SOURCE_OUTPUT_POLICY:
             from amiga_reversing.disasm.target_metadata import (
                 SourceOutputPolicyMetadata,
@@ -2142,7 +2183,7 @@ def _project_actions(
             layout_id = _data_block_layout_key(layout)
             conflicts = [
                 existing
-                for existing_id, existing in data_block_layouts.items()
+                for existing_id, existing in active_layouts().items()
                 if existing_id != layout_id and _data_block_layout_overlaps(layout, existing)
             ]
             if conflicts and layout.get("replace_overlaps") is not True:
@@ -2150,6 +2191,8 @@ def _project_actions(
                     review_items.append(_data_block_layout_conflict_item(layout, existing))
                 continue
             if layout.get("replace_overlaps") is True:
+                for conflict in conflicts:
+                    hydrate_layout(conflict["layout_id"])
                 _replace_data_block_overlaps(
                     data_block_layouts,
                     data_block_elements,
@@ -2187,7 +2230,7 @@ def _project_actions(
             if type(size) is not int or not existing["source_start"] < end <= size:
                 raise ValueError("layout resize has invalid source bounds")
             resized = {**existing, "source_end": end}
-            for other_id, other in data_block_layouts.items():
+            for other_id, other in active_layouts().items():
                 if other_id != layout_id and _data_block_layout_overlaps(resized, other):
                     raise ValueError("layout resize overlaps another active owner")
             extent = end - existing["source_start"]
@@ -2304,6 +2347,10 @@ def _project_actions(
             ref = dict(_action_object(action, "data_block_interpreted_ref"))
             ref_id = _data_block_interpreted_ref_key(ref)
             existing = data_block_interpreted_refs.pop(ref_id, None)
+            for key, element in list(data_block_elements.items()):
+                embedded = element.get("reference_interpretation")
+                if isinstance(embedded, dict) and embedded.get("data_block_ref_id") == ref_id:
+                    data_block_elements[key] = {**element, "reference_interpretation": None}
             removed = dict(existing or ref)
             removed["cleanup_action_id"] = action.action_id
             removed_data_block_interpreted_refs[ref_id] = removed
@@ -2761,6 +2808,7 @@ def load_manual_projection(
             assembler_profile=assembler_profile,
             actions=actions,
             review_items=review_items,
+            canonical_layouts=_canonical_data_block_layouts(target_dir, stronger_metadata),
         )
     except ValueError as exc:
         return _blocked_projection(

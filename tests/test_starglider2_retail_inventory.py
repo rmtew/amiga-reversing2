@@ -216,7 +216,7 @@ def test_compiled_semantic_symbols_distinguish_d_service_from_inventory_counter(
  from pathlib import Path
  import struct,subprocess
  root=Path(__file__).resolve().parents[1];directory=root/'targets/starglider2_retail/rendered'
- names=['try_toggle_stardrive_bridge','try_toggle_stardrive','refresh_counted_model_population','recompute_counted_model_population','inventory_object_name_pointers']
+ names=['try_toggle_stardrive_bridge','try_toggle_stardrive','refresh_counted_model_population','recompute_counted_model_population','object_name_pointers']
  asm=tmp_path/'symbols.s';out=tmp_path/'symbols.bin'
  asm.write_text((directory/'retail-st.s').read_text()+'\n dc.l '+','.join(names)+'\n')
  r=subprocess.run([os.environ['SGII_RETAIL_VASM'],'-quiet','-Fbin','-m68000','-no-opt','-I'+str(directory),'-o',str(out),str(asm)],cwd=directory,capture_output=True,text=True)

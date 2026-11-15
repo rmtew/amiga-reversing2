@@ -5,7 +5,7 @@ import json
 import tempfile
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
-from dataclasses import replace
+from dataclasses import asdict, fields, replace
 from functools import lru_cache
 from pathlib import Path
 from typing import cast
@@ -488,29 +488,16 @@ def _merge_seeded_entity_projection(
     existing: SeededEntityMetadata,
     override: SeededEntityMetadata,
 ) -> SeededEntityMetadata:
-    return SeededEntityMetadata(
-        addr=override.addr,
-        hunk=override.hunk,
-        end=override.end if override.end is not None else existing.end,
-        name=override.name if override.name is not None else existing.name,
-        comment=override.comment if override.comment is not None else existing.comment,
-        type=override.type if override.type is not None else existing.type,
-        subtype=override.subtype if override.subtype is not None else existing.subtype,
-        unit=override.unit if override.unit is not None else existing.unit,
-        encoding=override.encoding if override.encoding is not None else existing.encoding,
-        seed_origin=override.seed_origin,
-        review_status=override.review_status,
-        citation=override.citation,
-        source_id=override.source_id if override.source_id is not None else existing.source_id,
-        source_path=override.source_path if override.source_path is not None else existing.source_path,
-        source_locator=override.source_locator if override.source_locator is not None else existing.source_locator,
-        struct_name=override.struct_name if override.struct_name is not None else existing.struct_name,
-        field_name=override.field_name if override.field_name is not None else existing.field_name,
-        field_type=override.field_type if override.field_type is not None else existing.field_type,
-        c_type=override.c_type if override.c_type is not None else existing.c_type,
-        pointer_struct=override.pointer_struct if override.pointer_struct is not None else existing.pointer_struct,
-        value_domain=override.value_domain if override.value_domain is not None else existing.value_domain,
-    )
+    # Partial facts must retain pointer, owner and evidence contracts too.
+    updates = {field.name: value for field in fields(SeededEntityMetadata)
+               if (value := getattr(override, field.name)) is not None}
+    if not override.parent_evidence_ids:
+        updates.pop("parent_evidence_ids", None)
+    if override.value_kind is not None and override.value_kind != existing.value_kind:
+        for name in ("pointer_struct", "pointer_address_domain", "pointer_symbol_group"):
+            updates[name] = getattr(override, name)
+    return replace(existing, **updates)
+
 
 
 def _seeded_entity_projection_key(entity: SeededEntityMetadata) -> tuple[int, int, int | None, str | None]:
@@ -2677,7 +2664,12 @@ def _apply_manual_seed_projection(
         absolute_code_labels=tuple(absolute_code_labels),
         seeded_code_entrypoints=tuple(seeded_code_entrypoints),
         entry_comments=tuple(entry_comments),
-        manual_representations=tuple(manual_representations),
+        # Committed array references may be projected again; retain each
+        # complete fact once without conflating distinct evidence or domains.
+        manual_representations=tuple({
+            json.dumps(asdict(row), sort_keys=True): row
+            for row in manual_representations
+        }.values()),
         target_equates=tuple(merged_target_equates.values()),
         manual_runtime_address_refs=tuple(merged_manual_runtime_address_refs.values()),
         manual_data_references=tuple({
