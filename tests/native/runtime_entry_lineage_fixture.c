@@ -47,6 +47,10 @@ static void check_case(int mode,const char *dir) {
     policy.runtime_entry_points[0].runtime_address=0x110U;
     policy.runtime_range_count=2;policy.runtime_ranges[1]=policy.runtime_ranges[0];
     policy.runtime_ranges[1].offset=8;policy.runtime_ranges[1].size=56;}
+  if(mode==11) {
+    policy.runtime_range_count=2;policy.runtime_ranges[1]=policy.runtime_ranges[0];
+    policy.runtime_ranges[1].runtime_address=0x200U;
+  }
   if(mode==6) {
     M68kRuntimeAddressRange maps[2]={{0}};M68kRuntimeAddressSpace space={0};uint32_t offset;
     maps[0].section_index=maps[1].section_index=0U;maps[0].kind=maps[1].kind=M68K_FACT_RUNTIME_RANGE_KIND_POLICY;
@@ -66,7 +70,7 @@ static void check_case(int mode,const char *dir) {
   assert(code_at(&analysis,16));
   if(mode==0)assert(code_at(&analysis,18));
   if(mode==8)assert(code_at(&analysis,24)&&code_at(&analysis,26)&&code_at(&analysis,28)&&code_at(&analysis,34));
-  else assert(code_at(&analysis,32)==(mode!=0&&mode!=6&&mode!=10));
+  else assert(code_at(&analysis,32)==(mode!=6&&mode!=10&&mode!=11));
   if(mode==6)assert(!code_at(&analysis,16));
   {unsigned char *rebuilt=NULL;size_t n=0;char *p=NULL,*error=NULL;
     assert(platform_file_assemble_source_text_bytes_profile_alloc("amiga-raw","",source,"68000",
@@ -79,7 +83,24 @@ static void check_case(int mode,const char *dir) {
   m68k_facts_v2_free_text(source);m68k_ir_source_analysis_destroy(&analysis);
   m68k_analysis_policy_destroy(&policy);m68k_object_destroy(&object);
 }
+static void check_source_binding_refusals(void) {
+  M68kRuntimeAddressRange ranges[2]={{0}};
+  M68kRuntimeAddressSpace space={0};uint32_t offset=0;
+  space.ranges=ranges;space.count=1;
+  ranges[0].kind=M68K_FACT_RUNTIME_RANGE_KIND_POLICY;ranges[0].runtime_address=0x100;
+  ranges[0].size=64;
+  assert(source_control_binding(&space,0,16,0x120,&offset)==NULL&&offset==32);
+  assert(strcmp(source_control_binding(&space,0,64,0x120,&offset),"no policy view covers both endpoints")==0);
+  ranges[1]=ranges[0];space.count=2;
+  assert(source_control_binding(&space,0,16,0x120,&offset)==NULL); /* duplicate evidence */
+  ranges[1].source_offset=8;
+  assert(strcmp(source_control_binding(&space,0,16,0x120,&offset),"ambiguous policy binding")==0);
+  ranges[1]=ranges[0];ranges[1].kind=M68K_FACT_RUNTIME_RANGE_KIND_DISCOVERED_COPY;
+  ranges[1].runtime_address=0x200;
+  assert(strcmp(source_control_binding(&space,0,16,0x120,&offset),"competing address view")==0);
+}
 int main(int argc,char **argv) {
-  for(int mode=0;mode<11;mode++)check_case(mode,argc>1?argv[1]:NULL);
+  check_source_binding_refusals();
+  for(int mode=0;mode<12;mode++)check_case(mode,argc>1?argv[1]:NULL);
   puts("entry lineage fixtures passed");return 0;
 }

@@ -8805,6 +8805,99 @@ static int reject_or_demote_unsafe_candidate(M68kFactIR *facts, const M68kFactsV
   return 1;
 }
 
+/* A source-only root is not a runtime entry. It can nevertheless bind a direct
+ * absolute edge when one policy view covers both endpoints and every known
+ * view agrees. Do not use the smallest-range runtime heuristic for this proof.
+ * Discovered aliases of either endpoint make the unphased binding ambiguous. */
+static const char *source_control_binding(const M68kRuntimeAddressSpace *space,
+    size_t section_index, uint32_t source_offset, uint32_t address, uint32_t *out_offset) {
+  size_t i;
+  uint32_t bias = 0U, target = 0U;
+  int found = 0;
+  for (i = 0U; i < space->count; ++i) {
+    const M68kRuntimeAddressRange *r = &space->ranges[i];
+    uint32_t delta;
+    if (r->section_index != section_index || r->kind != M68K_FACT_RUNTIME_RANGE_KIND_POLICY ||
+        source_offset < r->source_offset || source_offset - r->source_offset >= r->size ||
+        address < r->runtime_address || (delta = address - r->runtime_address) >= r->size) continue;
+    if (found && (bias != r->runtime_address - r->source_offset || target != r->source_offset + delta))
+      return "ambiguous policy binding";
+    bias = r->runtime_address - r->source_offset;
+    target = r->source_offset + delta;
+    found = 1;
+  }
+  if (!found) return "no policy view covers both endpoints";
+  for (i = 0U; i < space->count; ++i) {
+    const M68kRuntimeAddressRange *r = &space->ranges[i];
+    if (r->section_index != section_index) continue;
+    if ((source_offset >= r->source_offset && source_offset - r->source_offset < r->size &&
+         bias != r->runtime_address - r->source_offset) ||
+        (target >= r->source_offset && target - r->source_offset < r->size &&
+         bias != r->runtime_address - r->source_offset) ||
+        (address >= r->runtime_address && address - r->runtime_address < r->size &&
+         target != r->source_offset + (address - r->runtime_address)))
+      return "competing address view";
+  }
+  *out_offset = target;
+  return NULL;
+}
+
+/* This weaker discovery path requires a complete valid linear prefix ending
+ * at a transfer or existing code. A decodable first word in opaque/transformed
+ * storage is insufficient. Ordinary acceptance still performs its own guards. */
+static const char *source_control_prefix(M68kDecodeIR *decode, const M68kAnalysisPolicy *policy,
+    uint8_t **accepted_start, uint8_t **accepted_bytes, size_t section_index,
+    uint32_t offset, uint8_t max_cpu) {
+  const M68kDecodeSectionIR *section = &decode->sections[section_index];
+  unsigned int steps;
+  for (steps = 0U; steps < 64U; ++steps) {
+    const M68kDecodeCandidate *candidate = NULL;
+    uint32_t conflict = 0U;
+    if (offset >= section->size || (offset & 1U)) return "unaligned or outside source";
+    if (accepted_offset_is_interior(section, accepted_start[section_index], accepted_bytes[section_index], offset))
+      return "instruction interior";
+    if (accepted_start[section_index][offset]) return NULL;
+    if (m68k_decode_ir_ensure_candidate_at(decode, section_index, offset, max_cpu, &candidate,
+        m68k_diag_sink(NULL)) != 0 || candidate == NULL) return "undecodable prefix";
+    if (policy_structured_data_overlaps_range(policy, section_index, offset, candidate->byte_count, &conflict))
+      return "structured data ownership";
+    if (candidate_has_invalid_code_target(section, candidate, &conflict)) return "invalid prefix control target";
+    if (candidate_has_reserved_full_extension(candidate) || !candidate_reencodes_exactly(section, candidate))
+      return "unsafe prefix encoding";
+    if (candidate_overlaps_accepted_bytes(accepted_bytes[section_index], candidate, section->size))
+      return "instruction overlap";
+    if (!candidate_has_normal_fallthrough(candidate)) return NULL;
+    offset += candidate->byte_count;
+  }
+  return "prefix proof budget exhausted";
+}
+
+static int enqueue_source_bound_absolute_control_target(M68kDecodeIR *decode, const M68kAnalysisPolicy *policy,
+    const M68kRuntimeAddressSpace *space, M68kFactIR *facts, M68kFactsV2WorkQueue *queue,
+    uint8_t **accepted_start, uint8_t **accepted_bytes, M68kFactsV2Profile *profile,
+    size_t section_index, const M68kDecodeCandidate *candidate, const M68kFactsV2TraceState *state,
+    uint8_t max_cpu, M68kDiagSink diagnostics) {
+  uint32_t address = 0U, offset = 0U;
+  M68kFactsV2TraceState source_state;
+  const char *refusal;
+  if (!runtime_unphased_absolute_control(space, section_index, state) ||
+      !candidate_absolute_control_address(candidate, &address)) return 0;
+  refusal = source_control_binding(space, section_index, candidate->offset, address, &offset);
+  if (refusal == NULL) refusal = source_control_prefix(decode, policy, accepted_start, accepted_bytes,
+    section_index, offset, max_cpu);
+  if (refusal != NULL) {
+    m68k_diag_addf(diagnostics, M68K_DIAG_SEVERITY_INFO, M68K_DIAG_CODE_NONE,
+      "source control %u:%08X -> %08X refused: %s", (unsigned)section_index,
+      (unsigned)candidate->offset, (unsigned)address, refusal);
+    return 0;
+  }
+  /* Binding is code identity, not runtime reachability or register evidence. */
+  trace_state_init_unknown(&source_state);
+  return enqueue_same_section_control_resolved_target(decode, facts, queue, accepted_start, accepted_bytes,
+    profile, max_cpu, section_index, candidate, offset, 0U, 0U, M68K_FACT_CONFIDENCE_TOOL_INFERRED,
+    M68K_CODE_ORIGIN_EVIDENCE_DIRECT_CONTROL_TARGET, &source_state);
+}
+
 static int validate_reachable_candidate_for_acceptance(const M68kAnalysisPolicy *policy, M68kFactIR *facts,
     const M68kFactsV2WorkItem *item, const M68kDecodeSectionIR *section,
     const M68kDecodeCandidate *candidate, uint8_t **accepted_start, uint8_t **accepted_bytes,
@@ -10466,6 +10559,9 @@ static int run_reachable_fixed_point(const M68kObject *object, M68kDecodeIR *dec
         profile, max_cpu, item.section_index, candidate) != 0) return -1;
     if (enqueue_runtime_alias_absolute_control_target(decode, facts, queue, accepted_start, accepted_bytes,
         profile, max_cpu, item.section_index, candidate, runtime_addresses, &next_trace_state) != 0) return -1;
+    if (enqueue_source_bound_absolute_control_target(decode, policy, runtime_addresses, facts, queue,
+        accepted_start, accepted_bytes, profile, item.section_index, candidate, &item.trace_state,
+        max_cpu, diagnostics) != 0) return -1;
     if (enqueue_traced_indirect_control_target(decode, facts, queue, accepted_start, accepted_bytes,
         profile, max_cpu, item.section_index, candidate, runtime_addresses, &item.trace_state) != 0) return -1;
     if (enqueue_traced_copied_entry_control_target(decode, facts, queue, accepted_start, accepted_bytes,

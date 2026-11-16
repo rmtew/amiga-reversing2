@@ -30,7 +30,7 @@ def test_entry_lineage_refusal_and_exact_bytes(tmp_path):
     vasm = ROOT / "ext/vasm/vasmm68k_mot"
     if not vasm.exists():
         pytest.skip("vasm required for independent exact rebuild")
-    for explicit in (0, 1, 2, 3, 4, 5, 7, 8, 10):
+    for explicit in (0, 1, 2, 3, 4, 5, 7, 8, 10, 11):
         output = tmp_path / f"rebuilt-{explicit}.bin"
         assembled = subprocess.run(
             [str(vasm), "-quiet", "-Fbin", "-m68000", "-no-opt", "-o", str(output),

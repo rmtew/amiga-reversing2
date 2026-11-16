@@ -12,15 +12,32 @@ import re
 import tempfile
 from tools.build_starglider2_retail_pair import ROOT,EXPECTED,load_shared_program,shared_source,build_packaged
 
+def require_saved_annotations(target):
+    """Retain action history while refusing dependencies absent from the snapshot."""
+    pending=target/'manual_actions.jsonl'
+    if not pending.exists() or not pending.read_text().strip():
+        return
+    from amiga_reversing.disasm.target_metadata import load_target_metadata,target_metadata_json_payload
+    from amiga_reversing.disasm.effective_metadata import effective_target_metadata
+    saved=load_target_metadata(target)
+    effective=effective_target_metadata(target)
+    def canonical(metadata):
+        payload=target_metadata_json_payload(metadata)
+        # MAL projection sorts these independent declarations even when no
+        # entity changed. Compare complete records, retaining multiplicity.
+        payload['seeded_entities']=sorted(payload['seeded_entities'],key=lambda row:json.dumps(row,sort_keys=True))
+        return payload
+    if saved is None or effective is None or canonical(saved)!=canonical(effective):
+        raise ValueError('save checked annotations to target_metadata.json before regenerating committed source')
+
+
 def generate_package(root=ROOT):
     from amiga_reversing.disasm.binary_source import resolve_target_binary_source
     from amiga_reversing.disasm.effective_metadata import effective_metadata_file
     from amiga_reversing.disasm.c_backend import CListingArtifact,_source_file_for_c_backend,_platform_include_dir_for_listing
     from amiga_reversing.disasm.source_package import build_source_package,collect_package_includes,extend_source_package
     target=root/'targets/starglider2_retail'
-    pending=target/'manual_actions.jsonl'
-    if pending.exists() and pending.read_text().strip():
-        raise ValueError('save checked annotations to target_metadata.json before regenerating committed source')
+    require_saved_annotations(target)
     load_shared_program(root)
     source=resolve_target_binary_source(target,root)
     with effective_metadata_file(target) as metadata:
