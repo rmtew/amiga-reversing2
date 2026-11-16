@@ -5,8 +5,10 @@
 `target.code_label.add` accepts `scope: "local"`, a `.name` spelling, and
 `owner_offset` in the same source section as `hunk`/`addr`. The owner is an
 explicit earlier source coordinate with one named global. The annotation keeps
-that owner identity; projection emits vasm-compatible `owner\\.name` definitions
-and references. Different globals may reuse `.name`. Qualified references are
+that owner identity; projection keeps canonical `owner\.name` identities.
+The renderer emits `.name` definitions and references while that owner is the
+actual lexical global, retaining explicit qualification across intervening globals
+and source scopes. Comments/quoted data are preserved. Different globals may reuse `.name`. Qualified references are
 safe across intervening globals and routines; a lexical `.name` in native input
 belongs to the preceding global and cannot silently bind an earlier scope.
 

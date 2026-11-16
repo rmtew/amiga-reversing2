@@ -112,10 +112,60 @@ static void render_text_line(M68kRenderIRPreview *preview, char kind, size_t sec
     preview->text_hash = hash_step(preview->text_hash, (unsigned char)line[index]);
 }
 
+static void note_asm_label_scope(M68kRenderIRPreview *preview, const char *name) {
+  if (name != NULL && name[0] != '.' && strchr(name, '\\') == NULL)
+    snprintf(preview->asm_lexical_scope, sizeof(preview->asm_lexical_scope), "%s", name);
+}
+
+/* Shorten canonical names only under the actual emitted global scope. This
+ * changes display text, never symbol/address identity or reference evidence.
+ * Explicit qualified definitions do not open a new scope in either assembler.
+ * Preserve quoted data, filenames and comments, including split text spans. */
+static void render_asm_scoped_tokens(M68kRenderIRPreview *preview, const char *text, char *out) {
+  size_t input = 0U, used = 0U;
+  while (text[input] != '\0') {
+    char ch = text[input];
+    if (ch == '\n') {
+      preview->asm_lexical_comment = 0U;
+      preview->asm_lexical_quote = '\0';
+    } else if (!preview->asm_lexical_comment) {
+      if (preview->asm_lexical_quote) {
+        if (ch == preview->asm_lexical_quote) preview->asm_lexical_quote = '\0';
+      } else if (ch == ';') preview->asm_lexical_comment = 1U;
+      else if (ch == '"' || ch == '\'') preview->asm_lexical_quote = ch;
+      else if (ascii_char_is_symbol_local(ch, 1)) {
+        size_t end = input, separator = SIZE_MAX;
+        while (ascii_char_is_symbol_local(text[end], 0) || text[end] == '\\' || text[end] == '$') {
+          if (text[end] == '\\') separator = end;
+          ++end;
+        }
+        if (separator != SIZE_MAX && text[separator + 1U] == '.' &&
+            separator - input == strlen(preview->asm_lexical_scope) &&
+            strncmp(text + input, preview->asm_lexical_scope, separator - input) == 0) {
+          size_t size = end - separator - 1U;
+          memcpy(out + used, text + separator + 1U, size);
+          used += size; input = end; continue;
+        }
+        memcpy(out + used, text + input, end - input);
+        used += end - input; input = end; continue;
+      }
+    }
+    out[used++] = ch; ++input;
+  }
+  out[used] = '\0';
+}
+
 static void hash_asm_text(M68kRenderIRPreview *preview, const char *text) {
   size_t index;
   size_t length;
+  char local_text[1024];
+  char *rendered_text;
   if (preview == NULL || text == NULL) return;
+  length = strlen(text);
+  rendered_text = length < sizeof(local_text) ? local_text : (char *)malloc(length + 1U);
+  if (rendered_text == NULL) { preview->asm_source_allocation_failed = 1U; return; }
+  render_asm_scoped_tokens(preview, text, rendered_text);
+  text = rendered_text;
   length = strlen(text);
   if (preview->collect_asm_source_text) {
     if (length > (size_t)UINT32_MAX - (size_t)preview->asm_source_bytes) {
@@ -133,6 +183,7 @@ static void hash_asm_text(M68kRenderIRPreview *preview, const char *text) {
     preview->asm_source_allocation_failed = 1U;
   }
   preview->asm_source_bytes += (uint32_t)length;
+  if (rendered_text != local_text) free(rendered_text);
 }
 
 static int flush_transient_asm_source_row(M68kRenderIRPreview *preview) {
@@ -1443,6 +1494,7 @@ static int render_planned_runtime_alias_labels(M68kRenderIRPreview *preview, siz
         runtime_alias->source_offset != offset) continue;
     render_asm_runtime_org(preview, runtime_alias->runtime_address);
     snprintf(line, sizeof(line), "%s:\n", runtime_alias->name);
+    note_asm_label_scope(preview, runtime_alias->name);
     if (preview->asm_source_row_builder.active)
       m68k_render_plan_row_builder_mark_current_line_label(&preview->asm_source_row_builder, offset, 1U,
         runtime_alias->runtime_address);
@@ -1493,6 +1545,7 @@ static void render_asm_label(M68kRenderIRPreview *preview, const M68kRenderLooku
       *io_logical_pc = offset;
     }
     snprintf(line, sizeof(line), "%s:\n", storage_name);
+    note_asm_label_scope(preview, storage_name);
     if (preview->asm_source_row_builder.active)
       m68k_render_plan_row_builder_mark_current_line_label(&preview->asm_source_row_builder, offset, 1U,
         runtime_address);
@@ -1511,6 +1564,7 @@ static void render_asm_label(M68kRenderIRPreview *preview, const M68kRenderLooku
     if (io_logical_pc != NULL) *io_logical_pc = runtime_address;
   }
   snprintf(name, sizeof(name), "%s", planned_label->name);
+  note_asm_label_scope(preview, name);
   if (preview->asm_source_row_builder.active)
     m68k_render_plan_row_builder_mark_current_line_label(&preview->asm_source_row_builder, offset,
       has_runtime_address ? 1U : 0U, runtime_address);
@@ -2109,6 +2163,9 @@ static void render_asm_section_header(M68kRenderIRPreview *preview, const M68kDe
   const char *name;
   uint32_t allocation_size;
   if (preview == NULL || decode == NULL || section_index >= decode->section_count) return;
+  preview->asm_lexical_scope[0] = '\0';
+  preview->asm_lexical_quote = '\0';
+  preview->asm_lexical_comment = 0U;
   section = &decode->sections[section_index];
   name = rendered_section_name(decode, section_index, name_buffer, sizeof(name_buffer));
   if (!m68k_format_section_spec(section->kind, section->platform_mem_type, section->platform_mem_attrs,

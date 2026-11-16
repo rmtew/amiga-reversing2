@@ -34,6 +34,10 @@ struct M68kRenderIRPreview {
   uint64_t asm_source_hash;
   uint32_t asm_source_bytes;
   uint32_t asm_source_lines;
+  /* Output spelling only; planned symbols retain canonical owner\\.name IDs. */
+  char asm_lexical_scope[64];
+  char asm_lexical_quote;
+  uint8_t asm_lexical_comment;
   uint32_t asm_source_plan_rows;
   uint32_t asm_source_plan_lines;
   uint32_t asm_source_plan_bytes;

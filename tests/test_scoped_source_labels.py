@@ -63,7 +63,9 @@ def test_actions_project_locals_and_generated_qualified_definitions_roundtrip(tm
         artifact=c_backend.build_listing_artifact_profile_from_binary_source(source,metadata_path=path)[2]
     try:
         text=artifact.inline_source_text_with_profile()[0]
-        assert 'first\\.done:' in text and 'second\\.done:' in text
+        assert 'first\\.done:' in text  # Runtime alias at the entry changes lexical scope.
+        assert '\n.done:' in text and 'second\\.done:' not in text
+        assert 'first\\.done' in text  # Cross-scope reference stays explicit.
         assemble_both(tmp_path,text,raw)
     finally:artifact.close()
     # Save the projected snapshot, retain history, then rename both a local
@@ -79,7 +81,8 @@ def test_actions_project_locals_and_generated_qualified_definitions_roundtrip(tm
         artifact=c_backend.build_listing_artifact_profile_from_binary_source(source,metadata_path=path)[2]
     try:
         text=artifact.inline_source_text_with_profile()[0]
-        assert 'renamed_first\\.finish:' in text and 'second\\.done:' in text
+        assert 'renamed_first\\.finish:' in text and '\n.done:' in text
+        assert 'renamed_first\\.finish' in text  # Cross-scope reference stays explicit.
         assemble_both(tmp_path,text,raw)
     finally:artifact.close()
     write_target_metadata(tmp_path, renamed)
@@ -154,3 +157,28 @@ def test_row_rename_uses_source_binding_and_preserves_explicit_local_scope():
     with pytest.raises(ValueError):_row_label_payload(row,{'symbol':'first\\.done'},dict(name='unqualified_global'))
     ui=_label_validation_metadata({'symbol':'first\\.done'})
     assert ui['current_scope']=='local' and ui['current_name']=='.done'
+
+
+@pytest.mark.parametrize('continuation',[False,True])
+def test_rendering_uses_actual_lexical_scope_and_retains_canonical_references(tmp_path,continuation):
+    from tests.test_app_cursor_propagation import cursor_artifact
+    raw_asm='first:\n bra.b .done\n nop\n.done:\n rts\nsecond:\n bra.b .done\n nop\n.done:\n rts\nthird:\n bra.w first\\.done\n'
+    labels=[dict(hunk=0,addr=at,name=name)for at,name in [(0,'first'),(4,'first\\.done'),(6,'second'),(10,'second\\.done'),(12,'third')]]
+    if continuation:labels.append(dict(hunk=0,addr=8,name='middle_continuation'))
+    artifact,raw=cursor_artifact(tmp_path,raw_asm,regions=False,metadata_extra=dict(
+        seeded_code_labels=labels,
+        entry_comments=[dict(hunk=0,addr=6,comment='Keep literal second\\.done in this comment')],
+        seeded_code_entrypoints=[dict(hunk=0,addr=at,name=name)for at,name in [(6,'second'),(12,'third')]]))
+    try:
+        text=artifact.inline_source_text_with_profile()[0]
+        assert 'first\\.done:' in text  # Explicit runtime entry alias intervenes.
+        assert 'bra.b .done' in text
+        assert 'Keep literal second\\.done in this comment' in text
+        if continuation:assert 'second\\.done:'in text
+        else:assert '\n.done:'in text and 'second\\.done:'not in text
+        assert 'bra.w first\\.done'in text
+        names={r['symbol_name']for r in artifact.analysis_payload()[0]['sections'][0]['rendered_symbol_accesses']}
+        assert 'first\\.done'in names and 'second\\.done'in names
+        assert '.done'not in names
+        assemble_both(tmp_path,text,raw)
+    finally:artifact.close()
