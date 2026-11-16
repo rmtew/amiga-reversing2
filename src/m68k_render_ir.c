@@ -5277,6 +5277,16 @@ static const M68kPlatformAddressUseIR *source_analysis_platform_address_use_for_
   return NULL;
 }
 
+static int structured_scalar_unit_label(const M68kAnalysisStructuredDataItem *item, uint32_t probe) {
+  uint32_t width;
+  if (item == NULL || item->field_name[0] || item->is_pointer || item->has_target ||
+      item->table_kind_id != M68K_ANALYSIS_TABLE_KIND_UNKNOWN ||
+      structured_data_item_is_pointer_table(item) || probe < item->offset) return 0;
+  width = item->kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS ? 4U :
+    item->kind == M68K_ANALYSIS_STRUCTURED_DATA_WORDS ? 2U : 0U;
+  return width != 0U && (probe - item->offset) % width == 0U;
+}
+
 static int structured_data_item_is_render_candidate(const M68kRenderLookup *lookup,
     const M68kDecodeSectionIR *section, const uint8_t *accepted_bytes, uint32_t render_extent,
     uint32_t offset, const M68kAnalysisStructuredDataItem *item, const M68kRenderPlan *plan) {
@@ -5302,7 +5312,8 @@ static int structured_data_item_is_render_candidate(const M68kRenderLookup *look
       int internal_palette_label = structured_data_item_is_palette(item) &&
         ((probe - item->offset) % 2U) == 0U;
       int internal_scalar_label = !item->field_name[0] &&
-        structured_scalar_equate_group(lookup->policy, item) != NULL;
+        (structured_scalar_equate_group(lookup->policy, item) != NULL ||
+         structured_scalar_unit_label(item, probe));
       if (!internal_copper_label && !internal_palette_label && !internal_scalar_label) return 0;
     }
   }
@@ -9050,7 +9061,8 @@ static int lookup_structured_item_probe_has_blocking_boundary(const M68kRenderLo
       structured_data_item_is_palette(structured_item) &&
       ((probe - structured_item->offset) % 2U) == 0U;
     int internal_scalar_label = !structured_item->field_name[0] &&
-      structured_scalar_equate_group(lookup->policy, structured_item) != NULL;
+      (structured_scalar_equate_group(lookup->policy, structured_item) != NULL ||
+       structured_scalar_unit_label(structured_item, probe));
     return !internal_copper_label && !internal_palette_label && !internal_scalar_label;
   }
   return 0;

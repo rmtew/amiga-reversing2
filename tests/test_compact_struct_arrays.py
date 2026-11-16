@@ -282,7 +282,10 @@ def test_native_interior_cursor_and_named_boundary_survive_grouping(tmp_path, co
         artifact.close()
     if anchor:
         assert 'selected_cell_word:' in text
-    assert 'lea.l cells+10(pc),a0' in text
+    # The typed walker can now retain an aligned authored declaration, so
+    # its explicit name is also the canonical instruction reference.
+    target = 'selected_cell_word' if anchor else 'cells+10'
+    assert 'lea.l '+target+'(pc),a0' in text
     assert 'cells_word_3_1:' not in text
     rebuilt, _ = c_backend.assemble_platform_source_text_with_c_backend('amiga-raw', text)
     assert rebuilt == original
@@ -325,3 +328,30 @@ def test_field_specific_or_nonuniform_presentations_keep_the_leaf_path(tmp_path,
             review_status=TargetMetadataReviewStatus.SEEDED, citation='authored alias'))
     assert _data_block_compact_struct_array_entity(
         layout, element, {'Cell': struct}, representations, equates) is None
+
+
+@pytest.mark.c_backend
+@pytest.mark.parametrize('width', [2, 4])
+@pytest.mark.parametrize('aligned', [False, True])
+def test_compact_scalar_array_labels_preserve_only_complete_numeric_units(tmp_path, width, aligned):
+    source, original, _ = fixture(tmp_path, width=width, count=3,
+        selected=32+4*width if aligned else 42,
+        row_pointers=aligned, row_anchor=aligned, anchor=not aligned)
+    with effective_metadata_file(tmp_path) as metadata:
+        artifact = c_backend.build_listing_artifact_profile_from_binary_source(source,
+            metadata_path=metadata)[2]
+        try:
+            text = artifact.inline_source_text_with_profile()[0]
+        finally:
+            artifact.close()
+    block = text.split('cells:', 1)[1].split('row_pointers:', 1)[0]
+    if aligned or width == 2:
+        suffix = 'l' if width == 4 else 'w'
+        assert 'dc.'+suffix in block
+        assert 'dc.b' not in block
+    else:
+        # Offset42 is inside a LONG from source32. Do not erase the label or
+        # pretend that the two fragments are complete LONG values.
+        assert 'dc.b' in block
+    assert ('interior_anchor:' if aligned else 'selected_cell_word:') in text
+    assert_package_bytes(tmp_path, text, original)
