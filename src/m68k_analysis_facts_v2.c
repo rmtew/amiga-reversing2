@@ -12,6 +12,7 @@
 #include "m68k_simulator.h"
 #include "m68k_source_quality.h"
 #include "platform_common.h"
+#include "generated/atari_st_vector_runtime.h"
 #include "generated/amiga_os_runtime.h"
 #include "generated/m68k_cpu_runtime.h"
 #include "util_arena.h"
@@ -471,6 +472,9 @@ typedef struct M68kFactsV2CallbackFieldTargets {
 typedef struct M68kFactsV2TraceState {
   /* Entry lineage only: not a guarantee that copied memory remains intact. */
   uint8_t established_entry_lineage;
+  /* Controller configuration is scalar memory state, never handler registers. */
+  uint8_t vector_selection_known;
+  uint8_t vector_selection;
   M68kFactsV2TraceValue d[8];
   M68kFactsV2TraceValue a[8];
   uint32_t d_low16_known;
@@ -899,6 +903,8 @@ static int trace_value_equal(const M68kFactsV2TraceValue *lhs, const M68kFactsV2
 static int trace_state_equal(const M68kFactsV2TraceState *lhs, const M68kFactsV2TraceState *rhs) {
   size_t index;
   if (lhs == NULL || rhs == NULL) return lhs == rhs;
+  if (lhs->vector_selection_known != rhs->vector_selection_known ||
+      (lhs->vector_selection_known && lhs->vector_selection != rhs->vector_selection)) return 0;
   for (index = 0U; index < 8U; ++index) {
     if (!trace_value_equal(&lhs->d[index], &rhs->d[index]) ||
         !trace_value_equal(&lhs->a[index], &rhs->a[index])) {
@@ -4304,6 +4310,26 @@ static void trace_state_apply_known_effects(size_t section_index, const M68kDeco
   if (candidate == NULL || state == NULL) return;
   if (m68k_decode_candidate_to_instruction(candidate, &instruction) == 0)
     metadata = m68k_sim_metadata_for_instruction(&instruction);
+  if (metadata != NULL) {
+    size_t i;
+    for (i = 0U; i < candidate->operand_count; ++i) {
+      uint32_t address, scalar = 0U;
+      uint8_t source_reg;
+      int known = 0;
+      if (metadata->operand_access_kinds[i] != M68K_SIM_ACCESS_MEMORY_WRITE ||
+          !m68k_asm_operand_absolute_value(candidate->operand_kinds[i], &candidate->operands[i], &address) ||
+          address != ATARI_ST_MFP_VECTOR_REGISTER_ADDRESS) continue;
+      if (candidate->mnemonic_id == M68K_ASM_MNEMONIC_MOVE && candidate->size_suffix == 'b' && i == 1U) {
+        known = operand_immediate_value(candidate->operand_kinds[0], &candidate->operands[0], &scalar);
+        if (!known && operand_is_data_register_direct(&candidate->operands[0], &source_reg) &&
+            state->d[source_reg].kind == M68K_FACTS_V2_TRACE_CONSTANT) {
+          known = 1; scalar = state->d[source_reg].value;
+        }
+      }
+      state->vector_selection_known = known ? 1U : 0U;
+      state->vector_selection = known ? (uint8_t)scalar : 0U;
+    }
+  }
   if (metadata != NULL && metadata->operation_type == M68K_SIM_OP_PUSH_EA &&
       metadata->source_operand_index < candidate->operand_count) {
     M68kFactsV2TraceValue pushed_value;
@@ -5894,8 +5920,12 @@ static int candidate_is_long_data_register_postincrement_store(const M68kDecodeC
   return 1;
 }
 
+/* Shared strict address identity proof, also used by established JMPs. */
+static const char *source_control_binding(const M68kRuntimeAddressSpace *space,
+    size_t section_index, uint32_t source_offset, uint32_t address, uint32_t *out_offset);
+
 static int candidate_stores_immediate_to_interrupt_vector(const M68kDecodeCandidate *candidate,
-    uint8_t platform_kind, uint32_t *out_target_address) {
+    uint8_t platform_kind, const M68kFactsV2TraceState *trace_state, uint32_t *out_target_address) {
   uint32_t vector_address = 0U;
   uint32_t target_address = 0U;
   if (candidate == NULL || candidate->mnemonic_id != M68K_ASM_MNEMONIC_MOVE ||
@@ -5903,7 +5933,8 @@ static int candidate_stores_immediate_to_interrupt_vector(const M68kDecodeCandid
     return 0;
   if (!operand_immediate_value(candidate->operand_kinds[0], &candidate->operands[0], &target_address)) return 0;
   if (!m68k_asm_operand_absolute_value(candidate->operand_kinds[1], &candidate->operands[1], &vector_address)) return 0;
-  if (!platform_facts_v2_is_callback_vector_slot(platform_kind, vector_address)) return 0;
+  if (!platform_facts_v2_is_callback_vector_slot_with_selection(platform_kind, vector_address,
+      trace_state != NULL ? trace_state->vector_selection_known : 0U, trace_state != NULL ? trace_state->vector_selection : 0U)) return 0;
   *out_target_address = target_address;
   return 1;
 }
@@ -5928,9 +5959,18 @@ static int candidate_stores_trace_to_callback_vector(size_t section_index, const
     uint32_t vector_address = 0U;
     if (m68k_asm_operand_absolute_value(store_candidate->operand_kinds[1], &store_candidate->operands[1],
         &vector_address)) {
-      int is_vector = platform_facts_v2_is_callback_vector_slot(platform_kind, vector_address);
-      int has_source = trace_value_from_candidate_source(section_index, section, store_candidate, 0U, trace_state,
-        &source_value);
+      int is_vector = platform_facts_v2_is_callback_vector_slot_with_selection(platform_kind, vector_address,
+      trace_state != NULL ? trace_state->vector_selection_known : 0U, trace_state != NULL ? trace_state->vector_selection : 0U);
+      uint8_t reg;
+      int direct = operand_is_data_register_direct(&store_candidate->operands[0], &reg) ||
+        operand_is_address_register_direct(&store_candidate->operands[0], &reg);
+      uint32_t source_address;
+      int proven_memory = (operand_is_stack_postincrement(&store_candidate->operands[0]) &&
+          trace_state_find_stack_slot_const(trace_state, 0U) != NULL) ||
+        (m68k_asm_operand_absolute_value(store_candidate->operand_kinds[0], &store_candidate->operands[0],
+          &source_address) && trace_state_find_absolute_slot_const(trace_state, source_address) != NULL);
+      int has_source = (direct || proven_memory) && trace_value_from_candidate_source(section_index, section,
+        store_candidate, 0U, trace_state, &source_value);
       if (is_vector && has_source && trace_value_is_same_section_control_address(&source_value, section_index)) {
         *out_target_value = source_value;
         return 1;
@@ -5942,7 +5982,8 @@ static int candidate_stores_trace_to_callback_vector(size_t section_index, const
       trace_state->a[address_reg].kind != M68K_FACTS_V2_TRACE_RUNTIME_ADDRESS) {
     return 0;
   }
-  if (!platform_facts_v2_is_callback_vector_slot(platform_kind, trace_state->a[address_reg].value)) return 0;
+  if (!platform_facts_v2_is_callback_vector_slot_with_selection(platform_kind, trace_state->a[address_reg].value,
+      trace_state->vector_selection_known, trace_state->vector_selection)) return 0;
   *out_target_value = trace_state->d[data_reg];
   return 1;
 }
@@ -5974,7 +6015,8 @@ static int enqueue_same_section_control_resolved_target_from_offset(M68kDecodeIR
     return -1;
   if (m68k_fact_ir_append_label_request(facts, section_index, target_offset, confidence) != 0)
     return -1;
-  if (accepted_start[section_index][target_offset] && trace_state == NULL && !target_has_runtime_address) return 0;
+  if (accepted_start[section_index][target_offset] && trace_state == NULL && !target_has_runtime_address &&
+      evidence_kind != M68K_CODE_ORIGIN_EVIDENCE_VECTOR_STORE_CONTROL_TARGET) return 0;
   {
     uint32_t reason = code_start_reason != 0U ? code_start_reason : M68K_FACT_CODE_START_REASON_CONTROL_TARGET;
     uint32_t resolved_evidence_kind = evidence_kind;
@@ -6171,31 +6213,48 @@ static int enqueue_interrupt_vector_store_target(M68kDecodeIR *decode, M68kFactI
     M68kFactsV2Profile *profile, uint8_t max_cpu, uint8_t platform_kind, size_t section_index,
     const M68kDecodeCandidate *candidate, const M68kRuntimeAddressSpace *runtime_addresses,
     const M68kFactsV2TraceState *trace_state) {
-  const M68kDecodeSectionIR *section;
   uint32_t target_address = 0U;
   M68kFactsV2TraceValue target_value;
   if (decode == NULL || facts == NULL || queue == NULL || accepted_start == NULL || accepted_bytes == NULL ||
       profile == NULL || candidate == NULL || section_index >= decode->section_count)
     return 0;
-  section = &decode->sections[section_index];
   /* Installation identifies a future asynchronous entry, not a call with the
    * installer's registers. Resolve the stored address from the current trace,
    * but start handler analysis with unknown incoming register values. */
-  if (candidate_stores_immediate_to_interrupt_vector(candidate, platform_kind, &target_address)) {
-    return enqueue_same_section_control_target(decode, facts, queue, accepted_start, accepted_bytes,
-      profile, max_cpu, section_index, candidate, target_address, M68K_FACT_CONFIDENCE_REQUIRED,
-      runtime_addresses, M68K_CODE_ORIGIN_EVIDENCE_VECTOR_STORE_CONTROL_TARGET, NULL);
+  if (candidate_stores_immediate_to_interrupt_vector(candidate, platform_kind, trace_state, &target_address)) {
+    trace_value_set_unknown(&target_value);
+    target_value.kind = M68K_FACTS_V2_TRACE_RUNTIME_ADDRESS;
+    target_value.value = target_address;
+  } else if (!candidate_stores_trace_to_callback_vector(section_index, &decode->sections[section_index],
+      candidate, platform_kind, trace_state, &target_value)) {
+    return 0;
   }
-  if (candidate_stores_trace_to_callback_vector(section_index, section, candidate, platform_kind, trace_state,
-      &target_value)) {
-    if (append_trace_origin_runtime_control_ref(decode, facts, accepted_start, accepted_bytes, max_cpu,
-        section_index, &target_value, runtime_addresses, M68K_FACT_CONFIDENCE_TOOL_INFERRED) != 0)
-      return -1;
-    return enqueue_same_section_control_trace_target(decode, facts, queue, accepted_start, accepted_bytes,
-      profile, max_cpu, section_index, candidate, &target_value, M68K_FACT_CONFIDENCE_TOOL_INFERRED,
-      runtime_addresses, M68K_CODE_ORIGIN_EVIDENCE_VECTOR_STORE_CONTROL_TARGET, NULL);
+  if ((target_value.kind == M68K_FACTS_V2_TRACE_RUNTIME_ADDRESS ||
+       target_value.kind == M68K_FACTS_V2_TRACE_CONSTANT) &&
+      runtime_unphased_absolute_control(runtime_addresses, section_index, NULL)) {
+    uint32_t bound_offset;
+    if (source_control_binding(runtime_addresses, section_index, candidate->offset,
+        target_value.value, &bound_offset) != NULL) return 0;
   }
-  return 0;
+  if (target_value.has_origin && append_trace_origin_runtime_control_ref(decode, facts, accepted_start,
+      accepted_bytes, max_cpu, section_index, &target_value, runtime_addresses,
+      M68K_FACT_CONFIDENCE_TOOL_INFERRED) != 0) return -1;
+  if (target_value.kind == M68K_FACTS_V2_TRACE_RUNTIME_ADDRESS ||
+      target_value.kind == M68K_FACTS_V2_TRACE_CONSTANT) {
+    uint32_t target_offset;
+    if (!runtime_unphased_absolute_control(runtime_addresses, section_index, NULL))
+      return enqueue_same_section_control_target(decode, facts, queue, accepted_start, accepted_bytes,
+        profile, max_cpu, section_index, candidate, target_value.value, M68K_FACT_CONFIDENCE_TOOL_INFERRED,
+        runtime_addresses, M68K_CODE_ORIGIN_EVIDENCE_VECTOR_STORE_CONTROL_TARGET, NULL);
+    if (source_control_binding(runtime_addresses, section_index, candidate->offset,
+        target_value.value, &target_offset) != NULL) return 0;
+    return enqueue_same_section_control_resolved_target(decode, facts, queue, accepted_start, accepted_bytes,
+      profile, max_cpu, section_index, candidate, target_offset, 1U, target_value.value,
+      M68K_FACT_CONFIDENCE_TOOL_INFERRED, M68K_CODE_ORIGIN_EVIDENCE_VECTOR_STORE_CONTROL_TARGET, NULL);
+  }
+  return enqueue_same_section_control_trace_target(decode, facts, queue, accepted_start, accepted_bytes,
+    profile, max_cpu, section_index, candidate, &target_value, M68K_FACT_CONFIDENCE_TOOL_INFERRED,
+    runtime_addresses, M68K_CODE_ORIGIN_EVIDENCE_VECTOR_STORE_CONTROL_TARGET, NULL);
 }
 
 static int facts_runtime_ref_targets_range_start(const M68kDecodeIR *decode, const M68kFactIR *facts,

@@ -5283,6 +5283,11 @@ static int source_analysis_to_json_impl(const M68kSourceAnalysisIR *source_analy
       if (ref->has_runtime_address) {
         if (json_builder_appendf(&builder, "%u", (unsigned)ref->runtime_address) != 0) goto oom;
       } else if (json_builder_append(&builder, "null") != 0) goto oom;
+      if (ref->evidence_kind == M68K_CODE_ORIGIN_EVIDENCE_VECTOR_STORE_CONTROL_TARGET &&
+          json_builder_append(&builder, ",\"entry_kind\":\"asynchronous_vector\","
+            "\"execution_proven\":false,\"installer_state_propagated\":false,"
+            "\"activation_condition\":\"selected vector slot, retained installation and delivered interrupt\"") != 0)
+        goto oom;
       if (json_builder_appendf(&builder, ",\"size\":%u}", (unsigned)ref->size) != 0)
         goto oom;
     }

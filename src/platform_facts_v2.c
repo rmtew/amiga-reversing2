@@ -7,6 +7,7 @@
 #include "generated/m68k_cpu_runtime.h"
 #include "generated/amiga_os_runtime.h"
 #include "generated/atari_st_os_runtime.h"
+#include "generated/atari_st_vector_runtime.h"
 #include "generated/mac_os_runtime.h"
 
 #include <stdio.h>
@@ -1256,11 +1257,18 @@ int platform_facts_v2_resolve_stack_cleanup_call(uint8_t platform_kind,
   }
 }
 
+int platform_facts_v2_is_callback_vector_slot_with_selection(uint8_t platform_kind, uint32_t address,
+    uint8_t has_selection, uint8_t selection) {
+  /* CPU exception slots are independent of the controller. MFP slots require
+   * ST ownership and a selected base. Unknown selection retains the cited ST
+   * system layout as an explicit activation condition, never current state. */
+  return cpu_is_callback_vector_slot(address) ||
+    (platform_kind == M68K_PLATFORM_BACKEND_ATARI_ST &&
+     atari_st_mfp_vector_slot(address, has_selection ? selection : ATARI_ST_MFP_DEFAULT_VECTOR_BASE));
+}
+
 int platform_facts_v2_is_callback_vector_slot(uint8_t platform_kind, uint32_t address) {
-  /* These slots belong to the CPU, not to the host platform. Reset SSP/PC,
-   * reserved addresses and misaligned stores stay excluded by generated kinds. */
-  (void)platform_kind;
-  return cpu_is_callback_vector_slot(address);
+  return platform_facts_v2_is_callback_vector_slot_with_selection(platform_kind, address, 0U, 0U);
 }
 
 static const AmigaOsHardwareRegisterInfo *platform_facts_v2_amiga_runtime_address_sink_register(

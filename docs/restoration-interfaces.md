@@ -1316,3 +1316,12 @@ coverage remain unknown. `numeric_code_address_store_candidate` records are
 unadmitted diagnostics with no established control condition; consumers must not
 turn them into edges or code ownership. The current recognizer requires already
 accepted code at both control endpoints and unambiguous policy bindings.
+
+Native `vector_store_control_target` entry references are conditional asynchronous
+roots, with `entry_kind`, `execution_proven`, `installer_state_propagated` and
+`activation_condition` fields. They must not supplement synchronous reachability.
+ST MFP slot metadata lives in `knowledge/atari_st_vector_controller.json` and its
+generated runtime helper. Known direct byte MOVE writes select VR's table base;
+unknown selection retains the documented ST layout as a condition. Installer
+register/controller trace state does not cross asynchronous entry. Unmodelled
+configuration and nondefault handler context remain explicit provenance gaps.

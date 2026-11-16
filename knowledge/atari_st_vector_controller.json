@@ -1,0 +1,35 @@
+{
+  "schema": "platform-vector-controller/v1",
+  "platform": "atari-st",
+  "controller": "MC68901",
+  "vector_register_address": 4294965783,
+  "vector_register_base_mask": 240,
+  "default_vector_base": 64,
+  "channel_count": 16,
+  "vector_slot_size": 4,
+  "cpu_vector_base": 0,
+  "condition": "ST system vector layout; active MFP VR upper nibble must equal the selected base. Installation is conditional asynchronous entry evidence, not execution.",
+  "citations": [
+    {
+      "path": "ext/docs_atari_st/AnatomyOfTheAtariSt.md",
+      "page": 41,
+      "fact": "VR upper four bits form the vector number upper four bits; channel priority supplies lower four."
+    },
+    {
+      "path": "ext/docs_atari_st/The_Concise_Atari_ST_68K_Prog_Ref_Guide.md",
+      "page": 44,
+      "fact": "MFP vector register offset $17 at $FFFA00."
+    },
+    {
+      "path": "ext/docs_atari_st/The_Concise_Atari_ST_68K_Prog_Ref_Guide.md",
+      "page": 231,
+      "fact": "ST system MFP table $100-$13C, keyboard/MIDI $118, Timer A $134."
+    },
+    {
+      "path": "knowledge/m68k_instructions.json",
+      "fact": "CPU vector assignment reserves the lower vector space; the controller adapter conservatively admits user vectors starting at 64, with ST default 64.",
+      "citation": "M68K PRM Rev 1 Appendix B vector assignment"
+    }
+  ],
+  "minimum_vector_base": 64
+}
