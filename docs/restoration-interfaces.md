@@ -1333,3 +1333,13 @@ Canonical scoped counts use native symbol-origin identity/address pairs; absent
 origins produce an unknown count. The existing CLI accepts `--analysis-json` to
 reuse a native snapshot without rebuilding a listing, hashes that input, and
 leaves unverified snapshot provenance explicit.
+
+`python -m amiga_reversing.tools.progress_scorecard` reports deterministic progress
+from `--analysis-json` and a hash-bound `--provenance` receipt without building a
+listing. Optional `--metadata`, `--package-manifest` and repeated reviewed
+`--workspace-root` selectors enable their evidence domains. The report records
+counting policy, source/analyzer/package identity, roots, denominators and explicit
+unavailable causes. `--detail` adds native-backed inventories; `--compare` plus
+`--format delta` emits concise changed primary measures for relevant commit bodies.
+It adds no mandatory analysis or full verification gate. Package coverage alone
+does not assert inline eligibility, and text ownership does not assert raw emission.
