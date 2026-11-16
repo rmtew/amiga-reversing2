@@ -477,6 +477,7 @@ def test_manual_action_log_projects_label_rename_and_scope_change(tmp_path: Path
             "hunk": 0,
             "addr": 4,
             "owner_id": "owner",
+            "previous_names": ["start"],
         },
     )
 

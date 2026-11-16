@@ -7339,6 +7339,9 @@ static int policy_add_named_label_domain_local(M68kAnalysisPolicy *policy, uint3
     if (existing->has_section_index && existing->section_index == section_index && existing->offset == offset &&
         existing->domain == domain)
       return 1;
+    /* Qualified locals have a complete owner identity. Never silently suffix
+     * the same scoped spelling onto another address. */
+    if (strchr(name, '\\') != NULL) return 0;
   }
   for (suffix = 2U; suffix < 1000U; ++suffix) {
     int collision = 0;

@@ -659,7 +659,9 @@ def listing_element_action_catalog(
                 {},
                 {
                     "type": "object",
-                    "properties": {"name": {"type": "string"}},
+                    "properties": {"name": {"type": "string"},
+                                   "scope": {"type": "string", "enum": ["global", "local"]},
+                                   "owner_offset": {"type": "integer", "minimum": 0}},
                     "required": ["name"],
                 },
                 "F2",
@@ -5119,8 +5121,17 @@ def _row_label_payload(
         "hunk": hunk,
         "addr": addr,
     }
+    scope = params.get('scope', 'local' if '\\.' in symbol_text else 'global')
+    if scope == 'local':
+        source_hunk = _int_field(row, 'section_index', default=0)
+        source_addr = _int_field(row, 'start_offset', fallback='addr')
+        local = _target_code_label_payload(dict(hunk=source_hunk, addr=source_addr, name=name,
+                                               scope='local', owner_offset=params.get('owner_offset')))
+        label.update(local)
+    elif scope != 'global' or name.strip().startswith('.'):
+        raise ValueError('local row rename requires local scope and explicit source owner_offset')
     end = _optional_int(row.get("end_offset"))
-    if end is not None and end > addr:
+    if end is not None and end > label['addr']:
         label["end"] = end
     if isinstance(element_context, Mapping):
         if isinstance(symbol, str) and symbol:
@@ -6167,6 +6178,8 @@ def _target_code_label_action() -> dict[str, object]:
                 "hunk": {"type": "integer", "minimum": 0},
                 "addr": {"type": "integer", "minimum": 0},
                 "name": {"type": "string"},
+                "scope": {"type": "string", "enum": ["global", "local"]},
+                "owner_offset": {"type": "integer", "minimum": 0},
             },
             "required": ["hunk", "addr", "name"],
         },
@@ -6319,7 +6332,7 @@ def _target_code_label_payload(params: Mapping[str, object]) -> dict[str, object
     name = params.get("name")
     if hunk is None or addr is None or not isinstance(name, str) or not name.strip():
         raise ValueError("target.code_label.add requires hunk, addr, and name")
-    return {
+    payload = {
         "label_id": f"catalog-code-label-h{hunk}-{addr:08X}",
         "name": name.strip(),
         "scope": "global",
@@ -6327,6 +6340,18 @@ def _target_code_label_payload(params: Mapping[str, object]) -> dict[str, object
         "hunk": hunk,
         "addr": addr,
     }
+
+    scope = params.get('scope', 'global')
+    if scope not in {'global', 'local'}:
+        raise ValueError('code label scope must be global or local')
+    if scope == 'local':
+        owner = params.get('owner_offset')
+        if type(owner) is not int or not 0 <= owner < addr or not re.fullmatch(r'\.[A-Za-z_][A-Za-z0-9_]*', name.strip()):
+            raise ValueError('local code label requires .name and earlier source owner_offset')
+        payload.update(scope='local', owner_offset=owner, owner_id=f's{hunk}:{owner:08X}:label')
+    elif name.strip().startswith('.'):
+        raise ValueError('.name requires local scope and explicit owner_offset')
+    return payload
 
 
 def _struct_pointer_array_length(params: Mapping[str, object]) -> int | None:
@@ -6921,8 +6946,8 @@ def _label_validation_metadata(context: Mapping[str, object]) -> dict[str, objec
         "active_profile": "vasm",
         "local_labels_supported": True,
         "allowed_scopes": ["global", "local"],
-        "current_scope": "global",
-        "current_name": symbol,
+        "current_scope": "local" if '\\.' in symbol else "global",
+        "current_name": symbol.split('\\', 1)[-1],
         "name_pattern": r"^[A-Za-z_.$][A-Za-z0-9_.$]*$",
         "messages": {
             "invalid_syntax": "Invalid label syntax",

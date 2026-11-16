@@ -299,8 +299,13 @@ int m68k_text_uses_short_branch_suffix(const char *text) {
 
 int m68k_is_symbol_name(const char *text) {
   size_t index;
+  int qualified = 0;
   if (text == NULL || !(isalpha((unsigned char)text[0]) || text[0] == '_')) return 0;
   for (index = 1; text[index] != '\0'; ++index) {
+    if (!qualified && text[index] == '\\' && text[index + 1U] == '.' &&
+        (isalpha((unsigned char)text[index + 2U]) || text[index + 2U] == '_')) {
+      qualified = 1; ++index; continue;
+    }
     if (!(isalnum((unsigned char)text[index]) || text[index] == '_')) return 0;
   }
   return 1;
@@ -315,11 +320,11 @@ void m68k_normalize_register_alias_tokens_in_place(char *text) {
       char token[64];
       size_t token_len = 0;
       const char *canonical = NULL;
-      while ((isalnum((unsigned char)text[src]) || text[src] == '_') && token_len + 1U < sizeof(token)) {
+      while ((isalnum((unsigned char)text[src]) || (text[src] == '_' || text[src] == '\\' || (text[src] == '.' && memchr(token, '\\', token_len) != NULL))) && text[src] && token_len + 1U < sizeof(token)) {
         token[token_len++] = text[src++];
       }
       token[token_len] = '\0';
-      canonical = m68k_asm_resolve_register_alias(token);
+      canonical = strchr(token, '\\') ? NULL : m68k_asm_resolve_register_alias(token);
       if (canonical == NULL) canonical = token;
       while (*canonical != '\0' && dst + 1U < sizeof(buffer)) buffer[dst++] = *canonical++;
       continue;

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import tempfile
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
@@ -176,7 +177,8 @@ def _manual_seed_source_locator(seed: dict[str, object]) -> str:
 
 def _manual_label_source_locator(label: dict[str, object]) -> str:
     label_id = _manual_seed_text(label, "label_id") or "unnamed"
-    return f"ManualLabel:{label_id}"
+    owner = label.get('owner_id') or label.get('owner_label_id')
+    return f"ManualLabel:{label_id}" + (f";scope_owner={owner}" if owner else "")
 
 
 def _manual_comment_source_locator(comment: dict[str, object]) -> str:
@@ -251,10 +253,73 @@ def _manual_seed_to_data_entity(seed: dict[str, object]) -> SeededEntityMetadata
     )
 
 
-def _manual_label_to_code_label(label: dict[str, object]) -> SeededCodeLabelMetadata | None:
+def _scoped_manual_label_name(label, metadata, labels):
+    """Bind local spelling to an explicit source owner, never register/text scope."""
+    name = _manual_seed_text(label, 'name')
+    hunk = _manual_seed_int(label, 'hunk') or 0
+    addr = _manual_seed_int(label, 'addr')
+    owner = _manual_seed_int(label, 'owner_offset')
+    owner_id = label.get('owner_id') or label.get('owner_label_id')
+    if owner is None:
+        match = re.fullmatch(r's(\d+):([0-9A-Fa-f]{8}):label', str(owner_id))
+        if match and int(match[1]) == hunk:
+            owner = int(match[2], 16)
+        else:
+            record = next((r for r in labels if r.get('label_id') == owner_id), None)
+            if (record and record.get('scope') is not ManualLabelScope.LOCAL and
+                    record.get('address_domain', 'source') != 'runtime' and
+                    (_manual_seed_int(record, 'hunk') or 0) == hunk):
+                owner = _manual_seed_int(record, 'addr')
+    if not name or not re.fullmatch(r'\.[A-Za-z_][A-Za-z0-9_]*', name):
+        raise ValueError('source-local label requires .name spelling')
+    if owner is None or addr is None or not 0 <= owner < addr:
+        raise ValueError('source-local label requires an earlier explicit source owner in the same section')
+    for other in labels:
+        if other is label or other.get('scope') is not ManualLabelScope.LOCAL:
+            continue
+        other_owner = _manual_seed_int(other, 'owner_offset')
+        other_id = other.get('owner_id') or other.get('owner_label_id')
+        if other_owner is None:
+            match = re.fullmatch(r's(\d+):([0-9A-Fa-f]{8}):label', str(other_id))
+            if match and int(match[1]) == hunk:
+                other_owner = int(match[2], 16)
+            else:
+                record = next((r for r in labels if r.get('label_id') == other_id), None)
+                if (record and record.get('scope') is not ManualLabelScope.LOCAL and
+                        record.get('address_domain', 'source') != 'runtime' and
+                        (_manual_seed_int(record, 'hunk') or 0) == hunk):
+                    other_owner = _manual_seed_int(record, 'addr')
+        if (other_owner == owner and other.get('name') == name and
+                (_manual_seed_int(other, 'hunk') or 0) == hunk and _manual_seed_int(other, 'addr') != addr):
+            raise ValueError('duplicate local name under the same owner')
+    names = set()
+    if metadata is not None:
+        for item in (*metadata.seeded_code_labels, *metadata.seeded_code_entrypoints):
+            if item.hunk == hunk and item.addr == owner and '\\' not in item.name:
+                names.add(item.name)
+        runtime = {view.base_addr + owner - view.source_start for view in metadata.execution_views
+                   if view.source_start <= owner < view.source_end}
+        if hunk == 0 and len(runtime) == 1:
+            names.update(item.name for item in metadata.absolute_code_labels if item.addr in runtime and '\\' not in item.name)
+    # The latest authored source-global declaration replaces the owner's old name.
+    authored = [r for r in labels if r.get('scope') is not ManualLabelScope.LOCAL
+                and r.get('address_domain', 'source') != 'runtime'
+                and (_manual_seed_int(r, 'hunk') or 0) == hunk and _manual_seed_int(r, 'addr') == owner]
+    if authored:
+        names = {str(authored[-1]['name'])}
+    if len(names) != 1:
+        raise ValueError('source-local label requires a unique named global owner')
+    owner_name = names.pop()
+    if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', owner_name):
+        raise ValueError('source-local owner must be a global symbol')
+    qualified = owner_name + '\\' + name
+    if len(qualified.encode('utf-8')) >= 64:
+        raise ValueError('qualified local name exceeds the native symbol limit')
+    return qualified
+
+
+def _manual_label_to_code_label(label: dict[str, object], metadata=None, labels=()) -> SeededCodeLabelMetadata | None:
     if _manual_seed_text(label, "address_domain") == "runtime":
-        return None
-    if label.get("scope") is ManualLabelScope.LOCAL:
         return None
     parsed_range = _parse_manual_seed_range(label)
     if parsed_range is None:
@@ -263,6 +328,10 @@ def _manual_label_to_code_label(label: dict[str, object]) -> SeededCodeLabelMeta
     name = _manual_seed_text(label, "name")
     if name is None:
         return None
+    if label.get("scope") is ManualLabelScope.LOCAL:
+        name = _scoped_manual_label_name(label, metadata, labels)
+    elif name.startswith('.'):
+        raise ValueError('.name requires explicit local scope and a source owner')
     return SeededCodeLabelMetadata(
         addr=addr,
         hunk=hunk,
@@ -283,6 +352,27 @@ def _append_manual_label_declaration(declarations, declaration, label):
     but place the renamed declaration first so native lookup sees the new name.
     No runtime/source address arithmetic or cross-section matching is implied.
     """
+    previous_owners = label.get('previous_owner_ids', [])
+    if previous_owners:
+        replaced = [i for i, item in enumerate(declarations)
+                    if getattr(item, 'hunk', None) == getattr(declaration, 'hunk', None)
+                    and item.addr == declaration.addr
+                    and any((getattr(item, 'source_locator', '') or '').endswith(f';scope_owner={owner}')
+                            for owner in previous_owners)]
+        if replaced:
+            declarations[:] = [item for i, item in enumerate(declarations) if i not in replaced]
+            declarations.insert(replaced[0], declaration)
+            return
+    if label.get('scope') is ManualLabelScope.LOCAL:
+        owner = label.get('owner_id') or label.get('owner_label_id')
+        marker = f';scope_owner={owner}'
+        for index, item in enumerate(declarations):
+            if (getattr(item, 'hunk', None) == getattr(declaration, 'hunk', None)
+                    and item.addr == declaration.addr and (getattr(item, 'source_locator', '') or '').endswith(marker)):
+                # A scope is bound to its source owner coordinate. A later
+                # spelling/owner rename replaces the saved qualified spelling.
+                declarations[index] = declaration
+                return
     previous = set(label.get("previous_names", []))
     if isinstance(label.get("previous_name"), str):
         previous.add(label["previous_name"])
@@ -305,6 +395,8 @@ def _append_manual_label_declaration(declarations, declaration, label):
 def _manual_label_to_absolute_code_label(label: dict[str, object]) -> AbsoluteCodeLabelMetadata | None:
     if _manual_seed_text(label, "address_domain") != "runtime":
         return None
+    if label.get('scope') is ManualLabelScope.LOCAL:
+        raise ValueError('runtime-local labels require an explicit source-domain binding')
     addr = _manual_seed_int(label, "addr")
     name = _manual_seed_text(label, "name")
     if addr is None or name is None:
@@ -2371,7 +2463,7 @@ def _apply_manual_seed_projection(
             if entity is not None:
                 seeded_entities.append(entity)
     for label in labels:
-        code_label = _manual_label_to_code_label(label)
+        code_label = _manual_label_to_code_label(label, metadata, labels)
         if code_label is not None:
             _append_manual_label_declaration(seeded_code_labels, code_label, label)
         absolute_label = _manual_label_to_absolute_code_label(label)

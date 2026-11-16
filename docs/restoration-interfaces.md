@@ -1,5 +1,33 @@
 # Restoration interfaces
 
+## Scoped source labels
+
+`target.code_label.add` accepts `scope: "local"`, a `.name` spelling, and
+`owner_offset` in the same source section as `hunk`/`addr`. The owner is an
+explicit earlier source coordinate with one named global. The annotation keeps
+that owner identity; projection emits vasm-compatible `owner\\.name` definitions
+and references. Different globals may reuse `.name`. Qualified references are
+safe across intervening globals and routines; a lexical `.name` in native input
+belongs to the preceding global and cannot silently bind an earlier scope.
+
+For example, a local at source offset 18 under the global at zero uses:
+
+```json
+{"hunk": 0, "addr": 18, "name": ".next", "scope": "local", "owner_offset": 0}
+```
+
+The existing `label.rename` row command accepts the same `scope`/`owner_offset`
+parameters. Local row renames retain source coordinates even when the selected
+row displays a runtime address. Changing spelling or promoting a local to a
+global preserves its source address; use an atomic rename/scope-change batch
+when both must change together. Saved local spellings are replaced rather than
+left as stale aliases. Qualified symbol names must fit the native 63-byte name
+limit. Invalid owners/duplicates refuse before the log append. Runtime-local
+annotations require explicit source binding; no numeric domain fallback occurs.
+Cross-routine public targets should remain global even though explicit qualified
+references are supported. Macro-local isolation and `$`-suffix local syntax are
+outside this implementation.
+
 ## Custom prefix inheritance
 
 Native custom-structure metadata retains `base_struct` and `base_offset`.

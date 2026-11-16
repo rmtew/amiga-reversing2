@@ -1761,6 +1761,11 @@ def _rename_manual_label(labels: dict[str, dict[str, object]], action: _ManualAc
     if label is None:
         return
     updated = dict(label)
+    previous = list(updated.get("previous_names", []))
+    if label.get("name") != name and label.get("name") not in previous:
+        previous.append(label["name"])
+    if previous:
+        updated["previous_names"] = previous
     updated["name"] = name
     labels[label_id] = updated
 
@@ -1775,6 +1780,14 @@ def _change_manual_label_scope(labels: dict[str, dict[str, object]], action: _Ma
     if label is None:
         return
     updated = dict(label)
+    old_owner = label.get("owner_id") or label.get("owner_label_id")
+    new_owner = (action.payload.get("owner_id") or action.payload.get("owner_label_id")) if scope is ManualLabelScope.LOCAL else None
+    if old_owner and old_owner != new_owner:
+        owners = list(updated.get("previous_owner_ids", []))
+        if old_owner not in owners:
+            owners.append(old_owner)
+        updated["previous_owner_ids"] = owners
+    updated.pop("owner_offset", None)
     updated["scope"] = scope
     if scope is ManualLabelScope.GLOBAL:
         updated.pop("owner_id", None)

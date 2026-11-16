@@ -12,6 +12,7 @@
 #include "util_arena.h"
 
 #include <stdarg.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #ifdef _WIN32
@@ -502,12 +503,67 @@ static int parse_symbolic_instruction_for_cpu_ceiling(const M68kSymbolicParseCon
 }
 
 
+/* Normalize lexical .name references to vasm's explicit owner\\.name identity.
+ * Qualified definitions do not change the current global scope. Quoted data,
+ * mnemonics and width suffixes are not symbol tokens. */
+static int source_qualify_local_symbols(char *line, size_t capacity, char *scope, size_t scope_capacity) {
+  char output[M68K_SOURCE_PARSE_LINE_CAPACITY];
+  char label[M68K_SOURCE_MAX_LABEL_NAME];
+  char *start = m68k_trim_in_place(line), *colon = m68k_find_label_delimiter(start);
+  size_t input = 0U, used = 0U;
+  char quote = 0;
+  if (colon != NULL) {
+    size_t size = (size_t)(colon - start);
+    while (size && isspace((unsigned char)start[size - 1U])) --size;
+    if (size >= sizeof(label)) return 0;
+    memcpy(label, start, size); label[size] = '\0';
+    if (label[0] != '.' && strchr(label, '\\') == NULL && m68k_is_symbol_name(label)) {
+      if (size >= scope_capacity) return 0;
+      memcpy(scope, label, size + 1U);
+    }
+  }
+  while (line[input]) {
+    char ch = line[input];
+    if (quote) {
+      if (used + 1U >= capacity) return 0;
+      output[used++] = ch; ++input;
+      if (ch == quote) {
+        if (line[input] == quote) {
+          if (used + 1U >= capacity) return 0;
+          output[used++] = line[input++];
+        } else quote = 0;
+      }
+      continue;
+    }
+    if (ch == '\'' || ch == '"') quote = ch;
+    if (!quote && ch == '.' && (input == 0U ||
+        !(isalnum((unsigned char)line[input - 1U]) || strchr("_.$\\", line[input - 1U]))) &&
+        (isalpha((unsigned char)line[input + 1U]) || line[input + 1U] == '_')) {
+      size_t end = input + 2U, scope_size = strlen(scope), token_size;
+      while (isalnum((unsigned char)line[end]) || line[end] == '_') ++end;
+      token_size = end - input;
+      if (!scope_size || scope_size + 1U + token_size >= M68K_SOURCE_MAX_LABEL_NAME ||
+          used + scope_size + 1U + token_size >= capacity) return 0;
+      memcpy(output + used, scope, scope_size); used += scope_size;
+      output[used++] = '\\';
+      memcpy(output + used, line + input, token_size); used += token_size;
+      input = end;
+    } else {
+      if (used + 1U >= capacity) return 0;
+      output[used++] = ch; ++input;
+    }
+  }
+  output[used] = '\0'; memcpy(line, output, used + 1U);
+  return 1;
+}
+
 static int m68k_source_file_parse_reader(AsmSourceFile *source, M68kSourceLineReader *reader,
     M68kDiagSink diagnostics) {
   char line[M68K_SOURCE_PARSE_LINE_CAPACITY];
   char last_symbol_fallback_line[M68K_SOURCE_PARSE_LINE_CAPACITY];
   size_t line_number = 0;
   size_t current_section_index = (size_t)-1;
+  char global_scope[M68K_SOURCE_MAX_LABEL_NAME] = "";
   uint8_t current_fpu_id = 1U;
   uint8_t current_fpu_directive_active = 0U;
   M68kSourceIncludeState include_state;
@@ -543,6 +599,12 @@ static int m68k_source_file_parse_reader(AsmSourceFile *source, M68kSourceLineRe
     char statement_text[M68K_SOURCE_PARSE_LINE_CAPACITY];
     ++line_number;
     m68k_strip_comment_in_place(line);
+    if (!source_qualify_local_symbols(line, sizeof(line), global_scope, sizeof(global_scope))) {
+      source_line_reader_close(reader);
+      source_parse_errorf(diagnostics, "local label requires a preceding global owner and bounded name at line %u",
+        (unsigned)line_number);
+      return 0;
+    }
     rest = m68k_trim_in_place(line);
     if (*rest == '\0')
       continue;
@@ -565,6 +627,17 @@ static int m68k_source_file_parse_reader(AsmSourceFile *source, M68kSourceLineRe
           source_line_reader_close(reader);
           source_parse_errorf(diagnostics, "label conflicts with constant at line %u", (unsigned)line_number);
           return 0;
+        }
+        if (strchr(m68k_trim_in_place(rest), '\\') != NULL) {
+          size_t previous;
+          for (previous = 0U; previous < source->statement_count; ++previous) {
+            const AsmSourceStmt *stmt = &source->statements[previous];
+            if (stmt->kind == ASM_SOURCE_STMT_LABEL && strcmp(stmt->u.label.name, m68k_trim_in_place(rest)) == 0) {
+              source_line_reader_close(reader);
+              source_parse_errorf(diagnostics, "duplicate scoped local label at line %u", (unsigned)line_number);
+              return 0;
+            }
+          }
         }
         label_symbol_result = m68k_source_model_ensure_symbol(source, m68k_trim_in_place(rest),
           ASM_SOURCE_SYMBOL_LABEL);
