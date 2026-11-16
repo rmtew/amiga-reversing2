@@ -63,6 +63,8 @@ static int append_word_index_access_json(JsonBuilder *builder, const M68kWordInd
   return json_builder_append(builder, "]}");
 }
 
+#include "platform_conditional_control_json.inc"
+
 static int json_builder_append_nullable_string(JsonBuilder *builder, const char *text);
 static void amiga_struct_catalog_info(uint16_t struct_id, const char **out_source, int16_t *out_size);
 static const char *app_slot_access_kind_name(uint8_t access_kind);
@@ -4714,6 +4716,7 @@ static int source_analysis_to_json_impl(const M68kSourceAnalysisIR *source_analy
       if (json_builder_appendf(&builder, ",\"confidence\":%u}", (unsigned)observation->confidence) != 0)
         goto oom;
     }
+    if (append_conditional_controls_json(&builder, section) != 0) goto oom;
     if (json_builder_appendf(&builder,
           "],\"pointer_store_count\":%u,\"pointer_stores\":[",
           (unsigned)section->pointer_store_count) != 0)

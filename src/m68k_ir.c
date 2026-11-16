@@ -3866,6 +3866,17 @@ int m68k_ir_section_analysis_append_pointer_store(M68kSectionAnalysisIR *section
   return 0;
 }
 
+int m68k_ir_section_analysis_append_conditional_control(M68kSectionAnalysisIR *section_analysis,
+    const M68kConditionalControlIR *control) {
+  if (section_analysis == NULL || control == NULL || section_analysis->arena == NULL) return -1;
+  section_analysis->conditional_controls = (M68kConditionalControlIR *)arena_grow_array(section_analysis->arena,
+    section_analysis->conditional_controls, section_analysis->conditional_control_count,
+    &section_analysis->conditional_control_capacity, 8U, sizeof(*section_analysis->conditional_controls));
+  if (section_analysis->conditional_controls == NULL) return -1;
+  section_analysis->conditional_controls[section_analysis->conditional_control_count++] = *control;
+  return 0;
+}
+
 int m68k_ir_section_analysis_append_address_value_consumer(M68kSectionAnalysisIR *section_analysis,
     const M68kAddressValueConsumerIR *consumer) {
   size_t index;
@@ -5880,6 +5891,13 @@ int m68k_ir_source_analysis_append_section(M68kSourceAnalysisIR *source_analysis
   for (index = 0; index < section_analysis->pointer_store_count; ++index) {
     if (m68k_ir_section_analysis_append_pointer_store(&copy,
           &section_analysis->pointer_stores[index]) != 0) {
+      m68k_ir_section_analysis_destroy(&copy);
+      return -1;
+    }
+  }
+  for (index = 0; index < section_analysis->conditional_control_count; ++index) {
+    if (m68k_ir_section_analysis_append_conditional_control(&copy,
+          &section_analysis->conditional_controls[index]) != 0) {
       m68k_ir_section_analysis_destroy(&copy);
       return -1;
     }

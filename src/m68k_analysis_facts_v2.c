@@ -8872,6 +8872,8 @@ static const char *source_control_prefix(M68kDecodeIR *decode, const M68kAnalysi
   return "prefix proof budget exhausted";
 }
 
+#include "m68k_conditional_control.inc"
+
 static int enqueue_source_bound_absolute_control_target(M68kDecodeIR *decode, const M68kAnalysisPolicy *policy,
     const M68kRuntimeAddressSpace *space, M68kFactIR *facts, M68kFactsV2WorkQueue *queue,
     uint8_t **accepted_start, uint8_t **accepted_bytes, M68kFactsV2Profile *profile,
@@ -11318,6 +11320,8 @@ source_analysis_projection:
         "facts_v2 address observation append failed");
       goto fail;
     }
+    if (append_conditional_controls_for_accepted(&decode, &facts, policy, &runtime_addresses, &relocation_lookup,
+        accepted_start, accepted_bytes, workflow.arena, out_profile, source_analysis) != 0) goto fail;
     if (append_platform_media_transfers_from_facts(&decode, &facts, source_analysis) != 0) {
       m68k_diag_add(diagnostics, M68K_DIAG_SEVERITY_ERROR, M68K_DIAG_CODE_RENDER_FAILED,
         "facts_v2 platform media transfer append failed");

@@ -1307,3 +1307,12 @@ contracts and invalid extents. It does not infer physical ownership from registe
 names, unify independent roots or replace phase-specific views. The command path
 checks the exported native field capacity before appending history; the current
 bounded codec permits 64 fields per custom struct.
+
+Native source-analysis sections expose `conditional_controls` separately from
+CFG edges. An admitted `absolute_jump_operand_installation` retains writer,
+patched JMP/operand, stored and installed target coordinates, exact write width
+and refusal/condition information. Writer order, execution and exhaustive writer
+coverage remain unknown. `numeric_code_address_store_candidate` records are
+unadmitted diagnostics with no established control condition; consumers must not
+turn them into edges or code ownership. The current recognizer requires already
+accepted code at both control endpoints and unambiguous policy bindings.

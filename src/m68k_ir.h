@@ -2149,6 +2149,26 @@ typedef struct M68kPointerStoreIR {
   uint8_t destination_value_kind;
 } M68kPointerStoreIR;
 
+/* A conditional installation is not a synchronous CFG edge. Coordinates are
+ * source offsets; UINT32_MAX denotes a binding that could not be established.
+ * Every writer remains separate; order and future execution are unproved. */
+typedef struct M68kConditionalControlIR {
+  uint32_t writer_offset;
+  uint32_t jump_offset;
+  uint32_t operand_offset;
+  uint32_t write_offset;
+  uint32_t write_address;
+  uint32_t value_address;
+  uint32_t target_offset;
+  uint32_t stored_target_address;
+  uint8_t write_size;
+  uint8_t operand_size;
+  uint8_t value_known;
+  uint8_t stored_target_known;
+  uint8_t admitted;
+  char reason[80];
+} M68kConditionalControlIR;
+
 typedef enum M68kAddressIdentityRoleKind {
   M68K_ADDRESS_IDENTITY_ROLE_UNKNOWN = 0,
   M68K_ADDRESS_IDENTITY_ROLE_STORAGE = 1,
@@ -2991,6 +3011,9 @@ typedef struct M68kSectionAnalysisIR {
   M68kPointerStoreIR *pointer_stores;
   size_t pointer_store_count;
   size_t pointer_store_capacity;
+  M68kConditionalControlIR *conditional_controls;
+  size_t conditional_control_count;
+  size_t conditional_control_capacity;
   M68kAddressValueConsumerIR *address_value_consumers;
   size_t address_value_consumer_count;
   size_t address_value_consumer_capacity;
@@ -3303,6 +3326,8 @@ int m68k_ir_section_analysis_append_address_observation(M68kSectionAnalysisIR *s
     const M68kAddressObservationIR *observation);
 int m68k_ir_section_analysis_append_pointer_store(M68kSectionAnalysisIR *section_analysis,
     const M68kPointerStoreIR *pointer_store);
+int m68k_ir_section_analysis_append_conditional_control(M68kSectionAnalysisIR *section_analysis,
+    const M68kConditionalControlIR *control);
 int m68k_ir_section_analysis_append_address_value_consumer(M68kSectionAnalysisIR *section_analysis,
     const M68kAddressValueConsumerIR *consumer);
 int m68k_ir_section_analysis_append_function_summary(M68kSectionAnalysisIR *section_analysis,
