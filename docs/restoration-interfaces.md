@@ -1295,3 +1295,13 @@ older EA-only extension-count helper. Source and target coordinate filters and
 literal reason/target-symbol text are supported. Pages are revision-bound through
 the same service used by CLI/MCP/UI; the UI calls these “typed source references”.
 Do not bulk-export the entire source plan merely to enumerate its references.
+
+`workspace_audit.audit_owner_family` inventories duplicate and overlapping field
+contracts under an existing declared storage-owner family.
+`plan_owner_family_factoring` produces normal catalogue commands that host exact
+compatible duplicates at their lowest common ancestor. It requires reviewed
+canonical owner evidence and refuses rebased inheritance, incompatible descendant
+contracts and invalid extents. It does not infer physical ownership from register
+names, unify independent roots or replace phase-specific views. The command path
+checks the exported native field capacity before appending history; the current
+bounded codec permits 64 fields per custom struct.

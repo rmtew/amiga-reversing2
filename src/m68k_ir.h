@@ -91,7 +91,12 @@ typedef struct M68kRenderPolicy {
 #if M68K_ANALYSIS_CUSTOM_STRUCT_LIMIT > UINT16_MAX
 #error Custom struct limit must fit its uint16_t counter
 #endif
-#define M68K_ANALYSIS_CUSTOM_STRUCT_FIELD_LIMIT 32U
+/* Shared owner layouts must not be fragmented merely to fit one view's
+ * field array. Keep the bounded native codec/client capacity coordinated. */
+#define M68K_ANALYSIS_CUSTOM_STRUCT_FIELD_LIMIT 64U
+#if M68K_ANALYSIS_CUSTOM_STRUCT_FIELD_LIMIT > UINT16_MAX
+#error Custom struct field limit must fit its uint16_t counter
+#endif
 #define M68K_ANALYSIS_CUSTOM_STRUCT_ID_BASE 0x8000U
 #define M68K_ANALYSIS_FUNCTION_SUMMARY_LIMIT 192U
 #define M68K_ANALYSIS_FUNCTION_SUMMARY_INPUT_LIMIT 8U

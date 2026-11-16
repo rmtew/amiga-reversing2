@@ -2040,6 +2040,10 @@ size_t platform_file_target_equate_count_capacity(void) {
   return M68K_ANALYSIS_TARGET_EQUATE_LIMIT;
 }
 
+size_t platform_file_custom_struct_field_capacity(void) {
+  return M68K_ANALYSIS_CUSTOM_STRUCT_FIELD_LIMIT;
+}
+
 size_t platform_file_structured_data_item_count_capacity(void) {
   return M68K_ANALYSIS_STRUCTURED_DATA_ITEM_LIMIT;
 }

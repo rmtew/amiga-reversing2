@@ -862,6 +862,14 @@ def platform_constant_value_with_c_backend(
     return value.value if found else None
 
 
+def custom_struct_field_capacity_with_c_backend(*, project_root: Path = PROJECT_ROOT) -> int:
+    """Return the native record-field bound used by metadata and planners."""
+    capacity = _platform_file_dll(project_root).platform_file_custom_struct_field_capacity
+    capacity.argtypes = []
+    capacity.restype = c_size_t
+    return int(capacity())
+
+
 def validate_target_equate_count_with_c_backend(
     count: int, *, project_root: Path = PROJECT_ROOT,
 ) -> None:

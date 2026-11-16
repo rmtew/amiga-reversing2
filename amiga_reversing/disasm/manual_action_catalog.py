@@ -2708,6 +2708,10 @@ def _custom_struct_payload(params: Mapping[str, object]) -> dict[str, object]:
         raw_fields = ()
     if not isinstance(raw_fields, list | tuple):
         raise ValueError("create_manual_custom_struct fields must be an array")
+    from .c_backend import custom_struct_field_capacity_with_c_backend
+    field_limit = custom_struct_field_capacity_with_c_backend()
+    if len(raw_fields) > field_limit:
+        raise ValueError(f"native metadata supports at most {field_limit} fields per custom struct")
     fields = [
         _custom_struct_field_payload(field)
         for field in raw_fields
