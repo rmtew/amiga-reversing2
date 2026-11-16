@@ -1104,6 +1104,7 @@ static int work_queue_push(M68kFactsV2WorkQueue *queue, size_t section_index, ui
   size_t state_variant_count = 0U;
   size_t state_variant_limit;
   uint8_t saw_branch_merge_variant_anchor = 0U;
+  uint8_t saw_entry_lineage_upgrade = 0U;
   size_t *stateful_head_slot = NULL;
   int is_stateful;
   int carries_indirect_control_state;
@@ -1128,6 +1129,9 @@ static int work_queue_push(M68kFactsV2WorkQueue *queue, size_t section_index, ui
       if (!work_queue_existing_stateful_item_matches(item, section_index, offset, confidence,
           has_runtime_address, runtime_address)) continue;
       ++state_variant_count;
+      if (trace_state != NULL && trace_state->established_entry_lineage &&
+          !item->trace_state.established_entry_lineage)
+        saw_entry_lineage_upgrade = 1U;
       if (trace_state_matches_queued(&item->trace_state, trace_state) &&
           (allow_trace_variant != M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT ||
            item->allow_trace_variant == M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT)) return 0;
@@ -1142,7 +1146,7 @@ static int work_queue_push(M68kFactsV2WorkQueue *queue, size_t section_index, ui
           saw_branch_merge_variant_anchor = 1U;
       }
     }
-    if (state_variant_count != 0U && !saw_branch_merge_variant_anchor &&
+    if (state_variant_count != 0U && !saw_branch_merge_variant_anchor && !saw_entry_lineage_upgrade &&
         !(allow_trace_variant == M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT ||
           (allow_trace_variant && carries_indirect_control_state)))
       return 0;
@@ -10263,7 +10267,13 @@ static int run_reachable_fixed_point(const M68kObject *object, M68kDecodeIR *dec
      * code is already accepted. A short linear replay loses values before a
      * distant selector or at its intervening branches. Acceptance is separate
      * from propagation: never count or classify these instructions twice. */
-    if (already_accepted && item.allow_trace_variant != M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT) {
+    /* Source-only discovery may accept a bridge before a real entry path
+     * reaches it. That later lineage must traverse its control edges too;
+     * the short sink replay stops at branches and absolute tail jumps.
+     * Queue identity/variant bounds still limit replay; acceptance is not
+     * counted again, and unphased roots keep their existing refusal. */
+    if (already_accepted && item.allow_trace_variant != M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT &&
+        !item.trace_state.established_entry_lineage) {
       if (item.has_runtime_address || item.allow_trace_variant) {
         if (replay_runtime_sink_provenance_fallthrough(object, decode, relocation_lookup, runtime_addresses, facts,
             queue, profile, item.section_index, item.offset, &item.trace_state, accepted_start, accepted_bytes,
