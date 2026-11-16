@@ -31,5 +31,50 @@
       "citation": "M68K PRM Rev 1 Appendix B vector assignment"
     }
   ],
-  "minimum_vector_base": 64
+  "minimum_vector_base": 64,
+  "symbol_registers": [
+    {
+      "name": "IMRA",
+      "offset": 19,
+      "width_bytes": 1,
+      "access": "RW",
+      "citation": "Concise Atari ST Reference Guide source page 44, interrupt mask A"
+    },
+    {
+      "name": "VR",
+      "offset": 23,
+      "width_bytes": 1,
+      "access": "RW",
+      "citation": "Concise Atari ST Reference Guide source page 44; Anatomy of the Atari ST source page 41"
+    }
+  ],
+  "symbol_base_aliases": [
+    {
+      "address": 4294965760,
+      "suffix": "",
+      "citation": "Sign-extended absolute word form of ST memory map $FFFA00"
+    },
+    {
+      "address": 16775680,
+      "suffix": "_BUS24",
+      "citation": "Concise Atari ST Reference Guide source pages 44 and 240, ST memory map $FFFA00"
+    }
+  ],
+  "symbol_vectors": [
+    {
+      "channel": 6,
+      "name": "KEYBOARD_MIDI",
+      "citation": "Concise Atari ST Reference Guide source page 231, Keyboard/MIDI $118"
+    },
+    {
+      "channel": 8,
+      "name": "TIMER_B",
+      "citation": "Concise Atari ST Reference Guide source page 231, Timer B $120"
+    },
+    {
+      "channel": 13,
+      "name": "TIMER_A",
+      "citation": "Concise Atari ST Reference Guide source page 231, Timer A $134"
+    }
+  ]
 }

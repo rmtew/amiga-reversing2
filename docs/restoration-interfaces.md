@@ -1343,3 +1343,11 @@ unavailable causes. `--detail` adds native-backed inventories; `--compare` plus
 `--format delta` emits concise changed primary measures for relevant commit bodies.
 It adds no mandatory analysis or full verification gate. Package coverage alone
 does not assert inline eligibility, and text ownership does not assert raw emission.
+
+The native `m68k_platform_symbols` contract layer resolves independently proved
+numeric address/base/access bindings into disjoint CPU, Amiga Custom and ST MFP
+namespaces. It reuses existing sourced metadata and exposes collision checks and
+deterministic EQU-only definition text for include/inline consumers. The explicit
+profile mask controls permitted domains; names do not establish ownership or entry
+roots. Native MFP vector installation proof and its base condition remain distinct
+from CPU vector identity. Retail plan projection is a separate dependent slice.
