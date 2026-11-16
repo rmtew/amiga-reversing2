@@ -1325,3 +1325,11 @@ generated runtime helper. Known direct byte MOVE writes select VR's table base;
 unknown selection retains the documented ST layout as a condition. Installer
 register/controller trace state does not cross asynchronous entry. Unmodelled
 configuration and nondefault handler context remain explicit provenance gaps.
+
+`source_inventory` policy v2 excludes vector installations from synchronous
+adjacency and reports asynchronous, conditional and unexplained accepted code
+separately from raw candidates. Its roots and counting policy are explicit.
+Canonical scoped counts use native symbol-origin identity/address pairs; absent
+origins produce an unknown count. The existing CLI accepts `--analysis-json` to
+reuse a native snapshot without rebuilding a listing, hashes that input, and
+leaves unverified snapshot provenance explicit.
