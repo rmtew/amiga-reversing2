@@ -6178,10 +6178,13 @@ static int enqueue_interrupt_vector_store_target(M68kDecodeIR *decode, M68kFactI
       profile == NULL || candidate == NULL || section_index >= decode->section_count)
     return 0;
   section = &decode->sections[section_index];
+  /* Installation identifies a future asynchronous entry, not a call with the
+   * installer's registers. Resolve the stored address from the current trace,
+   * but start handler analysis with unknown incoming register values. */
   if (candidate_stores_immediate_to_interrupt_vector(candidate, platform_kind, &target_address)) {
     return enqueue_same_section_control_target(decode, facts, queue, accepted_start, accepted_bytes,
       profile, max_cpu, section_index, candidate, target_address, M68K_FACT_CONFIDENCE_REQUIRED,
-      runtime_addresses, M68K_CODE_ORIGIN_EVIDENCE_VECTOR_STORE_CONTROL_TARGET, trace_state);
+      runtime_addresses, M68K_CODE_ORIGIN_EVIDENCE_VECTOR_STORE_CONTROL_TARGET, NULL);
   }
   if (candidate_stores_trace_to_callback_vector(section_index, section, candidate, platform_kind, trace_state,
       &target_value)) {
@@ -6190,7 +6193,7 @@ static int enqueue_interrupt_vector_store_target(M68kDecodeIR *decode, M68kFactI
       return -1;
     return enqueue_same_section_control_trace_target(decode, facts, queue, accepted_start, accepted_bytes,
       profile, max_cpu, section_index, candidate, &target_value, M68K_FACT_CONFIDENCE_TOOL_INFERRED,
-      runtime_addresses, M68K_CODE_ORIGIN_EVIDENCE_VECTOR_STORE_CONTROL_TARGET, trace_state);
+      runtime_addresses, M68K_CODE_ORIGIN_EVIDENCE_VECTOR_STORE_CONTROL_TARGET, NULL);
   }
   return 0;
 }

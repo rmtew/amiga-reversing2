@@ -49,7 +49,7 @@ static int platform_ascii_contains_case(const char *text, const char *needle) {
   return 0;
 }
 
-static int amiga_is_callback_vector_slot(uint32_t address) {
+static int cpu_is_callback_vector_slot(uint32_t address) {
   return m68k_cpu_exception_vector_address_has_kind(address, M68K_CPU_VECTOR_KIND_EXCEPTION) ||
     m68k_cpu_exception_vector_address_has_kind(address, M68K_CPU_VECTOR_KIND_INTERRUPT) ||
     m68k_cpu_exception_vector_address_has_kind(address, M68K_CPU_VECTOR_KIND_TRAP);
@@ -1257,12 +1257,10 @@ int platform_facts_v2_resolve_stack_cleanup_call(uint8_t platform_kind,
 }
 
 int platform_facts_v2_is_callback_vector_slot(uint8_t platform_kind, uint32_t address) {
-  switch (platform_kind) {
-  case M68K_PLATFORM_BACKEND_AMIGA_HUNK:
-    return amiga_is_callback_vector_slot(address);
-  default:
-    return 0;
-  }
+  /* These slots belong to the CPU, not to the host platform. Reset SSP/PC,
+   * reserved addresses and misaligned stores stay excluded by generated kinds. */
+  (void)platform_kind;
+  return cpu_is_callback_vector_slot(address);
 }
 
 static const AmigaOsHardwareRegisterInfo *platform_facts_v2_amiga_runtime_address_sink_register(
