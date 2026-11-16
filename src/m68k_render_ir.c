@@ -4247,14 +4247,24 @@ static void render_asm_copper_list_words(M68kRenderIRPreview *preview, const M68
     if (first == 0xFFFFU && second == 0xFFFEU) {
       snprintf(left, sizeof(left), "$FFFF");
     } else if ((first & 1U) != 0U && (second & 1U) == 0U) {
-      snprintf(left, sizeof(left), "COPPER_WAIT|$%04X", (unsigned)(first & 0xFFFEU));
+      int32_t wait_opcode;
+      /* Explicit Copper data can belong to a mixed-platform payload. Keep
+       * the command exact when this platform has no Amiga symbol contract. */
+      if (preview->platform_backend_kind == M68K_PLATFORM_BACKEND_AMIGA_HUNK &&
+          platform_facts_v2_symbol_constant_value(M68K_PLATFORM_BACKEND_AMIGA_HUNK,
+            "COPPER_WAIT", &wait_opcode) && wait_opcode == 1)
+        snprintf(left, sizeof(left), "COPPER_WAIT|$%04X", (unsigned)(first & 0xFFFEU));
+      else
+        snprintf(left, sizeof(left), "$%04X", (unsigned)first);
       if (!render_asm_include_for_symbol_expr(preview, left)) {
         ++preview->asm_source_instruction_render_failures;
         record_source_export_failure(preview, M68K_SOURCE_EXPORT_FAILURE_RENDER, 0U, offset + cursor, 0U);
         return;
       }
-    } else if (!format_copper_register_symbol(first, left, sizeof(left))) {
+    } else if (preview->platform_backend_kind != M68K_PLATFORM_BACKEND_AMIGA_HUNK ||
+        !format_copper_register_symbol(first, left, sizeof(left))) {
       snprintf(left, sizeof(left), "$%04X", (unsigned)first);
+      copper_move = (first & 1U) == 0U;
     } else if (!render_asm_include_for_symbol_expr(preview, left)) {
       ++preview->asm_source_instruction_render_failures;
       record_source_export_failure(preview, M68K_SOURCE_EXPORT_FAILURE_RENDER, 0U, offset + cursor, 0U);
@@ -4269,7 +4279,8 @@ static void render_asm_copper_list_words(M68kRenderIRPreview *preview, const M68
       if (planned_equate != NULL && planned_equate->outcome == M68K_RENDER_PLANNED_EXPRESSION_SYMBOLIC) {
         snprintf(right, sizeof(right), "%s", planned_equate->expression);
         right_is_semantic_equate_symbol = 1;
-      } else if (!copper_move || !format_copper_register_value_expr(first, second, right, sizeof(right))) {
+      } else if (!copper_move || preview->platform_backend_kind != M68K_PLATFORM_BACKEND_AMIGA_HUNK ||
+          !format_copper_register_value_expr(first, second, right, sizeof(right))) {
       snprintf(right, sizeof(right), "$%04X", (unsigned)second);
       } else if (!render_asm_include_for_symbol_expr(preview, right)) {
       ++preview->asm_source_instruction_render_failures;
@@ -6897,9 +6908,19 @@ uint8_t format_lookup_asm_label_with_generation(const M68kRenderLookup *lookup, 
   return 1U;
 }
 
-static int structured_data_item_is_untyped_bytes_placeholder_local(const M68kAnalysisStructuredDataItem *item) {
-  return item != NULL && item->kind == M68K_ANALYSIS_STRUCTURED_DATA_BYTES &&
-    item->semantic_role_flags == 0U && item->source_pattern_id == 0U && item->size != 0U;
+static int structured_data_item_is_untyped_placeholder_local(const M68kAnalysisStructuredDataItem *item) {
+  if (item == NULL || item->semantic_role_flags || item->source_pattern_id || !item->size) return 0;
+  if (item->kind == M68K_ANALYSIS_STRUCTURED_DATA_BYTES) return 1;
+  /* A scalar storage declaration may precede its later typed members in a
+   * persisted policy. It must not hide the first member merely by order. */
+  return (item->kind == M68K_ANALYSIS_STRUCTURED_DATA_WORDS ||
+      item->kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS) &&
+    !item->table_conflicted && item->table_kind_id == M68K_ANALYSIS_TABLE_KIND_UNKNOWN &&
+    !item->struct_name[0] && !item->field_name[0] && !item->is_pointer && !item->has_target &&
+    item->pointer_address_domain == M68K_ANALYSIS_POINTER_DOMAIN_LEGACY &&
+    (!item->field_type[0] ||
+      (item->kind == M68K_ANALYSIS_STRUCTURED_DATA_WORDS && m68k_ascii_equal_ci(item->field_type, "word")) ||
+      (item->kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS && m68k_ascii_equal_ci(item->field_type, "long")));
 }
 
 const M68kAnalysisStructuredDataItem *lookup_structured_data_item_at_offset(
@@ -6997,7 +7018,7 @@ int lookup_range_ownership_at_offset(const M68kRenderLookup *lookup, size_t sect
     M68kRenderRangeOwnershipView hydrated;
     if (range->section_index != section_index || range->start_offset != offset) continue;
     if (!hydrate_range_ownership_view(lookup, range, &hydrated)) continue;
-    if (structured_data_item_is_untyped_bytes_placeholder_local(hydrated.structured_item)) {
+    if (structured_data_item_is_untyped_placeholder_local(hydrated.structured_item)) {
       if (!has_placeholder) {
         placeholder = hydrated;
         has_placeholder = 1;
@@ -7028,7 +7049,7 @@ int lookup_range_ownership_covering_offset(const M68kRenderLookup *lookup, size_
     if (range->section_index != section_index || offset < range->start_offset || offset >= range->end_offset)
       continue;
     if (!hydrate_range_ownership_view(lookup, range, &hydrated)) continue;
-    if (structured_data_item_is_untyped_bytes_placeholder_local(hydrated.structured_item)) {
+    if (structured_data_item_is_untyped_placeholder_local(hydrated.structured_item)) {
       if (!has_placeholder) {
         placeholder = hydrated;
         has_placeholder = 1;

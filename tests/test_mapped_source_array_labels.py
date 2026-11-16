@@ -13,7 +13,7 @@ from amiga_reversing.disasm.c_backend import (
     assemble_platform_source_text_with_c_backend,
     build_listing_artifact_profile_from_binary_source,
 )
-from amiga_reversing.disasm.effective_metadata import effective_metadata_text
+from amiga_reversing.disasm.effective_metadata import effective_metadata_text, effective_metadata_file
 from amiga_reversing.disasm.manual_actions import (
     ManualActionKind,
     append_manual_actions,
@@ -115,3 +115,57 @@ def test_bound_array_pointer_uses_an_emitted_symbol_with_exact_bytes(tmp_path, i
         assert output.read_bytes() == original
     finally:
         artifact.close()
+
+
+@pytest.mark.c_backend
+@pytest.mark.parametrize('unit', ['byte', 'word', 'long'])
+@pytest.mark.parametrize('container_first', [False, True])
+def test_raw_storage_order_does_not_hide_typed_array_first_pointer(tmp_path, unit, container_first):
+    from tests.test_custom_record_flow_platforms import STRaw
+    from amiga_reversing.disasm.manual_action_catalog import target_catalog_manual_payload
+    original = bytes.fromhex('4e750000000e0000001200000016') + b'AAAA'*3
+    binary = tmp_path/'array.bin'
+    binary.write_bytes(original)
+    source = STRaw(kind=BinarySourceKind.RAW_BINARY, path=binary,
+        address_model=RawAddressModel.RUNTIME_ABSOLUTE, load_address=0,
+        entrypoint=0, code_start_offset=0, display_path=str(binary),
+        analysis_cache_path=tmp_path/'analysis')
+    write_target_metadata(tmp_path, TargetMetadata(target_type='program', entry_register_seeds=()))
+    entries = [
+        ('target.data.seed', dict(hunk=0, addr=2, end=14, name='directory', unit=unit)),
+        ('target.custom_struct.add', dict(name='Ref', size=4, fields=[dict(name='target',
+            offset=0, size=4, type='APTR', value_kind='target_pointer', pointer_address_domain='mapped_source')])),
+        ('target.data_block.layout.create', dict(layout_id='array', hunk=0, source_start=2,
+            source_end=14, name='directory', default_unit='long')),
+        ('target.data_block.element.set', dict(layout_id='array', offset=0, width=12,
+            kind='array', array_count=3, array_stride=4, binding_kind='custom_struct', type_id='Ref')),
+    ] + [('target.data.seed', dict(hunk=0, addr=at, end=at+4, name=name, unit='word'))
+         for at, name in [(14, 'alpha'), (18, 'beta'), (22, 'gamma')]]
+    actions = []
+    for command, parameters in entries:
+        kind, payload = target_catalog_manual_payload(command, parameters)
+        actions.append((ManualActionKind(kind), payload))
+    append_manual_actions(tmp_path, actions=actions, binary_source=source)
+    with effective_metadata_file(tmp_path) as metadata:
+        value = json.loads(metadata.read_text())
+        is_container = lambda item: item['addr'] == 2 and not item.get('field_name')
+        containers = [x for x in value['seeded_entities'] if is_container(x)]
+        assert len(containers) == 1
+        members = [x for x in value['seeded_entities'] if not is_container(x)]
+        value['seeded_entities'] = containers+members if container_first else members+containers
+        metadata.write_text(json.dumps(value))
+        artifact = build_listing_artifact_profile_from_binary_source(source,
+            metadata_path=metadata, project_root=PROJECT_ROOT)[2]
+        try:
+            for offset, name in [(2, 'alpha'), (6, 'beta'), (10, 'gamma')]:
+                row = artifact.row_for_source_offset(section_index=0, offset=offset)
+                assert row['pointer_resolution']['outcome'] == 'symbolic'
+                assert 'dc.l '+name in row['text']
+            text = artifact.inline_source_text_with_profile()[0]
+        finally:
+            artifact.close()
+    path, output = tmp_path/'array.s', tmp_path/'array.raw'
+    path.write_text(text)
+    subprocess.run([str(PROJECT_ROOT/'ext/vasm/vasmm68k_mot'), '-quiet', '-Fbin',
+        '-m68000', '-no-opt', '-o', str(output), str(path)], capture_output=True, check=True)
+    assert output.read_bytes() == original

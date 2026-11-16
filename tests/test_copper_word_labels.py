@@ -93,3 +93,46 @@ def test_writable_copper_gate_does_not_hide_following_commands(tmp_path):
     subprocess.run([str(PROJECT_ROOT/'ext/vasm/vasmm68k_mot'),'-quiet','-Fbin','-m68000',
         '-no-opt','-I'+str(includes)+'/', '-o',str(output),str(asm)],capture_output=True,check=True)
     assert output.read_bytes()==original
+
+
+@pytest.mark.c_backend
+@pytest.mark.parametrize('platform', ['amiga', 'st'])
+def test_explicit_copper_wait_uses_only_available_platform_symbols(tmp_path, platform):
+    from tests.test_custom_record_flow_platforms import STRaw
+    original = bytes.fromhex('4e75008e2c810090f4c100e0000700e2800001820000ae01ff00fffffffe')
+    binary = tmp_path/'wait.bin'
+    binary.write_bytes(original)
+    source_class = RawBinarySource if platform == 'amiga' else STRaw
+    source = source_class(kind=BinarySourceKind.RAW_BINARY, path=binary,
+        address_model=RawAddressModel.RUNTIME_ABSOLUTE, load_address=0,
+        entrypoint=0, code_start_offset=0, display_path=str(binary),
+        analysis_cache_path=tmp_path/'analysis')
+    write_target_metadata(tmp_path, TargetMetadata(target_type='program', entry_register_seeds=()))
+    append_manual_actions(tmp_path, binary_source=source, actions=[
+        (Kind.CREATE_MANUAL_SEED, {'seed': dict(seed_id='explicit_wait', kind='data',
+            mode='required', hunk=0, addr=2, end=len(original), name='explicit_copper_wait',
+            data_role='copper_list', unit='word')})])
+    with effective_metadata_file(tmp_path) as metadata:
+        artifact = c_backend.build_listing_artifact_profile_from_binary_source(source,
+            metadata_path=metadata, project_root=PROJECT_ROOT)[2]
+        try:
+            text = artifact.source_projection_with_profile()[0]
+        finally:
+            artifact.close()
+    if platform == 'amiga':
+        assert 'COPPER_WAIT|$AE00' in text
+        assert 'INCLUDE "graphics/copper.i"' in text
+    else:
+        assert 'COPPER_WAIT' not in text
+        assert 'dc.w $AE01,$FF00' in text
+        assert 'graphics/copper.i' not in text
+        assert 'dc.w $008E,$2C81' in text and 'dc.w $00E0,' in text
+        assert 'dc.w $0182,$0000' in text
+        assert not any(name in text for name in ('diwstrt', 'diwstop', 'bplpt', 'color'))
+    asm, output = tmp_path/'wait.s', tmp_path/'wait.raw'
+    asm.write_text(text)
+    includes = PROJECT_ROOT/'ext/amiga_includes/ndk_2.0/include'
+    subprocess.run([str(PROJECT_ROOT/'ext/vasm/vasmm68k_mot'), '-quiet', '-Fbin',
+        '-m68000', '-no-opt', '-I'+str(includes)+'/', '-o', str(output), str(asm)],
+        capture_output=True, check=True)
+    assert output.read_bytes() == original
