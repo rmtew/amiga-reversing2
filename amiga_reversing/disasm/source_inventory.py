@@ -7,6 +7,8 @@ from bisect import bisect_right
 from collections import Counter, defaultdict
 import re
 
+from amiga_reversing.disasm.operand_bindings import memory_operand_binding_audit
+
 GENERIC = re.compile(r'(?:abs|loc|sub|data|table|string|unknown)_\d+_[0-9A-Fa-f]+\Z')
 
 
@@ -222,4 +224,5 @@ def source_inventory(analysis, *, section_index=0, entry_offset=0):
         conditional_roots=sorted(blocks[i]['start_offset']for i in conditional_roots),
         disconnected_component_records=component_records,
         blocks_without_inbound=[blocks[i]['start_offset']for i in sorted(accepted)if i!=entry and not inbound[i]],
-        raw_candidates=signals,control_reference_audit=control_reference_audit(analysis,section_index=section_index))
+        raw_candidates=signals,control_reference_audit=control_reference_audit(analysis,section_index=section_index),
+        memory_operand_bindings=memory_operand_binding_audit(analysis, section_index=section_index))

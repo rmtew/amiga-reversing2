@@ -1910,6 +1910,7 @@ typedef struct M68kAddressObservationIR {
   uint8_t has_identity;
   uint8_t conflicted;
   uint8_t confidence;
+  uint8_t operand_is_immediate; /* Decoded form, independent of access width. */
 } M68kAddressObservationIR;
 
 typedef enum M68kAddressValueResolutionKind {

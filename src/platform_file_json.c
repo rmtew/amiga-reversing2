@@ -3720,6 +3720,8 @@ static int append_source_analysis_memory_layout_records_json(JsonBuilder *builde
       }
       if (json_builder_append_json_string(builder, m68k_sim_access_kind_name(observation->access_kind)) != 0)
         return -1;
+      if (json_builder_appendf(builder, ",\"operand_is_immediate\":%s",
+          observation->operand_is_immediate ? "true" : "false") != 0) return -1;
       if (json_builder_appendf(builder,
           ",\"access_width\":%u,\"address\":%u,\"owner_kind_id\":%u,\"owner_kind\":",
           (unsigned)observation->access_width, (unsigned)observation->address,
@@ -4714,6 +4716,8 @@ static int source_analysis_to_json_impl(const M68kSourceAnalysisIR *source_analy
           ",\"access_width\":%u,\"raw_value\":%u",
           (unsigned)observation->access_width, (unsigned)observation->raw_value) != 0)
         goto oom;
+      if (json_builder_appendf(&builder, ",\"operand_is_immediate\":%s",
+          observation->operand_is_immediate ? "true" : "false") != 0) goto oom;
       if (observation->has_address &&
           json_builder_appendf(&builder, ",\"address\":%u", (unsigned)observation->address) != 0)
         goto oom;

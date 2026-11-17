@@ -18,6 +18,8 @@ def main():
     parser.add_argument('--entry-offset',type=lambda s:int(s,0),default=0)
     parser.add_argument('--output',type=Path)
     parser.add_argument('--analysis-json',type=Path,help='Reuse exported native analysis without rebuilding a listing')
+    parser.add_argument('--check-bindings',action='store_true',
+        help='Exit nonzero for native memory/control operand binding gaps or conflicts; leaves the report for review')
     args=parser.parse_args()
     target=(PROJECT_ROOT/'targets'/args.target).resolve()
     if target.parent!=(PROJECT_ROOT/'targets').resolve():
@@ -47,6 +49,11 @@ def main():
         print(json.dumps(payload['counts'],sort_keys=True))
     else:
         print(text,end='')
+    if args.check_bindings and (
+            payload['control_reference_audit']['operand_binding_gaps'] or
+            any(status != 'symbolic_operand' and count for status,count in
+                payload['memory_operand_bindings']['counts'].items())):
+        raise SystemExit(1)
 
 
 if __name__=='__main__':main()

@@ -1599,3 +1599,54 @@ unresolved indirect expressions and non-control origins are excluded. Such a
 report is evidence for review, not authorization to override numeric display
 choices or ambiguous address views. See
 [FOFT SCP verification](validation/foft-staged-record-flow.md).
+
+### Receiver-aware callback candidates and memory-binding validation
+
+Native callback discovery now follows concrete LONG storage identities across
+accepted CFG paths and direct call entries. Different register spellings can
+refer to the same image slot; equal field displacements on different objects
+cannot. Call continuations require a bounded proof that every explored helper
+path preserves the tracked address register and returns with ordinary `RTS`.
+Unknown calls, return-stack edits, register clobbers and nonstandard returns
+stop that witness. Branch assignments retain their pointer-definition coordinate
+so receiver and callback alternatives are not combined as a Cartesian product.
+
+Explicit LONG pointer-table extents can supply initial callback values when an
+aligned indexed read installs them into one concrete slot. Known selectors
+select only their indexed member. All selected members must map uniquely to
+valid, exactly re-encodable, non-data instruction starts. Concrete LONG field
+copies and callback self-updates can contribute further candidates at the native
+fixed point. Pre/postincrement uses the generated EA update and width model.
+These are open `callback_storage_candidates` from `accepted_code_stores`, not a
+closed runtime target set, execution observation, callee ABI or record extent.
+
+The probe is deliberately bounded: 64 values, 4,096 backward query states, three
+call-entry crossings, 128 helper CFG nodes with two nested helper proofs, eight
+local copy passes, and a 1,024-byte/128-node pointer-definition correlation window.
+Budget exhaustion refuses that query. Unknown loaded receiver pointers,
+unsupported indexed object families, ambiguous address views and unsupported
+writes stay unresolved. Loop strides are not guessed from register names or a
+nearby return word. Anchored strided-field propagation remains a separate model;
+joining it through arbitrary mutable object copies is still unsupported.
+
+`source_inventory` now exports `memory_operand_bindings`, joining native accepted
+absolute image-memory observations to native operand bindings and rendered
+symbol targets. It reports missing bindings, conflicting native/rendered targets
+and bindings without symbolic operands independently. Numeric immediates,
+including address-domain comparisons explicitly tagged `operand_is_immediate` by
+the native decoder,
+and external/platform-owned accesses are excluded. Observations alone do not
+resolve ambiguous temporal views or override an intentional numeric display.
+
+```sh
+python -m amiga_reversing.tools.source_inventory --target amiga_raw_foft \
+  --analysis-json /private/path/current-native-analysis.json \
+  --output /private/path/source-inventory.json --check-bindings
+```
+
+`--check-bindings` writes the report and exits nonzero for memory binding
+exceptions or proved control origins missing symbolic operand bindings. Run it
+against a freshly generated, identity-checked snapshot; an arbitrary supplied
+snapshot has caller-supplied target identity. Failures require inspection, not
+automatic code conversion or fabricated labels. Normal inventory generation
+remains report-only.

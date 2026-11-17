@@ -3828,6 +3828,7 @@ int m68k_ir_section_analysis_append_address_observation(M68kSectionAnalysisIR *s
     if (existing->offset == observation->offset &&
         existing->operand_index == observation->operand_index &&
         existing->source == observation->source &&
+        existing->operand_is_immediate == observation->operand_is_immediate &&
         existing->address == observation->address &&
         existing->target_section_index == observation->target_section_index &&
         existing->target_offset == observation->target_offset &&
