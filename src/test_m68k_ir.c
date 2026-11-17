@@ -3167,7 +3167,7 @@ static int test_facts_v2_indexed_local_base_auto_classifies_pointer_table(void) 
     &profile, &source_analysis, 1U, m68k_diag_sink(NULL)));
   M68K_C_ASSERT(source != NULL);
   M68K_C_ASSERT(strstr(source, "\tmove.l $0(a0,d0.w),d1\n") != NULL);
-  M68K_C_ASSERT(strstr(source, "\tdc.l loc_0_00000010\t; pointer_table\n") != NULL);
+  M68K_C_ASSERT(strstr(source, "\tdc.l loc_0_00000010\n") != NULL);
   M68K_C_ASSERT(strstr(source, "\tdc.l loc_0_00000012\n") != NULL);
   for (index = 0U; index < source_analysis.structured_data_item_count; ++index) {
     const M68kAnalysisStructuredDataItem *item = &source_analysis.structured_data_items[index];
@@ -3380,7 +3380,7 @@ static int test_facts_v2_pointer_table_aligned_tail_renders_words(void) {
   M68K_C_ASSERT_INT(0, m68k_facts_v2_render_asm_source_alloc(&object, &policy, &source, &profile,
     m68k_diag_sink(NULL)));
   M68K_C_ASSERT(source != NULL);
-  M68K_C_ASSERT(strstr(source, "\tdc.l loc_0_0000000C\t; pointer_table\n") != NULL);
+  M68K_C_ASSERT(strstr(source, "\tdc.l loc_0_0000000C\n") != NULL);
   M68K_C_ASSERT(strstr(source, "\tdc.l loc_0_0000000E\n") != NULL);
   M68K_C_ASSERT(strstr(source, "\tdc.w $0000\n") != NULL);
   M68K_C_ASSERT(strstr(source, "\tdc.b $00,$00\n") == NULL);
@@ -11043,7 +11043,7 @@ static int test_facts_v2_runtime_mapped_long_dispatch_promotes_table_targets(voi
   M68K_C_ASSERT(strstr(source, "\tjmp (a0)\n") != NULL);
   M68K_C_ASSERT(strstr(source, "\tmoveq.l #1,d0\n\trts\n") != NULL);
   M68K_C_ASSERT(strstr(source, "\tmoveq.l #2,d0\n\trts\n") != NULL);
-  M68K_C_ASSERT(strstr(source, "\tdc.l abs_0_00000114\t; pointer_table\n") != NULL);
+  M68K_C_ASSERT(strstr(source, "\tdc.l abs_0_00000114\n") != NULL);
   M68K_C_ASSERT(strstr(source, "\tdc.l abs_0_00000118\n") != NULL);
   for (code_start_index = 0U; code_start_index < source_analysis.sections[0].code_start_ref_count;
       ++code_start_index) {
@@ -11944,6 +11944,115 @@ static int test_facts_v2_direct_indexed_stub_table_promotes_entries(void) {
   m68k_facts_v2_free_text(source);
   m68k_ir_source_analysis_destroy(&source_analysis);
   m68k_object_destroy(&object);
+  return 0;
+}
+
+static int test_declared_table_comments_preserve_authored_and_unresolved_roles(void) {
+  M68kAnalysisStructuredDataItem item;
+  char comment[128];
+  memset(&item, 0, sizeof(item));
+  item.kind = M68K_ANALYSIS_STRUCTURED_DATA_WORDS;
+  m68k_analysis_structured_data_item_set_semantic_role_flags(&item,
+    M68K_ANALYSIS_STRUCTURED_DATA_ROLE_LOOKUP_TABLE);
+  M68K_C_ASSERT_INT(1, structured_data_item_comment(&item, comment, sizeof(comment)));
+  snprintf(item.label, sizeof(item.label), "declared_lookup");
+  M68K_C_ASSERT_INT(0, structured_data_item_comment(&item, comment, sizeof(comment)));
+  snprintf(item.comment, sizeof(item.comment), "lookup_table");
+  M68K_C_ASSERT_INT(1, structured_data_item_comment(&item, comment, sizeof(comment)));
+  M68K_C_ASSERT_STR("lookup_table", comment);
+  item.comment[0] = '\0';
+  item.source_pattern_id = M68K_ANALYSIS_STRUCTURED_DATA_SOURCE_PATTERN_PC_RELATIVE_INDEXED_READ;
+  M68K_C_ASSERT_INT(1, structured_data_item_comment(&item, comment, sizeof(comment)));
+  return 0;
+}
+
+static int test_facts_v2_fixed_pc_read_is_scalar_not_table(void) {
+  unsigned indexed;
+  for (indexed = 0U; indexed < 2U; ++indexed) {
+    AsmSourceFile parsed;
+    M68kDiagList diagnostics;
+    M68kObject object;
+    M68kAnalysisPolicy policy;
+    M68kFactsV2Profile profile;
+    M68kSourceAnalysisIR analysis;
+    char input[256], *source = NULL;
+    snprintf(input, sizeof(input), "SECTION code,code\n\tmove.w value(pc%s),d1\n\trts\n"
+      "value:\n\tdc.w 1,2\n", indexed ? ",d0.w" : "");
+    M68K_C_ASSERT_INT(0, m68k_source_model_create(&parsed));
+    memset(&object, 0, sizeof(object)); memset(&analysis, 0, sizeof(analysis));
+    m68k_diag_list_reset(&diagnostics); parsed.target_cpu = M68K_ASM_CPU_68000;
+    M68K_C_ASSERT(m68k_source_pipeline_parse_text_and_layout(&parsed, input, m68k_diag_sink(&diagnostics)));
+    M68K_C_ASSERT_INT(1, m68k_source_pipeline_emit_object(&parsed, &object, m68k_diag_sink(&diagnostics)));
+    m68k_analysis_policy_init_default(&policy);
+    policy.structured_data_item_count = 1U;
+    policy.structured_data_items[0].has_section_index = 1U;
+    policy.structured_data_items[0].section_index = 0U;
+    policy.structured_data_items[0].offset = 6U;
+    policy.structured_data_items[0].size = 4U;
+    policy.structured_data_items[0].kind = M68K_ANALYSIS_STRUCTURED_DATA_WORDS;
+    snprintf(policy.structured_data_items[0].label, sizeof(policy.structured_data_items[0].label), "values");
+    m68k_analysis_structured_data_item_set_semantic_role_flags(&policy.structured_data_items[0],
+      M68K_ANALYSIS_STRUCTURED_DATA_ROLE_LOOKUP_TABLE);
+    M68K_C_ASSERT_INT(0, m68k_facts_v2_render_asm_source_analysis_profile_alloc(&object, &policy,
+      &source, &profile, &analysis, 1U, m68k_diag_sink(NULL)));
+    if (indexed) {
+      M68K_C_ASSERT_U32(1U, (uint32_t)analysis.sections[0].table_consumer_count);
+      M68K_C_ASSERT_U32(2U, analysis.sections[0].table_consumers[0].entry_count);
+    }
+    else {
+      M68K_C_ASSERT_U32(0U, (uint32_t)analysis.sections[0].table_consumer_count);
+      M68K_C_ASSERT(strstr(source, "; lookup_table") == NULL);
+      M68K_C_ASSERT(strstr(source, "dc.w $0001") != NULL);
+    }
+    M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
+    m68k_facts_v2_free_text(source); m68k_ir_source_analysis_destroy(&analysis);
+    m68k_object_destroy(&object); m68k_source_model_free(&parsed);
+  }
+  return 0;
+}
+
+static int test_facts_v2_traced_register_stub_table_requires_source_base(void) {
+  unsigned unknown_base;
+  for (unknown_base = 0U; unknown_base < 2U; ++unknown_base) {
+    AsmSourceFile parsed;
+    M68kDiagList diagnostics;
+    M68kObject object;
+    M68kAnalysisPolicy policy;
+    M68kFactsV2Profile profile;
+    M68kSourceAnalysisIR analysis;
+    char input[512], *source = NULL;
+    size_t index;
+    uint32_t found = 0U;
+    snprintf(input, sizeof(input),
+      "SECTION code,code\n\tbra.w start\n"
+      "table:\n\tbra.w first\n\tbra.w second\n"
+      "start:\n\tlea table(pc),a0\n%s"
+      "\tjsr 0(a0,d0.w)\n\trts\n"
+      "first:\n\tmoveq #1,d1\n\trts\n"
+      "second:\n\tmoveq #2,d1\n\trts\n",
+      unknown_base ? "\tmovea.l (a1),a0\n" : "");
+    M68K_C_ASSERT_INT(0, m68k_source_model_create(&parsed));
+    memset(&object, 0, sizeof(object)); memset(&analysis, 0, sizeof(analysis));
+    m68k_diag_list_reset(&diagnostics);
+    parsed.target_cpu = M68K_ASM_CPU_68000;
+    M68K_C_ASSERT(m68k_source_pipeline_parse_text_and_layout(&parsed, input, m68k_diag_sink(&diagnostics)));
+    M68K_C_ASSERT_INT(1, m68k_source_pipeline_emit_object(&parsed, &object, m68k_diag_sink(&diagnostics)));
+    m68k_analysis_policy_init_default(&policy);
+    M68K_C_ASSERT_INT(0, m68k_facts_v2_render_asm_source_analysis_profile_alloc(&object, &policy,
+      &source, &profile, &analysis, 1U, m68k_diag_sink(NULL)));
+    for (index = 0U; index < analysis.sections[0].code_start_ref_count; ++index) {
+      const M68kCodeStartRefIR *ref = &analysis.sections[0].code_start_refs[index];
+      if (ref->evidence_kind != M68K_CODE_ORIGIN_EVIDENCE_DISPATCH_TABLE_CONTROL_TARGET) continue;
+      if (ref->offset == 4U) found |= 1U;
+      if (ref->offset == 8U) found |= 2U;
+    }
+    M68K_C_ASSERT_U32(unknown_base ? 0U : 3U, found);
+    M68K_C_ASSERT_U32(0U, profile.asm_source_refused);
+    M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
+    m68k_facts_v2_free_text(source);
+    m68k_ir_source_analysis_destroy(&analysis);
+    m68k_object_destroy(&object); m68k_source_model_free(&parsed);
+  }
   return 0;
 }
 
@@ -20145,10 +20254,19 @@ static int test_facts_v2_pointer_table_runtime_data_targets_get_labels(void) {
   M68K_C_ASSERT_INT(0, m68k_facts_v2_render_asm_source_alloc(&object, &policy, &source, &profile,
     m68k_diag_sink(NULL)));
   M68K_C_ASSERT(source != NULL);
-  M68K_C_ASSERT(strstr(source, "\tdc.l abs_0_00000084\t; pointer_table\n") != NULL);
+  M68K_C_ASSERT(strstr(source, "\tdc.l abs_0_00000084\n") != NULL);
   M68K_C_ASSERT(strstr(source, "abs_0_00000084:\n\tdc.b $12,$34,$56,$78\n") != NULL);
   M68K_C_ASSERT(strstr(source, "ORG $4") == NULL);
   M68K_C_ASSERT_U32(0U, profile.asm_source_refused);
+  M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
+  m68k_facts_v2_free_text(source);
+  source = NULL;
+  /* The same words are retained when explicitly authored, not a role fallback. */
+  snprintf(policy.structured_data_items[0].comment, sizeof(policy.structured_data_items[0].comment),
+    "pointer_table");
+  M68K_C_ASSERT_INT(0, m68k_facts_v2_render_asm_source_alloc(&object, &policy, &source, &profile,
+    m68k_diag_sink(NULL)));
+  M68K_C_ASSERT(strstr(source, "\tdc.l abs_0_00000084\t; pointer_table\n") != NULL);
   M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
   m68k_facts_v2_free_text(source);
   m68k_object_destroy(&object);
@@ -20256,7 +20374,7 @@ static int test_facts_v2_absolute_long_lookup_table_renders_labels_and_nulls(voi
     m68k_diag_sink(NULL)));
   M68K_C_ASSERT(source != NULL);
   M68K_C_ASSERT(strstr(source,
-    "\tdc.l loc_0_00000010\t; pointer_table\n\tdc.l $00000000\n\tdc.l loc_0_00000012\n") != NULL);
+    "\tdc.l loc_0_00000010\n\tdc.l $00000000\n\tdc.l loc_0_00000012\n") != NULL);
   M68K_C_ASSERT(strstr(source, "\tdc.l $00000010,$00000000,$00000012") == NULL);
   M68K_C_ASSERT_U32(0U, profile.asm_source_refused);
   M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
@@ -20302,7 +20420,7 @@ static int test_facts_v2_absolute_long_lookup_table_adds_data_target_labels(void
   M68K_C_ASSERT_INT(0, m68k_facts_v2_render_asm_source_alloc(&object, &policy, &source, &profile,
     m68k_diag_sink(NULL)));
   M68K_C_ASSERT(source != NULL);
-  M68K_C_ASSERT(strstr(source, "\tdc.l loc_0_00000010\t; pointer_table\n\tdc.l loc_0_00000016\n") != NULL);
+  M68K_C_ASSERT(strstr(source, "\tdc.l loc_0_00000010\n\tdc.l loc_0_00000016\n") != NULL);
   M68K_C_ASSERT(strstr(source, "loc_0_00000010:\n\tdc.b \"FIRST\",$00") != NULL);
   M68K_C_ASSERT(strstr(source, "loc_0_00000016:\n\tdc.b \"NEXT\",$00") != NULL);
   M68K_C_ASSERT(strstr(source, "\tdc.l $00000010,$00000016") == NULL);
@@ -40686,6 +40804,12 @@ int m68k_c_ir_tests(void) {
       test_facts_v2_biased_pc_indexed_word_load_keeps_leading_table_entry},
     {"facts_v2_direct_indexed_stub_table_promotes_entries",
       test_facts_v2_direct_indexed_stub_table_promotes_entries},
+    {"declared_table_comments_preserve_authored_and_unresolved_roles",
+      test_declared_table_comments_preserve_authored_and_unresolved_roles},
+    {"facts_v2_fixed_pc_read_is_scalar_not_table",
+      test_facts_v2_fixed_pc_read_is_scalar_not_table},
+    {"facts_v2_traced_register_stub_table_requires_source_base",
+      test_facts_v2_traced_register_stub_table_requires_source_base},
     {"facts_v2_intra_instruction_index_base_promotes_post_instruction_variable_stubs",
       test_facts_v2_intra_instruction_index_base_promotes_post_instruction_variable_stubs},
     {"facts_v2_indexed_backward_inline_tail_promotes_entries",

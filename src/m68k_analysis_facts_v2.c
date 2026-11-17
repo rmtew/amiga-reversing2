@@ -9680,6 +9680,39 @@ static int candidate_indexed_control_table_base_offset(const M68kDecodeSectionIR
   return 0;
 }
 
+/* An indexed branch may name its table through a traced source address rather
+ * than a PC-relative operand. Keep unknown, runtime-only and memory-indirect
+ * bases out of structural table discovery; this does not close the index set. */
+static int candidate_traced_indexed_control_table_base_offset(const M68kDecodeSectionIR *section,
+    const M68kDecodeCandidate *candidate, const M68kFactsV2TraceState *state, uint32_t *out_offset) {
+  M68kInstructionIR instruction;
+  const M68kSimFormMetadata *metadata;
+  size_t index;
+  if (!section || !candidate || !state || !out_offset ||
+      m68k_decode_candidate_to_instruction(candidate, &instruction) != 0) return 0;
+  metadata = m68k_sim_metadata_for_instruction(&instruction);
+  if (!metadata || (metadata->flow_kind != M68K_SIM_FLOW_CALL &&
+      metadata->flow_kind != M68K_SIM_FLOW_JUMP)) return 0;
+  for (index = 0U; index < instruction.operand_count; ++index) {
+    const M68kOperandIR *operand = &instruction.operands[index];
+    const M68kFactsV2TraceValue *base;
+    int32_t displacement;
+    int64_t offset;
+    if (metadata->operand_access_kinds[index] != M68K_SIM_ACCESS_BRANCH_TARGET ||
+        metadata->operand_result_kinds[index] != M68K_SIM_RESULT_CONTROL_TARGET ||
+        !m68k_ir_operand_brief_index_displacement(operand, &displacement) || operand->value.ea_reg >= 8U)
+      continue;
+    base = &state->a[operand->value.ea_reg];
+    if (base->kind != M68K_FACTS_V2_TRACE_SOURCE_OFFSET || base->section_index != section->section_index)
+      continue;
+    offset = (int64_t)base->value + displacement;
+    if (offset < 0 || (uint64_t)offset >= section->size) continue;
+    *out_offset = (uint32_t)offset;
+    return 1;
+  }
+  return 0;
+}
+
 static int indexed_control_operand_base_is_inside_instruction(const M68kDecodeCandidate *candidate,
     uint32_t operand_base_offset) {
   if (candidate == NULL || candidate->byte_count == 0U ||
@@ -9719,7 +9752,8 @@ static int scan_indexed_forward_branch_terminated_stub_entries(M68kDecodeIR *dec
 static int enqueue_indexed_direct_control_stub_table_entries(M68kDecodeIR *decode, M68kFactIR *facts,
     M68kFactsV2WorkQueue *queue, uint8_t **accepted_start, uint8_t **accepted_bytes,
     M68kFactsV2Profile *profile, uint8_t max_cpu, size_t section_index, const M68kDecodeSectionIR *section,
-    const M68kDecodeCandidate *site_candidate, const M68kRuntimeAddressSpace *runtime_addresses) {
+    const M68kDecodeCandidate *site_candidate, const M68kRuntimeAddressSpace *runtime_addresses,
+    const M68kFactsV2TraceState *trace_state) {
   const uint32_t scan_limit = 64U;
   uint32_t entries[64];
   uint32_t table_offset = 0U, cursor, stride = 0U;
@@ -9727,7 +9761,8 @@ static int enqueue_indexed_direct_control_stub_table_entries(M68kDecodeIR *decod
   if (decode == NULL || facts == NULL || queue == NULL || accepted_start == NULL || accepted_bytes == NULL ||
       profile == NULL || section == NULL || site_candidate == NULL || runtime_addresses == NULL ||
       section_index >= decode->section_count ||
-      !candidate_indexed_control_table_base_offset(section, site_candidate, &table_offset)) {
+      (!candidate_indexed_control_table_base_offset(section, site_candidate, &table_offset) &&
+       !candidate_traced_indexed_control_table_base_offset(section, site_candidate, trace_state, &table_offset))) {
     return 0;
   }
   if (indexed_control_operand_base_is_inside_instruction(site_candidate, table_offset) &&
@@ -10535,7 +10570,7 @@ static int run_reachable_fixed_point(const M68kObject *object, M68kDecodeIR *dec
         max_cpu, item.section_index, section, candidate, runtime_addresses, &next_trace_state) != 0)
       return -1;
     if (enqueue_indexed_direct_control_stub_table_entries(decode, facts, queue, accepted_start, accepted_bytes,
-        profile, max_cpu, item.section_index, section, candidate, runtime_addresses) != 0)
+        profile, max_cpu, item.section_index, section, candidate, runtime_addresses, &item.trace_state) != 0)
       return -1;
     phase_start = profile_phase_start_local(profile_reachable_phases);
     for (target_index = 0U; target_index < candidate->target_count; ++target_index) {

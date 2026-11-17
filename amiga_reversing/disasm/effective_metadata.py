@@ -1707,7 +1707,6 @@ def _data_block_element_entity(
     name = element.name or (layout.name if element.offset == 0 else None)
     # A generic classification is not an authored source comment. Keep specific
     # roles and independent manual comments, rather than synthesizing '; data'.
-    comment = layout.role if layout.role != "data" else None
     value_domain = _data_block_bound_value_domain(element)
     pointer_struct = _data_block_bound_pointer_struct(element)
     # A pointee contract makes this element a pointer table independently of
@@ -1724,6 +1723,7 @@ def _data_block_element_entity(
         "opaque_data", "string", "audio_table", "sprite", "string_control_stream"}
     subtype = "pointer_table" if pointer_struct is not None else (
         layout.role if layout.role in native_subtypes else None)
+    comment = layout.role if layout.role not in native_subtypes | {"data"} else None
     return SeededEntityMetadata(
         addr=addr,
         end=end,
@@ -1744,6 +1744,39 @@ def _data_block_element_entity(
         source_evidence_id=_data_block_type_binding_text(element, "source_evidence_id") if value_domain is not None or pointer_struct is not None else None,
         parent_evidence_ids=_data_block_type_binding_parent_evidence_ids(element) if value_domain is not None or pointer_struct is not None else (),
     )
+
+
+def _declared_table_scalar_labels(
+    entities: list[SeededEntityMetadata], tables: list[SeededEntityMetadata],
+) -> list[SeededEntityMetadata]:
+    """Keep provisional scalar names without fragmenting a newer table owner.
+
+    Only fully contained, unstructured single scalars of the same width are
+    replaced. Authored comments, typed fields, value contracts, partial overlaps
+    and non-data facts retain their independent ownership/evidence.
+    """
+    result = []
+    for entity in entities:
+        width = {"byte": 1, "word": 2, "long": 4}.get(entity.unit)
+        plain = (entity.type == "data" and entity.end is not None and width is not None
+                 and entity.end - entity.addr == width and entity.subtype is None
+                 and entity.review_status == TargetMetadataReviewStatus.SEEDED
+                 and entity.source_owner_start is None and entity.source_owner_size is None
+                 and entity.owner_action_id is None and entity.source_evidence_id is None
+                 and not entity.parent_evidence_ids
+                 and not any((entity.comment, entity.struct_name, entity.field_name,
+                              entity.field_type, entity.c_type, entity.pointer_struct,
+                              entity.value_kind, entity.value_domain, entity.encoding,
+                              entity.pointer_address_domain, entity.pointer_symbol_group)))
+        owner = next((table for table in tables if plain and entity.hunk == table.hunk
+                      and entity.unit == table.unit and table.end is not None
+                      and table.addr <= entity.addr and entity.end <= table.end
+                      and (entity.addr, entity.end) != (table.addr, table.end)), None)
+        if owner is None:
+            result.append(entity)
+        elif entity.name:
+            result.append(replace(entity, end=None, unit=None))
+    return result
 
 
 def _data_block_element_representation(
@@ -2668,6 +2701,14 @@ def _apply_manual_seed_projection(
                 and representation.style is ManualRepresentationStyle.SYMBOL
                 and (representation.hunk, representation.addr, representation.end) in scalar_field_spans)
         ]
+    table_owners = [
+        owner for layout in effective_data_block_layouts
+        if layout.role in {"lookup_table", "pointer_table", "scalar_table"}
+        for element in layout.elements
+        if element.kind is DataBlockElementKind.ARRAY and element.type_binding is None
+        if (owner := _data_block_element_entity(layout, element)) is not None
+    ]
+    seeded_entities = _declared_table_scalar_labels(seeded_entities, table_owners)
     for effective_layout in effective_data_block_layouts:
         for element in effective_layout.elements:
             typed_entities = typed_entities_by_element[(effective_layout.layout_id, element.offset)]

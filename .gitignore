@@ -128,3 +128,6 @@ targets/starglider2_retail/*.s
 !targets/amiga_raw_foft/hardware/*.i
 !targets/amiga_raw_foft/exec/*.i
 !targets/amiga_raw_foft/graphics/*.i
+
+# Preserve F.O.F.T. evidence-backed table annotations for clean regeneration.
+!targets/amiga_raw_foft/manual_actions.jsonl

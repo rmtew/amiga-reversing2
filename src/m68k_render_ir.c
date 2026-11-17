@@ -3687,6 +3687,12 @@ static int render_asm_pointer_table_raw_long(M68kRenderIRPreview *preview, const
     preview->asm_source_allocation_failed = 1U;
     return 0;
   }
+  /* A verified symbolic dc.l already expresses its pointer identity. Keep
+   * authored commentary and record field roles; the generic fallback is
+   * useful only when a pointer entry still has to render numerically. */
+  if (!item->comment[0] && !item->field_name[0] &&
+      structured_data_item_is_pointer_table(item))
+    comment = NULL;
   if (comment != NULL && comment[0] != '\0')
     snprintf(line, sizeof(line), "\tdc.l %s\t; %s\n", name, comment);
   else
@@ -7169,6 +7175,11 @@ int structured_data_item_comment(const M68kAnalysisStructuredDataItem *item, cha
     return 1;
   }
   if (item->kind == M68K_ANALYSIS_STRUCTURED_DATA_STRING) return 0;
+  /* A named, declared table already has a durable extent and scalar/pointer
+   * directives. Keep generic role markers on inferred unresolved candidates,
+   * not on resolved policy declarations. Authored/field comments above win. */
+  if (item->label[0] && item->source_pattern_id == M68K_ANALYSIS_STRUCTURED_DATA_SOURCE_PATTERN_UNKNOWN &&
+      (structured_data_item_role_flags(item) & M68K_ANALYSIS_STRUCTURED_DATA_ROLE_LOOKUP_TABLE) != 0U) return 0;
   {
     const char *role_name = m68k_analysis_structured_data_role_name_for_flags(structured_data_item_role_flags(item));
     if (role_name != NULL) {

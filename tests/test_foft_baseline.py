@@ -105,3 +105,150 @@ def test_wrong_private_payload_is_not_bound(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="Whole program differs"):
         foft_baseline.bind(data)
     assert not (target / "binary.bin").exists()
+
+
+@pytest.mark.parametrize(
+    ("typ", "size", "unit"),
+    [
+        ("/word", 2, "word"),
+        ("/undefined4", 4, "long"),
+        ("/word[16]", 32, "word"),
+        ("/dword[4]", 16, "long"),
+    ],
+)
+def test_saved_scalar_types_do_not_imply_lookup_semantics(typ, size, unit):
+    from tools.import_foft_reference import scalar_declaration
+
+    assert scalar_declaration(typ, size) == {"unit": unit, "subtype": None}
+
+
+def test_saved_scalar_extent_mismatch_is_refused():
+    from tools.import_foft_reference import scalar_declaration
+
+    with pytest.raises(ValueError, match="extent"):
+        scalar_declaration("/word[16]", 2)
+    assert scalar_declaration("/pointer", 4) is None
+
+
+def test_saved_pointer_declarations_do_not_assert_mapped_addresses():
+    metadata = json.loads((TARGET / "target_metadata.json").read_text())
+    declarations = [
+        r
+        for r in metadata["seeded_entities"]
+        if r.get("source_locator", "").endswith(("/pointer", "/undefined *"))
+    ]
+    assert len(declarations) > 100
+    for row in declarations:
+        assert row["unit"] == "long" and row["subtype"] is None
+        assert row.get("value_kind") is None
+
+
+def test_collection_classification_is_not_an_authored_comment():
+    from amiga_reversing.disasm.effective_metadata import _data_block_element_entity
+    from amiga_reversing.disasm.target_metadata import (
+        DataBlockElementKind,
+        DataBlockElementMetadata,
+        DataBlockLayoutMetadata,
+        TargetMetadataReviewStatus,
+        TargetMetadataSeedOrigin,
+    )
+
+    provenance = {
+        "seed_origin": TargetMetadataSeedOrigin.MANUAL_ANALYSIS,
+        "review_status": TargetMetadataReviewStatus.SEEDED,
+        "citation": "consumer proof",
+    }
+    element = DataBlockElementMetadata(
+        layout_id="test",
+        offset=0,
+        width=8,
+        kind=DataBlockElementKind.ARRAY,
+        array_count=2,
+        array_stride=4,
+        **provenance,
+    )
+    layout = DataBlockLayoutMetadata(
+        layout_id="test",
+        hunk=0,
+        source_start=0,
+        source_end=8,
+        name="pointers",
+        role="pointer_table",
+        default_unit="long",
+        elements=(element,),
+        **provenance,
+    )
+    entity = _data_block_element_entity(layout, element)
+    assert entity.subtype == "pointer_table" and entity.comment is None
+
+
+def test_vetted_collections_preserve_complete_geometry_and_named_handlers():
+    from amiga_reversing.disasm.effective_metadata import effective_target_metadata
+
+    metadata = effective_target_metadata(TARGET)
+    layouts = {item.layout_id: item for item in metadata.data_block_layouts}
+    expected = {
+        "region_codes": (0x1B28, 12, 2),
+        "selection_pointers": (0x1B48, 4, 4),
+        "triplet_pointers": (0x1CD2, 18, 4),
+        "ship_word_lookup": (0x198C0, 32, 2),
+        "rawkey_characters": (0x36888, 158, 1),
+        "ship_callbacks": (0x2B684, 32, 4),
+        "ship_text": (0x12A56, 32, 4),
+        "audio_records": (0x4F482, 15, 4),
+    }
+    for name, (address, count, stride) in expected.items():
+        layout = layouts["foft-collection-" + name]
+        assert layout.source_start == address - 0x800
+        assert layout.source_end - layout.source_start == count * stride
+        (element,) = layout.elements
+        assert element.array_count == count and element.array_stride == stride
+        assert element.type_binding is None
+    assert [e.array_count for e in layouts["foft-edi_commands"].elements] == [11, 2]
+    assert layouts["foft-scp_key_commands"].elements[0].array_count == 11
+    assert layouts["foft-scp-instructions"].elements[0].array_count == 31
+    text = (TARGET / "source.s").read_text()
+    assert "tableConvHandler:\n\tbra.w fConvHandleEnd\n" in text
+    assert "\tdc.l fEditCommand\t; handler\n" in text
+    assert "\tdc.l fShipIntimidator\n" in text
+
+
+def test_declared_table_owns_plain_scalars_without_erasing_independent_evidence():
+    from amiga_reversing.disasm.effective_metadata import _declared_table_scalar_labels
+    from amiga_reversing.disasm.target_metadata import (
+        SeededEntityMetadata,
+        TargetMetadataReviewStatus,
+        TargetMetadataSeedOrigin,
+    )
+
+    def row(addr, **changes):
+        return SeededEntityMetadata(
+            **{
+                "addr": addr,
+                "end": addr + 4,
+                "type": "data",
+                "unit": "long",
+                "seed_origin": TargetMetadataSeedOrigin.MANUAL_ANALYSIS,
+                "review_status": TargetMetadataReviewStatus.SEEDED,
+                "citation": "saved declaration",
+                **changes,
+            }
+        )
+
+    owner = row(0, end=16, name="pointers", subtype="pointer_table")
+    named = row(0, name="old_name", source_id="saved_reference")
+    anonymous = row(4)
+    independent = [
+        row(8, struct_name="Record", field_name="field"),
+        row(12, comment="Independent authored evidence"),
+        row(14),
+        row(4, hunk=1),
+        row(8, type="code"),
+        row(8, value_kind="target_pointer"),
+        row(8, name="independent_owner", source_owner_start=8, source_owner_size=4),
+        row(8, source_evidence_id="independent-value-proof"),
+    ]
+    result = _declared_table_scalar_labels([named, anonymous, *independent], [owner])
+    assert result[0].name == "old_name" and result[0].source_id == "saved_reference"
+    assert result[0].end is None and result[0].unit is None
+    assert result[1:] == independent

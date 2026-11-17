@@ -4766,6 +4766,13 @@ static int append_pc_relative_lookup_table_item(M68kSourceAnalysisIR *source_ana
   item.offset = table_offset;
   item.size = size;
   item.kind = kind;
+  /* A fixed PC-relative load proves one scalar cell, not an indexed table.
+   * Retain its width without inventing a table consumer, bounds or role. */
+  if (source_pattern_id == M68K_ANALYSIS_STRUCTURED_DATA_SOURCE_PATTERN_PC_RELATIVE_INDEXED_READ &&
+      !has_index_register) {
+    if (source_quality_update_matching_structured_data_item(source_analysis, &item)) return 0;
+    return m68k_ir_source_analysis_append_structured_data_item(source_analysis, &item);
+  }
   item.has_consumer = 1U;
   item.consumer_section = consumer_section;
   item.consumer_offset = consumer_offset;
@@ -5681,14 +5688,38 @@ static int append_pc_relative_lookup_table_items(M68kSourceAnalysisIR *source_an
           /* Canonical collection geometry is stronger than a new scalar
            * prefix guess. Observe the same owner used by An-based readers. */
           const M68kTableDescriptorIR *known_table = NULL;
-          if (item_kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS && shape == M68K_SIM_EA_SHAPE_PC_INDEX &&
+          int declared_scalar = 0;
+          if (shape == M68K_SIM_EA_SHAPE_PC_INDEX &&
               !operand->value.full_ext_base_suppress && !operand->value.full_ext_index_suppress &&
               !operand->value.full_ext_base_disp_size && !operand->value.full_ext_outer_disp_size &&
-              !operand->value.full_ext_iis)
-            known_table = source_quality_clean_table_descriptor(table_analysis,
-              &decode->sections[target->section_index], accepted_bytes[target->section_index], target->offset,
-              M68K_ANALYSIS_TABLE_KIND_POINTER, 4U);
-          if ((!consumers_only && known_table) || (consumers_only && !known_table)) continue;
+              !operand->value.full_ext_iis) {
+            if (item_kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS)
+              known_table = source_quality_clean_table_descriptor(table_analysis,
+                &decode->sections[target->section_index], accepted_bytes[target->section_index], target->offset,
+                M68K_ANALYSIS_TABLE_KIND_POINTER, item_size);
+            if (!known_table)
+              known_table = source_quality_clean_table_descriptor(table_analysis,
+                &decode->sections[target->section_index], accepted_bytes[target->section_index], target->offset,
+                M68K_ANALYSIS_TABLE_KIND_SCALAR, item_size);
+          }
+          /* Descriptors are frozen after discovery. Do not first invent a
+           * one-element prefix over an explicitly declared scalar collection:
+           * that would conflict with its full geometry in the observer pass. */
+          if (!consumers_only && shape == M68K_SIM_EA_SHAPE_PC_INDEX) {
+            size_t declared_index;
+            for (declared_index = 0U; declared_index < source_analysis->structured_data_item_count;
+                ++declared_index) {
+              const M68kAnalysisStructuredDataItem *declared = &source_analysis->structured_data_items[declared_index];
+              if (declared->has_section_index && declared->section_index == target->section_index &&
+                  declared->offset == target->offset && declared->kind == item_kind && !declared->has_target &&
+                  declared->source_pattern_id == M68K_ANALYSIS_STRUCTURED_DATA_SOURCE_PATTERN_UNKNOWN &&
+                  (declared->semantic_role_flags & M68K_ANALYSIS_STRUCTURED_DATA_ROLE_LOOKUP_TABLE) != 0U) {
+                declared_scalar = 1;
+                break;
+              }
+            }
+          }
+          if ((!consumers_only && (known_table || declared_scalar)) || (consumers_only && !known_table)) continue;
           memset(&index_domain, 0, sizeof(index_domain));
           if (shape == M68K_SIM_EA_SHAPE_PC_INDEX) {
             table_index_reg = operand->value.index_reg;

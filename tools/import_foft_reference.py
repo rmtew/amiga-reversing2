@@ -61,6 +61,18 @@ def provenance(locator):
     }
 
 
+def scalar_declaration(typ, size):
+    """Retain declared width; a scalar declaration supplies no table semantics."""
+    match = re.fullmatch(r"/(word|dword|undefined2|undefined4)(?:\[(\d+)\])?", typ)
+    if not match:
+        return None
+    width = 2 if match[1] in ("word", "undefined2") else 4
+    count = int(match[2]) if match[2] is not None else 1
+    if size != width * count:
+        raise ValueError("Saved scalar declaration extent differs from its type")
+    return {"unit": "word" if width == 2 else "long", "subtype": None}
+
+
 def import_reference(reference, payload, target=TARGET):
     from amiga_reversing.disasm.binary_source import write_source_descriptor
     from amiga_reversing.disasm.projects import initialize_project_metadata
@@ -352,7 +364,7 @@ def import_reference(reference, payload, target=TARGET):
                     addr=a - BASE + f["offset"],
                     end=a - BASE + f["offset"] + f["length"],
                     unit={1: "byte", 2: "word", 4: "long"}[f["length"]],
-                    subtype="lookup_table",
+                    subtype=None,
                     struct_name=clean(custom[typ]["name"]),
                     field_name=clean(f["name"])
                     if f["name"]
@@ -386,21 +398,14 @@ def import_reference(reference, payload, target=TARGET):
             )
         ):
             base.update(subtype="string", encoding="ascii")
-        elif typ in ("/word", "/undefined2") or re.fullmatch(r"/word\[\d+\]", typ):
-            base.update(unit="word", subtype="lookup_table")
-        elif typ in ("/dword", "/undefined4") or re.fullmatch(r"/dword\[\d+\]", typ):
-            base.update(unit="long", subtype="lookup_table")
+        elif declaration := scalar_declaration(typ, n):
+            base.update(declaration)
         elif typ in ("/pointer", "/undefined *"):
-            ptr = int.from_bytes(raw[a - BASE : a - BASE + n], "big")
-            if n == 4 and BASE <= ptr < BASE + SIZE and refs[a]:
-                base.update(
-                    unit="long",
-                    subtype="pointer_table",
-                    value_kind="target_pointer",
-                    pointer_address_domain="mapped_source",
-                )
-            else:
-                base.update(unit="long" if n == 4 else "byte")
+            # Ghidra pointer typing and an incoming storage reference do not
+            # prove the stored value is an address. Preserve the width and
+            # provenance; vetted table layouts/native consumers establish
+            # mapped pointer semantics separately.
+            base.update(unit="long" if n == 4 else "byte", subtype=None)
         elif typ.startswith("/undefined"):
             report["deferred"].append(
                 {
