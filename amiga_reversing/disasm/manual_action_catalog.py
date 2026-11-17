@@ -262,10 +262,12 @@ def target_catalog_manual_payload(
         layout_id, value = params.get("layout_id"), params.get(field)
         if not isinstance(layout_id, str) or not layout_id.strip():
             raise ValueError("edit data-block layout requires a nonempty layout_id")
-        if not isinstance(value, str) or not value.strip():
-            raise ValueError(f"edit data-block layout requires a nonempty {field}")
+        if not isinstance(value, str) or (field == "name" and not value.strip()):
+            raise ValueError(f"edit data-block layout requires {'a nonempty name' if field == 'name' else 'role text'}")
+        # Role is optional metadata. Clearing its provisional caption must not
+        # require deleting the layout, its typed elements or interpreted refs.
         return "edit_manual_data_block_layout", {
-            "data_block_layout": {"layout_id": layout_id.strip(), field: value.strip()}
+            "data_block_layout": {"layout_id": layout_id.strip(), field: value.strip() or None}
         }
     if action.get("action") == "remove_manual_data_block_layout":
         return "remove_manual_data_block_layout", {"data_block_layout": _data_block_layout_identity_payload(params)}

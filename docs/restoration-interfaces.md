@@ -1692,3 +1692,10 @@ refuse admission. A split or incompatible source owner can retain numeric data;
 rendering never combines cells across an interior label, code or relocation.
 The existing signed single-WORD `base_displacement` form is unchanged;
 `entry_width` belongs to the packed-range form only.
+
+`target.data_block.layout.describe` accepts empty or whitespace-only role text to
+clear a provisional role. It appends an ordinary layout edit with `role: null`;
+existing layout bounds, typed elements and interpreted references remain intact.
+Derived role captions disappear from the source. Layout names still require
+nonempty text, and non-string role values refuse. Replay and the existing undo
+history retain both the original description and its clearing action.
