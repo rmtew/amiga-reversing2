@@ -163,6 +163,11 @@ def test_source_build_has_no_hidden_original_and_only_proven_assets(
             r["field_name"] for r in section["recovered_platform_typed_accesses"]
             if r["base_register"] == "A2" and r["owner_struct_name"] == "AudioInstrument"
         }
+        assert any(
+            r["offset"] == 0x12EE and r["field_name"] == "encoded_note_command"
+            for r in section["recovered_platform_typed_accesses"]
+        )
+        assert analysis["orphan_code_signal_count"] == 3
 
 
 def test_disk_outputs_require_a_fresh_private_directory(tmp_path):

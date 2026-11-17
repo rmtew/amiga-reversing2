@@ -127,9 +127,9 @@ def test_track_prefixes_do_not_own_stride_gaps_or_the_adjacent_instrument_map():
     definition = next(
         s for s in payload["custom_structs"] if s["name"] == "Bank5PatternTrackPrefix"
     )
-    assert definition["size"] == 63
+    assert definition["size"] == 71
     assert next(f for f in definition["fields"] if f["offset"] == 14)["value_kind"] == "scalar"
-    assert max(f["offset"] + f["size"] for f in definition["fields"]) == 63
+    assert max(f["offset"] + f["size"] for f in definition["fields"]) == 71
     roots = [0xEF6, 0xF3E, 0xF86, 0xFCE]
     layouts = [
         r
@@ -137,9 +137,9 @@ def test_track_prefixes_do_not_own_stride_gaps_or_the_adjacent_instrument_map():
         if r["layout_id"].startswith("foft-bank5-track-prefix-")
     ]
     assert [(r["source_start"], r["source_end"]) for r in layouts] == [
-        (r, r + 63) for r in roots
+        (r, r + 71) for r in roots
     ]
-    assert roots[-1] + 63 < 0x1015 < roots[-1] + 72
+    assert roots[-1] + 71 == 0x1015 < roots[-1] + 72
     assert not any(
         r["addr"] in roots and r.get("end") == r["addr"] + 72
         for r in payload["seeded_entities"]

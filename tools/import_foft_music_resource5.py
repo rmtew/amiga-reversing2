@@ -174,10 +174,10 @@ def main():
     for index, at in enumerate([0x1F8, 0x220, 0x248, 0x270]):
         entity(at, at + 40, f"bank5Voice{index}", unit="word")
     for index, at in enumerate([0xEF6, 0xF3E, 0xF86, 0xFCE]):
-        # Roots have a72-byte stride, but accepted accesses prove only a63-byte
-        # prefix. In particular the fourth nominal stride would overlap the
-        # independently consumed instrument map at$1015 by one byte.
-        entity(at, at + 63, f"bank5PatternTrack{index}", unit="byte")
+        # Roots have a72-byte stride. The accepted note-command write at$12EE
+        # proves byte+70; the71-byte prefix ends at the next known boundary.
+        # A full fourth stride would overlap the instrument map at$1015.
+        entity(at, at + 71, f"bank5PatternTrack{index}", unit="byte")
     entity(0xDC4, 0xDD4, "bank5InitialSongOffsets", unit="word")
     entity(0x1015, 0x1035, "bank5InstrumentMap", unit="byte")
     payload["entry_comments"] = [
