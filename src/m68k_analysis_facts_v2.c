@@ -638,11 +638,11 @@ static int candidate_operand_data_target_offset(const M68kDecodeCandidate *candi
 #define M68K_RECORD_DISPATCH_LIMIT 128U
 typedef struct M68kRecordDispatchProbe {
   uint32_t table_offset, table_size, entry_count, entry_size;
-  uint8_t refusal_reason;
+  uint8_t refusal_reason, counted;
   uint32_t targets[M68K_RECORD_DISPATCH_LIMIT];
   uint32_t runtime_targets[M68K_RECORD_DISPATCH_LIMIT];
 } M68kRecordDispatchProbe;
-static int probe_initial_record_dispatch(M68kDecodeIR *, const M68kRuntimeAddressSpace *,
+static int probe_initial_record_dispatch(M68kDecodeIR *, const M68kAnalysisPolicy *, const M68kRuntimeAddressSpace *,
   uint8_t **, uint8_t **, size_t, const M68kDecodeCandidate *, uint8_t, M68kRecordDispatchProbe *);
 static int candidate_reencodes_exactly(const M68kDecodeSectionIR *, const M68kDecodeCandidate *);
 static int probe_initial_pointer_prefix(M68kDecodeIR *, const M68kAnalysisPolicy *,
@@ -7565,9 +7565,14 @@ static int enqueue_direct_indexed_stub_entries(M68kDecodeIR *decode, M68kFactIR 
   }
   trace_state_init_unknown(&unknown_state);
   for (index = 0U; index < entry_count; ++index) {
-    if (enqueue_same_section_control_target_from_offset(decode, facts, queue, accepted_start, accepted_bytes,
-        profile, max_cpu, section_index, site_candidate->offset, entries[index],
-        M68K_FACT_CONFIDENCE_TOOL_INFERRED, runtime_addresses,
+    uint32_t runtime = 0U;
+    uint8_t mapped = runtime_address_space_source_to_runtime_near(runtime_addresses, section_index,
+      entries[index], 0U, 0U, &runtime) != 0;
+    /* The scanners return source offsets, including when their numeric values
+     * overlap a load view. Do not feed them through runtime translation. */
+    if (enqueue_same_section_control_resolved_target_from_offset(decode, facts, queue, accepted_start, accepted_bytes,
+        profile, max_cpu, section_index, site_candidate->offset, entries[index], mapped, runtime,
+        M68K_FACT_CONFIDENCE_TOOL_INFERRED, M68K_FACT_CODE_START_REASON_CONTROL_TARGET,
         M68K_CODE_ORIGIN_EVIDENCE_DISPATCH_TABLE_CONTROL_TARGET, &unknown_state) != 0) {
       return -1;
     }
@@ -7640,7 +7645,7 @@ static int append_recovered_indirect_sites_for_accepted(M68kDecodeIR *decode,
         {
           M68kRecordDispatchProbe probe;
           int pointer_prefix = 0;
-          int found = probe_initial_record_dispatch(decode, runtime_addresses, accepted_start, accepted_bytes,
+          int found = probe_initial_record_dispatch(decode, policy, runtime_addresses, accepted_start, accepted_bytes,
               section_index, candidate, max_cpu, &probe);
           if (!found && !probe.refusal_reason) {
             found = probe_initial_pointer_prefix(decode, policy, runtime_addresses, accepted_start, accepted_bytes,
@@ -7663,6 +7668,8 @@ static int append_recovered_indirect_sites_for_accepted(M68kDecodeIR *decode,
             site.table_bounds_status = M68K_RECOVERED_INDIRECT_TABLE_BOUNDS_NONE;
             site.detail = pointer_prefix ?
               "initial pointer prefix bounded by forward handler; selector and runtime writes are not closed" :
+              probe.counted ?
+              "initial-image counted-record handlers; runtime writes and incoming aliases are not closed" :
               "initial-image record handlers; runtime writes and incoming aliases are not closed";
           } else if (probe.refusal_reason) {
             site.has_table_base = 1U; site.table_offset = probe.table_offset;
@@ -11329,7 +11336,7 @@ static int facts_v2_collect_profile_internal(const M68kObject *object, const M68
     uint32_t record_accepted = 0U;
     fail_stage = "initial record dispatch discovery";
     if (seed_initial_record_dispatches(&decode, &facts, &queue, &runtime_addresses,
-        accepted_start, accepted_bytes, out_profile, max_cpu) != 0) goto fail;
+        policy, accepted_start, accepted_bytes, out_profile, max_cpu) != 0) goto fail;
     if (seed_initial_pointer_prefixes(&decode, policy, &facts, &queue, &runtime_addresses,
         accepted_start, accepted_bytes, out_profile, max_cpu) != 0) goto fail;
     if (queue.count == previous_queue) break;

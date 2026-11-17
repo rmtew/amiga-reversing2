@@ -1523,3 +1523,33 @@ refuses overwriting them, and writes only its explicit output. No target is
 loaded, no MAL decision is accepted, and no runtime execution, function extent,
 selector closure or ABI proof is inferred. See the
 [F.O.F.T. investigation](validation/foft-orphan-links.md) for a concrete use.
+
+### Counted record searches and indexed stub coordinates
+
+Initial-record discovery also recognizes a bounded `DBF` search whose conditional
+match edge leaves the loop for a LONG field load and indirect call/jump. It
+requires a PC-relative cursor origin, constant counter initializer, decoded
+postincrement header read, read-only sequential loop body and constant mismatch
+advance. The header width and extra advance establish the stride; the load
+establishes the pointer field. Calls, memory stores, cursor/counter clobbers,
+unsupported induction, ambiguous match edges and out-of-record fields refuse
+this form. Limits are 128 initial records, 32 body instructions, 16 initializer
+instructions and a 128-byte window between match guard and load. Zero keys are
+ordinary records under a counted bound, not assumed sentinels.
+
+The complete counted collection must have even, mapped, exactly decodable target
+starts outside its own record bytes, structured data and accepted instruction
+interiors. A pointer into the first instruction of an independently direct-called
+entry is also refused when that entry is still awaiting code admission. An
+invalid member refuses the collection without publishing a partial handler set.
+Results reuse `initial_record_candidates`, `initial_record_control_target` and
+`initial_image_records`; the detail identifies a counted traversal. They describe
+initial-image candidates and keep `runtime_target_set_closed: false`.
+
+Register clobber checks resolve generated EA updates, including postincrement,
+rather than reading only a generic instruction form's static update field.
+Direct indexed stub scanners return source offsets; their enqueue path now uses
+resolved-source admission and derives an optional runtime view separately.
+Overlapping numeric source/runtime ranges cannot cause a second translation.
+Duplicate discoveries with no runtime binding retain the same normalized origin.
+See [FOFT counted-dispatch verification](validation/foft-counted-dispatch.md).

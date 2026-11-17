@@ -11937,6 +11937,53 @@ static int test_facts_v2_direct_indexed_stub_table_promotes_entries(void) {
   return 0;
 }
 
+static int test_facts_v2_direct_indexed_stubs_keep_source_and_runtime_frames_distinct(void) {
+  for (unsigned mapped = 0U; mapped < 3U; ++mapped) {
+    AsmSourceFile parsed;
+    M68kObject object;
+    M68kDiagList diagnostics;
+    M68kAnalysisPolicy policy;
+    M68kFactsV2Profile profile;
+    M68kSourceAnalysisIR analysis;
+    uint32_t load = mapped == 1U ? 0x100U : mapped == 2U ? 0x800U : 0U;
+    const char *input = "SECTION code,code\n\tbra.w entry\n\tdcb.b $1000,0\n"
+      "entry:\n\tandi.w #12,d0\n\tjmp table(pc,d0.w)\n"
+      "table:\n\tbra.w first\n\tbra.w second\n\tbra.w third\n\tbra.w fourth\n"
+      "first:\n\trts\nsecond:\n\trts\nthird:\n\trts\nfourth:\n\trts\n";
+    char *source = NULL;
+    M68K_C_ASSERT_INT(0, m68k_source_model_create(&parsed));
+    memset(&object, 0, sizeof(object)); memset(&analysis, 0, sizeof(analysis));
+    m68k_diag_list_reset(&diagnostics); parsed.target_cpu = M68K_ASM_CPU_68000;
+    M68K_C_ASSERT(m68k_source_pipeline_parse_text_and_layout(&parsed, input, m68k_diag_sink(&diagnostics)));
+    M68K_C_ASSERT_INT(1, m68k_source_pipeline_emit_object(&parsed, &object, m68k_diag_sink(&diagnostics)));
+    m68k_analysis_policy_init_default(&policy);
+    if (mapped) {
+      policy.runtime_range_count = 1U; policy.runtime_ranges[0].has_section_index = 1U;
+      policy.runtime_ranges[0].section_index = 0U; policy.runtime_ranges[0].size = object.sections[0].size;
+      policy.runtime_ranges[0].runtime_address = load;
+    }
+    M68K_C_ASSERT_INT(0, m68k_facts_v2_render_asm_source_analysis_profile_alloc(&object, &policy,
+      &source, &profile, &analysis, 1U, m68k_diag_sink(NULL)));
+    uint32_t seen = 0U;
+    for (size_t n = 0U; n < analysis.sections[0].code_start_ref_count; ++n) {
+      const M68kCodeStartRefIR *r = &analysis.sections[0].code_start_refs[n];
+      if (r->evidence_kind != M68K_CODE_ORIGIN_EVIDENCE_DISPATCH_TABLE_CONTROL_TARGET ||
+          r->source_offset != 0x1008U) continue;
+      /* The source table begins at $100C. A runtime map overlapping the source
+       * numbers must not translate these already-resolved coordinates again. */
+      M68K_C_ASSERT(r->offset >= 0x100CU && r->offset < 0x101CU);
+      M68K_C_ASSERT_U32(0U, (r->offset - 0x100CU) % 4U);
+      if (mapped) M68K_C_ASSERT_U32(r->offset + load, r->runtime_address);
+      seen |= 1U << ((r->offset - 0x100CU) / 4U);
+    }
+    M68K_C_ASSERT_U32(15U, seen);
+    M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
+    m68k_facts_v2_free_text(source); m68k_ir_source_analysis_destroy(&analysis);
+    m68k_object_destroy(&object); m68k_source_model_free(&parsed);
+  }
+  return 0;
+}
+
 static int test_declared_table_comments_preserve_authored_and_unresolved_roles(void) {
   M68kAnalysisStructuredDataItem item;
   char comment[128];
@@ -12220,6 +12267,105 @@ static int test_facts_v2_initial_record_dispatch_candidates_are_bounded_and_cons
   return 0;
 }
 
+static int test_facts_v2_counted_record_match_dispatch_is_bounded_and_conservative(void) {
+  unsigned mapped, variant, mode;
+  for (mapped = 0U; mapped < 2U; ++mapped) for (variant = 0U; variant < 2U; ++variant)
+  for (mode = 0U; mode < 27U; ++mode) {
+    if (mode == 12U && !mapped) continue;
+    AsmSourceFile parsed;
+    M68kObject object;
+    M68kDiagList diagnostics;
+    M68kAnalysisPolicy policy;
+    M68kFactsV2Profile profile;
+    M68kSourceAnalysisIR analysis;
+    char input[16384], records[8192], body[256], *source = NULL;
+    const char *base = variant ? "a2" : "a1", *counter = variant ? "d4" : "d5";
+    const char *key = variant ? "d1" : "d0", *control = variant ? "a3" : "a0";
+    const char *first = mode == 1U ? "first+1" : mode == 18U ? "$fffffff0" : "first";
+    const char *second = mode == 9U ? "0" : mode == 10U ? "first" :
+                         mode == 19U ? "opaque+2" : "second";
+    int expected = mode == 0U || mode == 7U || mode == 10U || mode == 20U ||
+                   mode == 21U || mode == 22U || mode == 23U || mode == 24U || mode == 25U;
+    unsigned entries = mode == 7U ? 128U : mode == 8U ? 129U : mode == 24U ? 1U : 2U;
+    size_t at = (size_t)snprintf(records, sizeof(records), "records:\n");
+    for (unsigned n = 0U; n < entries; ++n)
+      at += (size_t)snprintf(records + at, sizeof(records) - at,
+        "\tdc.w %u\n\tdc.l %s\n", mode == 20U ? 0U : n + 1U, n ? second : first);
+    snprintf(records + at, sizeof(records) - at, "\tdc.w 1\n\tdc.l 0\n");
+    snprintf(body, sizeof(body), "\ttst.w 0(a0,%s.w)\n", key);
+    if (mode == 2U) snprintf(body, sizeof(body), "\tclr.w %s\n", counter);
+    if (mode == 3U) snprintf(body, sizeof(body), "\tmovea.l (a4),%s\n", base);
+    if (mode == 4U) snprintf(body, sizeof(body), "\tbsr.w opaque\n");
+    if (mode == 26U) snprintf(body, sizeof(body), "\tmove.w (%s)+,d3\n", base);
+    snprintf(input, sizeof(input),
+      "SECTION code,code\n%s\tlea records(pc),%s\n\t%s #%d,%s\n%s"
+      "loop:\n\tmove.w (%s)+,%s\n%s\tbeq.w %s\n\taddq.w #%u,%s\n\tdbf %s,loop\n%s"
+      "\tbra.w done\nmatch:\n\tmovea.l %u(%s),%s\n\t%s (%s)\n"
+      "done:\n\trts\n%sfirst:\n\tmoveq #1,d0\n\trts\nsecond:\n\tmoveq #2,d0\n\trts\n"
+      "opaque:\n\tmove.l #$12345678,d0\n\trts\n",
+      mapped ? "\tORG $800\n" : "", base, mode == 15U ? "move.b" : mode == 22U || mode == 8U ? "move.w" : "moveq",
+      mode == 6U ? -1 : (int)entries - 1, counter, mode == 13U ? "\tmovea.l (a4),a1\n" : "",
+      mode == 17U ? "a4" : base, key, body, mode == 14U ? "done" : "match", mode == 5U ? 2U : 4U,
+      base, counter, mode == 21U || mode == 19U ? "\tbsr.w opaque\n" : "",
+      mode == 16U ? 2U : 0U, base, control, mode == 23U ? "jmp" : "jsr", control, records);
+    /* 25 exercises a harmless prefix gap with a changed register allocation. */
+    if (mode == 25U) {
+      char *start = strstr(input, "loop:");
+      M68K_C_ASSERT(start != NULL);
+      memmove(start + 5U, start, strlen(start) + 1U); memcpy(start, "\tnop\n", 5U);
+    }
+    if (mode == 13U && variant) {
+      char *clobber = strstr(input, "movea.l (a4),a1");
+      M68K_C_ASSERT(clobber != NULL); clobber[strlen("movea.l (a4),a")] = '2';
+    }
+    M68K_C_ASSERT_INT(0, m68k_source_model_create(&parsed));
+    memset(&object, 0, sizeof(object)); memset(&analysis, 0, sizeof(analysis));
+    m68k_diag_list_reset(&diagnostics); parsed.target_cpu = M68K_ASM_CPU_68000;
+    M68K_C_ASSERT(m68k_source_pipeline_parse_text_and_layout(&parsed, input, m68k_diag_sink(&diagnostics)));
+    M68K_C_ASSERT_INT(1, m68k_source_pipeline_emit_object(&parsed, &object, m68k_diag_sink(&diagnostics)));
+    m68k_analysis_policy_init_default(&policy);
+    if (mapped) {
+      policy.runtime_range_count = 1U; policy.runtime_ranges[0].has_section_index = 1U;
+      policy.runtime_ranges[0].section_index = 0U; policy.runtime_ranges[0].size = object.sections[0].size;
+      policy.runtime_ranges[0].runtime_address = mode == 12U ? 0x1800U : 0x800U;
+    }
+    if (mode == 11U) {
+      policy.structured_data_item_count = 1U;
+      policy.structured_data_items[0].has_section_index = 1U;
+      policy.structured_data_items[0].section_index = 0U;
+      policy.structured_data_items[0].offset = object.sections[0].size - 12U;
+      policy.structured_data_items[0].size = 4U;
+      policy.structured_data_items[0].kind = M68K_ANALYSIS_STRUCTURED_DATA_BYTES;
+    }
+    M68K_C_ASSERT_INT(0, m68k_facts_v2_render_asm_source_analysis_profile_alloc(&object, &policy,
+      &source, &profile, &analysis, 1U, m68k_diag_sink(NULL)));
+    int found = 0, origins = 0;
+    for (size_t n = 0U; n < analysis.sections[0].recovered_indirect_site_count; ++n) {
+      const M68kRecoveredIndirectSiteIR *site = &analysis.sections[0].recovered_indirect_sites[n];
+      if (site->status != M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES) continue;
+      ++found;
+      M68K_C_ASSERT_U32(entries, site->table_entry_count);
+      M68K_C_ASSERT_U32(entries * 6U, site->table_size);
+      M68K_C_ASSERT_U32(6U, site->table_entry_size);
+      M68K_C_ASSERT_U32(mode == 10U || mode == 24U ? 1U : 2U, site->target_count);
+      M68K_C_ASSERT(strstr(site->detail, "counted-record") != NULL);
+      M68K_C_ASSERT(strstr(site->detail, "not closed") != NULL);
+    }
+    for (size_t n = 0U; n < analysis.sections[0].code_start_ref_count; ++n)
+      if (analysis.sections[0].code_start_refs[n].evidence_kind ==
+          M68K_CODE_ORIGIN_EVIDENCE_INITIAL_RECORD_CONTROL_TARGET) ++origins;
+    if (found != expected) fprintf(stderr, "counted record mapped=%u variant=%u mode=%u expected=%d found=%d\n",
+      mapped, variant, mode, expected, found);
+    if (found != expected) fprintf(stderr, "%s\n", source);
+    M68K_C_ASSERT_INT(expected, found);
+    M68K_C_ASSERT_INT(expected, origins != 0);
+    M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
+    m68k_facts_v2_free_text(source); m68k_ir_source_analysis_destroy(&analysis);
+    m68k_object_destroy(&object); m68k_source_model_free(&parsed);
+  }
+  return 0;
+}
+
 static int test_facts_v2_fixed_pc_read_is_scalar_not_table(void) {
   unsigned indexed;
   for (indexed = 0U; indexed < 2U; ++indexed) {
@@ -12365,7 +12511,9 @@ static int test_facts_v2_intra_instruction_index_base_promotes_post_instruction_
     source_analysis.sections[0].recovered_indirect_sites[0].status);
   M68K_C_ASSERT_U32(1U, source_analysis.sections[0].recovered_indirect_sites[0].has_expression_base);
   M68K_C_ASSERT_U32(0x06U, source_analysis.sections[0].recovered_indirect_sites[0].expression_base_offset);
-  M68K_C_ASSERT_U32(4U, source_analysis.sections[0].recovered_indirect_sites[0].target_count);
+  /* There are two source entries, not four targets. The old unnormalized
+   * enqueue supplied different unused runtime values for duplicate origins. */
+  M68K_C_ASSERT_U32(2U, source_analysis.sections[0].recovered_indirect_sites[0].target_count);
   M68K_C_ASSERT_U32(0U, profile.asm_source_refused);
   M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
   m68k_facts_v2_free_text(source);
@@ -41143,6 +41291,8 @@ int m68k_c_ir_tests(void) {
       test_facts_v2_address_register_index_word_load_promotes_relative_jump_targets},
     {"facts_v2_biased_pc_indexed_word_load_keeps_leading_table_entry",
       test_facts_v2_biased_pc_indexed_word_load_keeps_leading_table_entry},
+    {"facts_v2_direct_indexed_stubs_keep_source_and_runtime_frames_distinct",
+      test_facts_v2_direct_indexed_stubs_keep_source_and_runtime_frames_distinct},
     {"facts_v2_direct_indexed_stub_table_promotes_entries",
       test_facts_v2_direct_indexed_stub_table_promotes_entries},
     {"declared_table_comments_preserve_authored_and_unresolved_roles",
@@ -41151,6 +41301,8 @@ int m68k_c_ir_tests(void) {
       test_facts_v2_folded_pointer_prefix_is_bounded_and_conservative},
     {"facts_v2_return_probes_are_alignment_aware_and_never_promote",
       test_facts_v2_return_probes_are_alignment_aware_and_never_promote},
+    {"facts_v2_counted_record_match_dispatch_is_bounded_and_conservative",
+      test_facts_v2_counted_record_match_dispatch_is_bounded_and_conservative},
     {"facts_v2_initial_record_dispatch_candidates_are_bounded_and_conservative",
       test_facts_v2_initial_record_dispatch_candidates_are_bounded_and_conservative},
     {"facts_v2_fixed_pc_read_is_scalar_not_table",
