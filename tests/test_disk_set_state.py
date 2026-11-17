@@ -11,7 +11,7 @@ from amiga_reversing.disasm.source_package_publish import publish_source_package
 from tests.test_disk_set import ROOT, fixture, packages_for
 
 
-def editable(tmp_path, monkeypatch, *, table=False):
+def editable(tmp_path, monkeypatch, *, table=False, string=False):
     from amiga_reversing.disasm import restoration, server
 
     extra = (
@@ -20,6 +20,11 @@ def editable(tmp_path, monkeypatch, *, table=False):
             "main_text": " SECTION code,code\n ORG $1000\n moveq #7,d0\n rts\n dc.w $0002\n dc.l $00001002\n",
         }
         if table
+        else {
+            "main_data": bytes.fromhex("70074e753f68") + b"Hello\0",
+            "main_text": ' SECTION code,code\n ORG $1000\n moveq #7,d0\n rts\n dc.b $3f,$68,"Hello",0\n',
+        }
+        if string
         else {}
     )
     project, target, paths, manifest = fixture(tmp_path, **extra)
@@ -718,3 +723,42 @@ def test_regenerate_refreshes_all_owned_sources_without_annotations(
     assert {p.name: p.read_bytes() for p in (target / "analysis").iterdir()} == before
     with pytest.raises(ValueError, match="stale_revision"):
         call("regenerate", expected_revision="old")
+
+
+def test_scoped_string_body_preserves_typed_prefix_and_exact_source(
+    tmp_path, monkeypatch
+):
+    _, target, _, call = editable(tmp_path, monkeypatch, string=True)
+    header = call("inspect", source_offset=4, end_offset=6, row_kind="data")
+    call(
+        "interpret",
+        **data_request(
+            header,
+            "range.data_block.layout.create",
+            {"name": "replyGuard", "default_unit": "byte"},
+        ),
+    )
+    for start in (4, 5):
+        selected = call(
+            "inspect", source_offset=start, end_offset=start + 1, row_kind="data"
+        )
+        call(
+            "interpret",
+            **data_request(
+                selected, "range.data_block.element.set", {"kind": "scalar", "width": 1}
+            ),
+        )
+    before = (target / "analysis/main.manual_actions.jsonl").read_bytes()
+    selected = call("inspect", source_offset=6, end_offset=12, row_kind="data")
+    saved = call("interpret", **data_request(selected, "range.seed.data.string", {}))
+    assert saved["verification"]["media_exact"]
+    assert '\tdc.b "Hello",$00' in (target / "main.s").read_text()
+    assert (
+        (target / "analysis/main.manual_actions.jsonl").read_bytes().startswith(before)
+    )
+    for start, end, reason in [(4, 12, "typed layout"), (6, 11, "NUL-terminated")]:
+        selected = call("inspect", source_offset=start, end_offset=end, row_kind="data")
+        manifest = (target / "manifest.json").read_bytes()
+        with pytest.raises(ValueError, match=reason):
+            call("interpret", **data_request(selected, "range.seed.data.string", {}))
+        assert (target / "manifest.json").read_bytes() == manifest

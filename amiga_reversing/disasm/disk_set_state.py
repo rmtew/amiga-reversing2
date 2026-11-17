@@ -363,7 +363,7 @@ def _inspect_member_data_range(owner, member, body, artifact):
     selected = [
         _member_data_layout_row(owner, member, row, layouts) for row in selected
     ]
-    supported = {"range.data_block.layout.create"}
+    supported = {"range.data_block.layout.create", "range.seed.data.string"}
     layout_ids = {
         row.get("active_data_block_layout", {}).get("layout_id") for row in selected
     }
@@ -622,7 +622,43 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None, source
                 parameters=body.get("parameters"),
             )
         ]
+    if command == "range.seed.data.string" and len(actions) != 1:
+        raise ValueError("string seed requires a single complete inspected data span")
     for kind, payload in actions:
+        if command == "range.seed.data.string":
+            seed = payload.get("seed", {})
+            start, end = (
+                context["source_span"]["start_offset"],
+                context["source_span"]["end_offset"],
+            )
+            if (
+                kind != "create_manual_seed"
+                or seed.get("kind") != "data"
+                or seed.get("hunk") != 0
+                or seed.get("addr") != start
+                or seed.get("end") != end
+                or seed.get("data_role") != "string"
+                or seed.get("unit") != "byte"
+                or seed.get("encoding") != "ascii"
+            ):
+                raise ValueError(
+                    "string seed must match the exact inspected member span"
+                )
+            if any(
+                layout["source_start"] < end and layout["source_end"] > start
+                for layout in _member_layouts(owner, member)
+            ):
+                raise ValueError("string seed overlaps an existing typed layout")
+            value = source.read_bytes()[start:end]
+            if (
+                not value
+                or value[-1] != 0
+                or 0 in value[:-1]
+                or any(byte < 32 or byte >= 127 for byte in value[:-1])
+            ):
+                raise ValueError(
+                    "scoped string seed requires one complete NUL-terminated ASCII span"
+                )
         if kind == "create_manual_data_block_layout":
             new = payload["data_block_layout"]
             if any(

@@ -895,6 +895,15 @@ It preserves annotation and journal bytes. CLI `regenerate` and MCP
 `restoration_regenerate` expose the same owner operation; sealed members retain
 their existing source package.
 
+Scoped data ranges also expose `range.seed.data.string`, using the existing
+Manual Seed representation. It requires the exact inspected span, printable
+ASCII followed by one final NUL, no embedded NUL, and no overlap with a typed
+layout. It cannot include accepted code or cross a member boundary. This allows
+a string body after a separately typed header to retain readable assembly;
+seeding a string does not interpret embedded script operators as literal output.
+Other encodings, unterminated fragments and typed-field replacement are outside
+this narrow command. Existing revision, journal, build and media gates apply.
+
 Disk-set members support the same `interpret_batch` operation for these scoped
 catalog actions, plus `comment.edit` and `label.rename`. Put `member_id`, `media_paths`
 and `expected_revision` on the outer request only; entries cannot override them.
