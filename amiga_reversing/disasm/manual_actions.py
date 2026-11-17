@@ -289,7 +289,8 @@ class _ManualAction:
 
 
 def manual_action_log_path(target_dir: Path) -> Path:
-    return target_dir / MANUAL_ACTION_LOG_FILE_NAME
+    from amiga_reversing.disasm.analysis_state_paths import state_path
+    return state_path(target_dir, MANUAL_ACTION_LOG_FILE_NAME)
 
 
 def _canonical_data_block_layouts(target_dir: Path, metadata: TargetMetadata | None = None):

@@ -2142,15 +2142,18 @@ class TargetMetadata:
         )
 
 def target_metadata_path(target_dir: Path) -> Path:
-    return target_dir / TARGET_METADATA_FILE_NAME
+    from amiga_reversing.disasm.analysis_state_paths import state_path
+    return state_path(target_dir, TARGET_METADATA_FILE_NAME)
 
 
 def target_seeded_metadata_path(target_dir: Path) -> Path:
-    return target_dir / TARGET_SEEDED_METADATA_FILE_NAME
+    from amiga_reversing.disasm.analysis_state_paths import state_path
+    return state_path(target_dir, TARGET_SEEDED_METADATA_FILE_NAME)
 
 
 def target_corrections_path(target_dir: Path) -> Path:
-    return target_dir / TARGET_CORRECTIONS_FILE_NAME
+    from amiga_reversing.disasm.analysis_state_paths import state_path
+    return state_path(target_dir, TARGET_CORRECTIONS_FILE_NAME)
 
 
 def require_target_metadata(

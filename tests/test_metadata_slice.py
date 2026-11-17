@@ -11,6 +11,29 @@ from amiga_reversing.disasm.target_metadata import (
 )
 
 
+def test_existing_member_audit_preserves_unique_facts_and_compares_normalized_values():
+    from dataclasses import replace
+
+    from amiga_reversing.disasm.metadata_slice import audit_raw_metadata_slice
+    from amiga_reversing.disasm.target_metadata import SeededCodeEntrypointMetadata
+
+    parent = TargetMetadata.from_dict(fixture())
+    member, _ = slice_raw_metadata(parent, start=100, size=20)
+    assert audit_raw_metadata_slice(parent, member, start=100, size=20)[
+        "safe_to_retire_without_resolution"
+    ]
+    unique = SeededCodeEntrypointMetadata.from_dict({
+        "addr": 0, "name": "memberEntry", "citation": "Synthetic member-only entry",
+        "seed_origin": "manual_analysis", "review_status": "seeded",
+    })
+    member = replace(member, seeded_code_entrypoints=(*member.seeded_code_entrypoints, unique))
+    before = target_metadata_json_payload(member)
+    result = audit_raw_metadata_slice(parent, member, start=100, size=20)
+    assert not result["safe_to_retire_without_resolution"]
+    assert result["unique"]["seeded_code_entrypoints"][0]["name"] == "memberEntry"
+    assert target_metadata_json_payload(member) == before
+
+
 def fixture():
     payload = json.loads(
         json.dumps(

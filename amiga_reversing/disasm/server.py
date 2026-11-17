@@ -3557,7 +3557,9 @@ def _project_disk_browser_payload(project_name: str, path: str = "") -> dict[str
             entries=entries, path=path,
             content_for_entry=lambda entry: disk_browser.content_payload_from_bytes(json.dumps({
                 **owner.members[entry["name"]], "analysis_owner": owner.owner(entry["name"])[0],
-                "member_mutation_supported": False}, indent=2).encode()))
+                "member_mutation_supported": bool((owner.members[owner.owner(entry["name"])[0]]["analysis"] or {}).get("state")),
+                "restoration_operations": ["inspect", "interpret", "history"] if (owner.members[owner.owner(entry["name"])[0]]["analysis"] or {}).get("state") else [],
+                "member_id": entry["name"]}, indent=2).encode()))
     manifest = DiskManifest.load(Path(manifest_path))
     manifest_dict = manifest.to_dict()
     target_index: dict[str, str] = {}

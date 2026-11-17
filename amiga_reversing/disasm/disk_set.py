@@ -187,6 +187,11 @@ def create_disk_set(
     for member in m["members"]:
         if member["analysis"] is not None:
             refs += [member["analysis"]["metadata"], *member["analysis"]["state_files"]]
+            refs += [
+                r
+                for r in member["analysis"].get("state", {}).values()
+                if r["sha256"] is not None
+            ]
     if set(owned_files) != {r["path"] for r in refs}:
         raise ValueError("disk-set import file inventory differs")
     package_files = validate_source_package(package)
@@ -222,6 +227,10 @@ def create_disk_set(
         )
         owner = DiskSet.load(stage, project_root=project_root)
         owner.recover(media_paths)
+        if any((m["analysis"] or {}).get("state") for m in owner.members.values()):
+            from amiga_reversing.disasm.disk_set_state import verify_journal_snapshots
+
+            verify_journal_snapshots(owner, media_paths)
         if root.exists():
             raise FileExistsError("disk-set owner appeared during import")
         stage.rename(root)
@@ -357,7 +366,11 @@ class DiskSet:
                 else:
                     if (
                         not isinstance(a, dict)
-                        or set(a) != {"metadata", "state_files"}
+                        or set(a)
+                        not in (
+                            {"metadata", "state_files"},
+                            {"metadata", "state_files", "state"},
+                        )
                         or not isinstance(a["state_files"], list)
                     ):
                         raise ValueError("member analysis import missing")
@@ -366,6 +379,9 @@ class DiskSet:
                         checked_file(root, r)
             elif member["analysis"] is not None:
                 raise ValueError("shared member cannot double-own analysis")
+        from amiga_reversing.disasm.disk_set_state import validate_states
+
+        validate_states(root, m, source_files=files)
         links = {}
         if not isinstance(m["relationships"], list):
             raise ValueError("invalid member relationships")
@@ -512,7 +528,9 @@ class DiskSet:
         return member_id, bias
 
     def recover(self, media_paths):
-        if set(media_paths) != {m["id"] for m in self.manifest["media"]}:
+        if not isinstance(media_paths, dict) or set(media_paths) != {
+            m["id"] for m in self.manifest["media"]
+        }:
             raise ValueError("supply exactly the declared private media bindings")
         values, images, receipts = {}, {}, {}
         for m in self.manifest["media"]:
@@ -978,7 +996,7 @@ def execute_owner(root, body, *, project_root):
         current = {"revision": owner.revision, "subject_revision": owner.revision}
         operation = body.get("operation")
         if (
-            operation in {"build", "verify"}
+            operation in {"build", "verify", "interpret"}
             or body.get("expected_revision") is not None
         ) and body.get("expected_revision") != owner.revision:
             raise ValueError(
@@ -991,6 +1009,11 @@ def execute_owner(root, body, *, project_root):
                 if owner.members[owner.owner(m["id"])[0]]["analysis"] is not None
                 else None,
                 "source_offset_bias": owner.owner(m["id"])[1],
+                "editable": bool(
+                    (owner.members[owner.owner(m["id"])[0]]["analysis"] or {}).get(
+                        "state"
+                    )
+                ),
             }
             for m in owner.manifest["members"]
         ]
@@ -1008,12 +1031,29 @@ def execute_owner(root, body, *, project_root):
                         is not None
                     }
                 ),
-                "member_mutation_supported": False,
+                "member_mutation_supported": any(
+                    (m["analysis"] or {}).get("state") for m in owner.members.values()
+                ),
                 "unknowns": [
-                    "Sealed imported state: member-aware journal mutations are not implemented.",
+                    "Only declared editable members expose scoped label/comment interpretation; other members remain sealed.",
                     "Exact source/media builds do not prove natural boot or playback.",
                 ],
             }
+        if operation in {"inspect", "interpret", "history"}:
+            from amiga_reversing.disasm.disk_set_state import (
+                edit_member,
+                history_member,
+                inspect_member,
+            )
+
+            member = body.get("member_id")
+            if not isinstance(member, str):
+                raise ValueError("disk-set analysis requires an explicit member_id")
+            return {
+                "interpret": edit_member,
+                "inspect": inspect_member,
+                "history": history_member,
+            }[operation](owner, member, body)
         if operation == "query":
             if body.get("kind") == "members":
                 filters = {"kind": "members"}

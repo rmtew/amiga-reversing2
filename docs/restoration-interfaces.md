@@ -1725,7 +1725,11 @@ source regeneration. Both independently assemble all source owners and require
 complete actual write coverage, exact re-decode and whole-image identity.
 Source export returns the entire persisted vasm bundle. No emulator runs.
 
-Member-aware mutation is not implemented in this first slice and is refused
-explicitly; imported annotation/journal bytes remain preserved. See
+Members with explicit editable state bindings support `inspect`, `interpret`
+(`comment.edit` and unambiguous `label.rename`) and `history` through these same
+interfaces, including CLI request JSON and MCP member parameters. Locators,
+evidence and revisions are member-bound; shared views use their canonical
+owner's journal. Other commands and sealed members refuse. Imported state and
+original journal bytes remain preserved. See
 [disk-set ownership and the next-title workflow](proposals/048-disk-set-targets.md)
 and [the private F.O.F.T. migration acceptance](validation/foft-disk-set.md).

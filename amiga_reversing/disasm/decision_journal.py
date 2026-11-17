@@ -22,7 +22,8 @@ DECISION_JOURNAL_ACTOR_KINDS = frozenset({"human", "llm", "auto-analysis", "tool
 
 
 def decision_journal_path(target_dir: Path) -> Path:
-    return target_dir / DECISION_JOURNAL_FILE_NAME
+    from amiga_reversing.disasm.analysis_state_paths import state_path
+    return state_path(target_dir, DECISION_JOURNAL_FILE_NAME)
 
 
 def read_decision_journal(target_dir: Path) -> dict[str, object]:

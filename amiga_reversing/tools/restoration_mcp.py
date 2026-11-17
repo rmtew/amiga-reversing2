@@ -131,6 +131,8 @@ def create_server(client: RestorationClient):
         source_offset: int,
         section_index: int = 0,
         row_kind: Literal["instruction", "label", "data"] | None = None,
+        member_id: str | None = None,
+        media_paths: dict[str, str] | None = None,
     ) -> dict[str, object]:
         """Inspect a canonical source coordinate, related facts and available commands."""
         return call(
@@ -140,6 +142,7 @@ def create_server(client: RestorationClient):
             section_index=section_index,
             source_offset=source_offset,
             **({"row_kind": row_kind} if row_kind else {}),
+            **({"member_id": member_id, "media_paths": media_paths} if member_id is not None else {}),
         )
 
     @server.tool(annotations=write, structured_output=True)
@@ -153,6 +156,8 @@ def create_server(client: RestorationClient):
         reason: str,
         source_evidence_status: Literal["hypothesis", "analysis_proven"],
         source_evidence_refs: list[str],
+        member_id: str | None = None,
+        media_paths: dict[str, str] | None = None,
     ) -> dict[str, object]:
         """Apply a discovered catalog command with evidence. Preserves action history; a stale revision is refused."""
         return call(
@@ -162,6 +167,7 @@ def create_server(client: RestorationClient):
             command_id=command_id,
             context=context,
             parameters=parameters,
+            **({"member_id": member_id, "media_paths": media_paths} if member_id is not None else {}),
             evidence={
                 "question": question,
                 "reason": reason,
@@ -303,7 +309,8 @@ def create_server(client: RestorationClient):
 
     @server.tool(annotations=read, structured_output=True)
     def restoration_history(
-        project: str, expected_revision: str, limit: int = 25, cursor: str | None = None
+        project: str, expected_revision: str, limit: int = 25, cursor: str | None = None,
+        member_id: str | None = None, media_paths: dict[str, str] | None = None,
     ) -> dict[str, object]:
         """Read bounded action and evidence history, including superseded interpretations."""
         return call(
@@ -312,6 +319,7 @@ def create_server(client: RestorationClient):
             expected_revision=expected_revision,
             limit=limit,
             cursor=cursor,
+            **({"member_id": member_id, "media_paths": media_paths} if member_id is not None else {}),
         )
 
     return server

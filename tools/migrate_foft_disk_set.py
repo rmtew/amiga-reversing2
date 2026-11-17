@@ -31,7 +31,7 @@ LEGACY = {
 }
 
 
-def stage(image_path, output, *, exercise_missing=False):
+def stage(image_path, output, *, exercise_missing=False, editable=False):
     output = private_directory(output)
     recipe = json.loads((ROOT / "recipes/foft/sps0613-resources.json").read_bytes())
     extra = json.loads(
@@ -115,6 +115,19 @@ def stage(image_path, output, *, exercise_missing=False):
                 },
             }
         )
+        if editable:
+            from amiga_reversing.disasm.analysis_state_paths import STATE_FILES
+            from amiga_reversing.disasm.disk_set_state import import_state
+
+            original = {
+                name: (directory / name).read_bytes()
+                if (directory / name).exists()
+                else None
+                for name in STATE_FILES
+            }
+            state, files, _ = import_state(members[-1], original, platform="amiga")
+            members[-1]["analysis"]["state"] = state
+            owned_files.update(files)
     bank9 = recovered["foft-music-bank9.bin"]
     if bank9 != main[0x57800:0x63B50]:
         raise ValueError("bank9 embedded/separate byte identity differs")
@@ -313,9 +326,17 @@ def main():
     parser.add_argument("--image", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--check-missing-placement", action="store_true")
+    parser.add_argument(
+        "--editable",
+        action="store_true",
+        help="Rehearse explicit member journal bindings, retaining original files",
+    )
     args = parser.parse_args()
     result = stage(
-        args.image, args.output, exercise_missing=args.check_missing_placement
+        args.image,
+        args.output,
+        exercise_missing=args.check_missing_placement,
+        editable=args.editable,
     )
     print(json.dumps({k: v for k, v in result.items() if k != "coverage"}, indent=2))
 

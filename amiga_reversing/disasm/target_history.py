@@ -64,7 +64,8 @@ def history_revision(target_dir: Path) -> str:
     with target_lock(target_dir):
         digest = hashlib.sha256()
         for name in ("manual_actions.jsonl", "decision_journal.jsonl"):
-            path = target_dir / name
+            from amiga_reversing.disasm.analysis_state_paths import state_path
+            path = state_path(target_dir, name)
             data = path.read_bytes() if path.exists() else b""
             digest.update(name.encode("ascii") + b"\0")
             digest.update(len(data).to_bytes(8, "big"))

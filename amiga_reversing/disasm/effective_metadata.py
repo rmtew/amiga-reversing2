@@ -3073,7 +3073,7 @@ def effective_metadata_text(
     if projection.runtime_data_ranges:
         payload["runtime_data_ranges"] = [dict(data_range) for data_range in projection.runtime_data_ranges]
     _add_source_context(target_dir, payload)
-    _add_source_descriptor_execution_view(target_dir, payload)
+    _add_source_descriptor_execution_view(target_dir, payload, binary_source=binary_source)
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
 
@@ -3090,8 +3090,8 @@ def _add_source_context(target_dir: Path, payload: dict[str, object]) -> None:
     }
 
 
-def _add_source_descriptor_execution_view(target_dir: Path, payload: dict[str, object]) -> None:
-    binary_source = resolve_target_binary_source(target_dir)
+def _add_source_descriptor_execution_view(target_dir: Path, payload: dict[str, object], *, binary_source: BinarySource | None = None) -> None:
+    binary_source = binary_source or resolve_target_binary_source(target_dir)
     if not isinstance(binary_source, RawBinarySource):
         return
     if binary_source.address_model is not RawAddressModel.RUNTIME_ABSOLUTE:

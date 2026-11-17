@@ -15,6 +15,35 @@ import re
 from .target_metadata import TargetMetadata, target_metadata_json_payload
 
 
+def audit_raw_metadata_slice(parent, member, *, start, size):
+    """Compare an existing standalone analysis with its proposed shared owner.
+
+    This read-only audit does not discard, rebase or accept facts. Callers must
+    account for every unmatched item before retiring the standalone state.
+    JSON normalization compares native schema values, not tuple/list spelling.
+    """
+    subset, _ = slice_raw_metadata(parent, start=start, size=size)
+    expected = json.loads(json.dumps(target_metadata_json_payload(subset)))
+    actual = json.loads(json.dumps(target_metadata_json_payload(member)))
+    matched, unique, scalar_differences = {}, {}, {}
+    for key, value in actual.items():
+        if isinstance(value, list):
+            remaining = list(expected.get(key, []))
+            unmatched = []
+            for item in value:
+                if item in remaining:
+                    remaining.remove(item)
+                else:
+                    unmatched.append(item)
+            matched[key] = len(value) - len(unmatched)
+            if unmatched:
+                unique[key] = unmatched
+        elif value != expected.get(key):
+            scalar_differences[key] = {"member": value, "owner_slice": expected.get(key)}
+    return {"start": start, "size": size, "matched": matched, "unique": unique,
+            "scalar_differences": scalar_differences, "safe_to_retire_without_resolution": not unique and not scalar_differences}
+
+
 def slice_raw_metadata(metadata, *, start, size):
     if type(start) is not int or type(size) is not int or start < 0 or size <= 0:
         raise ValueError("invalid metadata slice extent")

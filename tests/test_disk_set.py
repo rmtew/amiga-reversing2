@@ -248,7 +248,7 @@ def test_native_queries_keep_colliding_members_and_shared_views_scoped(tmp_path)
     with pytest.raises(ValueError, match="sealed-import"):
         execute_owner(
             target,
-            {"operation": "interpret", "member_id": "main"},
+            {"operation": "interpret", "member_id": "main", "expected_revision": state["revision"]},
             project_root=project,
         )
     with pytest.raises(ValueError, match="data-only"):
