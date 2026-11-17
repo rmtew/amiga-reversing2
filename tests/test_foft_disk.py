@@ -121,6 +121,21 @@ def test_source_build_has_no_hidden_original_and_only_proven_assets(
         }
         section = analysis["sections"][0]
         assert any(r["start_offset"] == 0x460 for r in section["accepted_code_runs"])
+        siblings = {
+            r["offset"] for r in section["recovered_platform_typed_accesses"]
+            if r.get("root_struct_name") == "Bank5Voice"
+            and r["offset"] in (0x390, 0x394, 0x398)
+        }
+        assert siblings == {0x390, 0x394, 0x398}
+        assert not any(
+            r["root_struct_name"] == "Bank5Voice"
+            for r in section["recovered_platform_unresolved_typed_accesses"]
+        )
+        assert {
+            r["displacement"]
+            for r in section["recovered_platform_unresolved_typed_accesses"]
+            if r["root_struct_name"] == "Bank5PatternTrackPrefix"
+        } == {94, 166, 238}
         callback = next(
             r for r in section["recovered_indirect_sites"] if r["offset"] == 0x3EA
         )

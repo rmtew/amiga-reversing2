@@ -149,3 +149,25 @@ def test_track_prefixes_do_not_own_stride_gaps_or_the_adjacent_instrument_map():
         )
         == 4
     )
+
+
+def test_complete_voice_array_resolves_siblings_without_borrowing_track_gaps():
+    with effective_metadata_file(TARGET) as path:
+        payload = json.loads(Path(path).read_bytes())
+    layout = next(
+        r for r in payload["data_block_layouts"]
+        if r["layout_id"] == "foft-bank5-voices"
+    )
+    assert (layout["source_start"], layout["source_end"]) == (0x1F8, 0x298)
+    voice = next(s for s in payload["custom_structs"] if s["name"] == "Bank5Voice")
+    occupied = [i for f in voice["fields"] for i in range(f["offset"], f["offset"] + f["size"])]
+    assert sorted(occupied) == list(range(40))
+    element, = layout["elements"]
+    assert (element["array_count"], element["array_stride"], element["width"]) == (4, 40, 160)
+    text = (TARGET / "source.s").read_text()
+    for sibling in range(1, 4):
+        multiplier = "" if sibling == 1 else f"{sibling}*"
+        assert f"Bank5Voice_playback_phase+{multiplier}Bank5Voice_SIZEOF(a0)" in text
+    # These separated partial records still have no packed-array declaration.
+    assert len([r for r in payload["data_block_layouts"]
+                if r["layout_id"].startswith("foft-bank5-track-prefix-")]) == 4
