@@ -140,6 +140,18 @@ def test_source_build_has_no_hidden_original_and_only_proven_assets(
             r for r in section["recovered_indirect_sites"] if r["offset"] == 0x3EA
         )
         assert callback["runtime_target_set_closed"] is False
+        volume = next(f for f in section["function_summaries"] if f["entry_offset"] == 0x1590)
+        assert volume["effects"]["memory"]["state"] == "unknown"
+        assert volume["effects"]["escapes"]["state"] == "unknown"
+        assert {
+            r["location"]["register"]
+            for r in volume["effects"]["registers"]["locations"]
+            if r["effect"] == "preserved"
+        } == {"A1", "A4"}
+        assert any(
+            r["offset"] == 0x1212 and r["field_name"] == "pattern_finished"
+            for r in section["recovered_platform_typed_accesses"]
+        )
 
 
 def test_disk_outputs_require_a_fresh_private_directory(tmp_path):
