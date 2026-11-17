@@ -851,3 +851,72 @@ def test_member_local_owner_is_explicit_source_declaration_beside_runtime_alias(
     assert saved["verification"]["media_exact"]
     text = (target / "main.s").read_text()
     assert "begin:\n" in text and ".done:\n\trts" in text
+
+
+def test_scoped_word_offset_binds_two_source_points_and_builds_exactly(
+    tmp_path, monkeypatch
+):
+    _, target, _, call = editable(tmp_path, monkeypatch, table=True)
+    selected = call("inspect", source_offset=4, end_offset=10, row_kind="data")
+    call(
+        "interpret",
+        **data_request(
+            selected,
+            "range.data_block.layout.create",
+            {"name": "relativeRecord", "default_unit": "word"},
+        ),
+    )
+    for start, end, name in ((4, 6, "fieldOffset"), (6, 10, "payloadField")):
+        selected = call("inspect", source_offset=start, end_offset=end, row_kind="data")
+        call(
+            "interpret",
+            **data_request(
+                selected,
+                "range.data_block.element.set",
+                {"kind": "scalar", "width": end - start, "name": name},
+            ),
+        )
+    selected = call("inspect", source_offset=4, row_kind="data")
+    saved = call(
+        "interpret",
+        **data_request(
+            selected,
+            "row.data_block.element.interpret_ref",
+            {
+                "reference_kind": "base_displacement",
+                "target_hunk": 0,
+                "target_offset": 6,
+                "base_locator": {"hunk": 0, "offset": 4},
+                "signed": True,
+                "scale": 1,
+            },
+        ),
+    )
+    assert saved["verification"]["media_exact"]
+    text = (target / "main.s").read_text()
+    assert "dc.w payloadField-fieldOffset" in text
+    assert "dc.w $0002" not in text
+    selected = call("inspect", source_offset=4, row_kind="data")
+    before = (target / "manifest.json").read_bytes()
+    for target_offset, base_offset, scale, reason in (
+        (8, 4, 1, "target|base"),
+        (8, 4, 2, "scale 1"),
+        (12, 10, 1, "outside the analysis owner"),
+    ):
+        with pytest.raises(ValueError, match=reason):
+            call(
+                "interpret",
+                **data_request(
+                    selected,
+                    "row.data_block.element.interpret_ref",
+                    {
+                        "reference_kind": "base_displacement",
+                        "target_hunk": 0,
+                        "target_offset": target_offset,
+                        "base_locator": {"hunk": 0, "offset": base_offset},
+                        "signed": True,
+                        "scale": scale,
+                    },
+                ),
+            )
+        assert (target / "manifest.json").read_bytes() == before

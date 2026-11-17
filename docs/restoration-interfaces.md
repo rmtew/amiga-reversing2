@@ -870,10 +870,15 @@ or clears the inspected layout's optional caption without removing its elements
 or references. Scalar edits require an existing,
 unambiguous owner layout and exactly the inspected byte/word/long span.
 Absolute references require the selected original bytes to resolve uniquely to
-the specified source offset in the same analysis owner. Runtime-only,
-ambiguous, cross-member and displacement interpretations remain unsupported by
-this scoped path; they are not inferred from numeric resemblance. Layout and
-scalar actions retain the existing Manual Action representations and validators.
+the specified source offset in the same analysis owner. An unscaled signed WORD
+`base_displacement` may bind two source points in that same runtime-absolute
+analysis owner: the stored bits must encode the exact source delta, and both
+endpoints must map uniquely at their declared runtime addresses. This uses the
+existing base-relative reference model and preserves WORD width. Runtime-only,
+ambiguous, cross-owner, scaled and range displacement interpretations remain
+unsupported by this scoped path; they are not inferred from numeric resemblance.
+Layout and scalar actions retain the existing Manual Action representations and
+validators.
 
 An interpreted runtime LONG reference with an explicit source locator can render
 as a source label without an authored name. The native render plan requires a

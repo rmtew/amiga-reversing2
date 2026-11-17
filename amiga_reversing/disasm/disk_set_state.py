@@ -759,6 +759,48 @@ def _validate_member_data_action(owner, member, rows, kind, payload, source, art
                 "scoped data elements currently require byte/word/long scalars"
             )
         return
+    if value["reference_kind"] == "base_displacement":
+        from amiga_reversing.disasm.target_metadata import (
+            validate_base_displacement_reference,
+        )
+
+        validate_base_displacement_reference(
+            value, source_hunk=0, source_addr=rows[0]["start_offset"]
+        )
+        base = value["base_locator"]
+        context = owner.members[analysis_member]["context"]
+        if (
+            context["address_model"] != "runtime_absolute"
+            or value.get("scale", 1) != 1
+            or base["hunk"] != 0
+            or value["target_hunk"] != 0
+        ):
+            raise ValueError(
+                "scoped base displacement requires unscaled same-owner runtime-absolute points"
+            )
+        for point in (base["offset"], value["target_offset"]):
+            if not 0 <= point < owner.members[analysis_member]["size"]:
+                raise ValueError(
+                    "base displacement point is outside the analysis owner"
+                )
+            address = context["load_address"] + point
+            resolved = artifact.source_for_runtime_address(address=address)
+            if (
+                resolved.get("status") != "resolved"
+                or resolved.get("section_index") != 0
+                or resolved.get("source_offset") != point
+            ):
+                raise ValueError(
+                    "base displacement requires uniquely mapped source points"
+                )
+        actual = int.from_bytes(
+            source.read_bytes()[rows[0]["start_offset"] : rows[-1]["end_offset"]], "big"
+        )
+        if value["source_value"] != actual:
+            raise ValueError(
+                "base displacement bits differ from the original inspected WORD"
+            )
+        return
     if (
         value["reference_kind"] != "absolute"
         or value["target_hunk"] != 0
