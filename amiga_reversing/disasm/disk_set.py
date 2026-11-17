@@ -988,6 +988,7 @@ class DiskSet:
 
 def execute_owner(root, body, *, project_root):
     """Canonical restoration operations for a disk-set owner (not child targets)."""
+    from amiga_reversing.disasm.disk_set_state import MEMBER_OPERATIONS
     from amiga_reversing.disasm.restoration import _envelope, _page, _pagination
     from amiga_reversing.disasm.target_history import target_lock
 
@@ -996,7 +997,7 @@ def execute_owner(root, body, *, project_root):
         current = {"revision": owner.revision, "subject_revision": owner.revision}
         operation = body.get("operation")
         if (
-            operation in {"build", "verify", "interpret"}
+            operation in {"build", "verify", "interpret", "rollback", "review"}
             or body.get("expected_revision") is not None
         ) and body.get("expected_revision") != owner.revision:
             raise ValueError(
@@ -1017,6 +1018,10 @@ def execute_owner(root, body, *, project_root):
             }
             for m in owner.manifest["members"]
         ]
+        for member in members:
+            member["restoration_operations"] = (
+                list(MEMBER_OPERATIONS) if member["editable"] else []
+            )
         if operation == "state":
             return {
                 **current,
@@ -1039,11 +1044,13 @@ def execute_owner(root, body, *, project_root):
                     "Exact source/media builds do not prove natural boot or playback.",
                 ],
             }
-        if operation in {"inspect", "interpret", "history"}:
+        if operation in MEMBER_OPERATIONS:
             from amiga_reversing.disasm.disk_set_state import (
                 edit_member,
                 history_member,
                 inspect_member,
+                review_member,
+                rollback_member,
             )
 
             member = body.get("member_id")
@@ -1053,6 +1060,8 @@ def execute_owner(root, body, *, project_root):
                 "interpret": edit_member,
                 "inspect": inspect_member,
                 "history": history_member,
+                "rollback": rollback_member,
+                "review": review_member,
             }[operation](owner, member, body)
         if operation == "query":
             if body.get("kind") == "members":

@@ -18,6 +18,8 @@ from amiga_reversing.disasm.analysis_state_paths import STATE_FILES, bind_state_
 from amiga_reversing.disasm.disk_codecs import digest
 from amiga_reversing.disasm.source_package import _json as package_manifest_bytes
 
+MEMBER_OPERATIONS = ("inspect", "interpret", "history", "review", "rollback")
+
 
 def validate_states(root, manifest, *, source_files=()):
     from amiga_reversing.disasm.disk_set import checked_file, file_at
@@ -66,6 +68,18 @@ def validate_states(root, manifest, *, source_files=()):
                 scope = record.get("interpretation", {}).get("member_subject")
                 if scope is not None and scope != expected:
                     raise ValueError("member journal subject mismatch")
+        journal = file_at(root, state["decision_journal.jsonl"]["path"])
+        if journal.exists():
+            for line in journal.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                record = json.loads(line)
+                scope = (record.get("scope") or {}).get("analysis_member_id")
+                if scope is not None and (
+                    scope != m["id"]
+                    or record["selected_identity"]["target_id"] != manifest["id"]
+                ):
+                    raise ValueError("member decision subject mismatch")
 
 
 def subject(manifest, member):
@@ -191,7 +205,6 @@ def history_member(owner, member, body):
     from amiga_reversing.disasm.manual_actions import (
         load_manual_projection,
         manual_action_interpretation,
-        manual_action_log_path,
     )
     from amiga_reversing.disasm.restoration import _envelope, _page, _pagination
 
@@ -199,20 +212,12 @@ def history_member(owner, member, body):
     values, _, _ = owner.recover(body.get("media_paths", {}))
     source, _ = owner._analysis_input(member, values)
     with state_context(owner, analysis_member):
-        path = manual_action_log_path(owner.root)
-        records = (
-            [
-                json.loads(line)
-                for line in path.read_text().splitlines()
-                if line.strip()
-            ][1:]
-            if path.exists()
-            else []
-        )
+        records = _member_records(owner.root)
         projection = load_manual_projection(owner.root, binary_source=source)
         journal = read_decision_journal(owner.root)
     if projection.review_state == "blocked" or not journal["valid"]:
         raise ValueError("invalid member decision history")
+    decisions = _member_decisions(journal["records"])
     items = [
         {
             "action_id": r["action_id"],
@@ -220,6 +225,7 @@ def history_member(owner, member, body):
             "sequence": r["sequence"],
             "active": r["action_id"] in projection.active_action_ids,
             "interpretation": manual_action_interpretation(r),
+            "decision": decisions.get(r["action_id"]),
         }
         for r in reversed(records)
     ]
@@ -406,8 +412,6 @@ def _member_packages(owner, changed, source):
 
 
 def edit_member(owner, member, body):
-    from amiga_reversing.disasm.disk_set import DiskSet, compose_source_package, file_at
-    from amiga_reversing.disasm.effective_metadata import effective_metadata_text
     from amiga_reversing.disasm.manual_action_catalog import (
         listing_catalog_manual_payload,
     )
@@ -415,8 +419,6 @@ def edit_member(owner, member, body):
         append_manual_actions,
         manual_action_kind,
     )
-    from amiga_reversing.disasm.source_package import validate_source_package
-    from amiga_reversing.disasm.source_package_publish import publish_source_package
 
     context = body.get("context", {})
     locator = context.get("locator", {})
@@ -440,8 +442,6 @@ def edit_member(owner, member, body):
     command = body.get("command_id")
     if command not in {c["command_id"] for c in inspected["commands"]}:
         raise ValueError("command is not available for this member row")
-    values, _, _ = owner.recover(body.get("media_paths", {}))
-    source, _ = owner._analysis_input(member, values)
     evidence = body.get("evidence")
     if (
         not isinstance(evidence, dict)
@@ -477,6 +477,167 @@ def edit_member(owner, member, body):
             "command_id": command,
         },
     }
+
+    def append(root, source):
+        return {
+            "actions": append_manual_actions(
+                root,
+                actions=[(manual_action_kind(kind), payload)],
+                binary_source=source,
+            )
+        }
+
+    return _apply_member_change(owner, member, body, append)
+
+
+def rollback_member(owner, member, body):
+    from amiga_reversing.disasm.manual_actions import (
+        ManualActionKind,
+        append_manual_action,
+    )
+
+    action_id = body.get("action_id")
+    redo = body.get("redo", False)
+    if not isinstance(action_id, str) or type(redo) is not bool:
+        raise ValueError("rollback requires an action ID and boolean redo")
+
+    def append(root, source):
+        from amiga_reversing.disasm.manual_actions import load_manual_projection
+
+        record = next(
+            (r for r in _member_records(root) if r["action_id"] == action_id), None
+        )
+        if not record or record["kind"] in {"undo_action", "redo_action"}:
+            raise ValueError(
+                "rollback requires a source action in this analysis member"
+            )
+        projection = load_manual_projection(root, binary_source=source)
+        if (
+            projection.review_state == "blocked"
+            or (action_id in projection.active_action_ids) == redo
+        ):
+            raise ValueError(
+                "member action is not in the required state for undo or redo"
+            )
+        action = append_manual_action(
+            root,
+            kind=ManualActionKind.REDO_ACTION if redo else ManualActionKind.UNDO_ACTION,
+            payload={"redoes_action_id" if redo else "undoes_action_id": action_id},
+            binary_source=source,
+        )
+        return {"action": action}
+
+    return _apply_member_change(owner, member, body, append)
+
+
+def _member_records(root):
+    from amiga_reversing.disasm.manual_actions import manual_action_log_path
+
+    path = manual_action_log_path(root)
+    if not path.exists():
+        return []
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ][1:]
+
+
+def _member_decisions(records):
+    from amiga_reversing.disasm.decision_journal import project_decision_journal
+
+    decisions = {}
+    projected = project_decision_journal(records)
+    for bucket in ("accepted_facts", "deferred_facts", "rejected_facts"):
+        for record in projected[bucket]:
+            if record.get("fact_type") != "restoration_interpretation":
+                continue
+            action_id = record["selected_identity"]["subject_id"]
+            if action_id in decisions:
+                raise ValueError("conflicting member interpretation decisions")
+            decisions[action_id] = record
+    return decisions
+
+
+def review_member(owner, member, body):
+    from amiga_reversing.disasm.decision_journal import (
+        append_decision_records,
+        read_decision_journal,
+    )
+    from amiga_reversing.disasm.manual_actions import (
+        load_manual_projection,
+        manual_action_interpretation,
+    )
+    from amiga_reversing.disasm.restoration import _prepare_review_records
+
+    choice, reason = body.get("decision"), body.get("reason")
+    if choice == "accept":
+        raise ValueError(
+            "member acceptance requires a durable member-scoped verification receipt"
+        )
+    if (
+        choice not in ("defer", "reject")
+        or not isinstance(reason, str)
+        or not 0 < len(reason.strip()) <= 4096
+    ):
+        raise ValueError(
+            "member review requires defer or reject and a reason of at most 4096 characters"
+        )
+    if body.get("verification_id") is not None or body.get("probe_id") is not None:
+        raise ValueError("member review does not accept unscoped receipt IDs")
+
+    def append(root, source):
+        action_id = body.get("action_id")
+        projection = load_manual_projection(root, binary_source=source)
+        record = next(
+            (r for r in _member_records(root) if r["action_id"] == action_id), None
+        )
+        if (
+            projection.review_state == "blocked"
+            or record is None
+            or action_id not in projection.active_action_ids
+        ):
+            raise ValueError(
+                "review requires a current active action in this analysis member"
+            )
+        evidence = manual_action_interpretation(record)
+        if not evidence.get("evidence_refs"):
+            raise ValueError("member review requires an evidence-bearing action")
+        journal = read_decision_journal(root)
+        if not journal["valid"]:
+            raise ValueError("invalid member decision history")
+        chain = journal["records"]
+        item = {
+            "action_id": action_id,
+            "interpretation": evidence,
+            "decision": _member_decisions(chain).get(action_id),
+        }
+        additions, decision = _prepare_review_records(
+            owner.manifest["id"],
+            body,
+            {"subject_revision": owner.revision},
+            item,
+            chain,
+        )
+        decision["scope"]["analysis_member_id"] = owner.owner(member)[0]
+        result = append_decision_records(root, additions)
+        if result["status"] != "appended":
+            raise ValueError(f"member decision rejected: {result.get('diagnostics')}")
+        return {"decision": decision}
+
+    return _apply_member_change(owner, member, body, append)
+
+
+def _apply_member_change(owner, member, body, append):
+    from amiga_reversing.disasm.disk_set import DiskSet, compose_source_package, file_at
+    from amiga_reversing.disasm.effective_metadata import effective_metadata_text
+    from amiga_reversing.disasm.source_package import validate_source_package
+    from amiga_reversing.disasm.source_package_publish import publish_source_package
+
+    analysis_member, _ = owner.owner(member)
+    state_context(owner, analysis_member)
+    values, _, _ = owner.recover(body.get("media_paths", {}))
+    source, _ = owner._analysis_input(member, values)
     with tempfile.TemporaryDirectory(prefix="disk-set-edit-") as tmp:
         root = Path(tmp) / owner.root.name
         root.mkdir()
@@ -511,11 +672,7 @@ def edit_member(owner, member, body):
                 raise ValueError(
                     "member journal projection does not match its native metadata snapshot"
                 )
-            actions = append_manual_actions(
-                root,
-                actions=[(manual_action_kind(kind), payload)],
-                binary_source=source,
-            )
+            mutation = append(root, source)
             metadata = effective_metadata_text(root, binary_source=source).encode()
         a = candidate.members[analysis_member]["analysis"]
         p = file_at(root, a["metadata"]["path"])
@@ -548,14 +705,19 @@ def edit_member(owner, member, body):
             for r in [a["metadata"], *a["state"].values()]
             if r["sha256"] is not None
         }
-        changed.update(validate_source_package(package))
+        source_files = validate_source_package(package)
+        previous_sources = validate_source_package(owner.package)
+        for name in source_files.keys() - previous_sources.keys():
+            if file_at(owner.root, name).exists():
+                raise ValueError(
+                    f"member-generated source collides with an unowned file: {name}"
+                )
+        changed.update(source_files)
         changed["source-package-manifest.json"] = (
             root / "source-package-manifest.json"
         ).read_bytes()
         changed["manifest.json"] = (root / "manifest.json").read_bytes()
-        obsolete = set(validate_source_package(owner.package)) - set(
-            validate_source_package(package)
-        )
+        obsolete = previous_sources.keys() - source_files.keys()
         old = {
             p: file_at(owner.root, p).read_bytes()
             if file_at(owner.root, p).exists()
@@ -589,10 +751,10 @@ def edit_member(owner, member, body):
                     write_file(p, data)
             raise
     return {
-        "actions": actions,
+        **mutation,
         "revision": result.revision,
         "subject_revision": result.revision,
-        "scope": inspected["scope"],
+        "scope": {**subject(owner.manifest, analysis_member), "member_id": member},
         "verification": {
             "member_sources_exact": True,
             "all_placement_coverage": proof["coverage"]["complete"],

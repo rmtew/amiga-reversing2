@@ -266,6 +266,8 @@ def create_server(client: RestorationClient):
         reason: str,
         verification_id: str | None = None,
         probe_id: str | None = None,
+        member_id: str | None = None,
+        media_paths: dict[str, str] | None = None,
     ) -> dict[str, object]:
         """Append a review decision with supporting verification/probe receipts; never erase earlier work."""
         return call(
@@ -277,6 +279,7 @@ def create_server(client: RestorationClient):
             reason=reason,
             verification_id=verification_id,
             probe_id=probe_id,
+            **({"member_id": member_id, "media_paths": media_paths} if member_id is not None else {}),
         )
 
     @server.tool(annotations=write, structured_output=True)
@@ -296,7 +299,8 @@ def create_server(client: RestorationClient):
 
     @server.tool(annotations=write, structured_output=True)
     def restoration_rollback(
-        project: str, expected_revision: str, action_id: str, redo: bool = False
+        project: str, expected_revision: str, action_id: str, redo: bool = False,
+        member_id: str | None = None, media_paths: dict[str, str] | None = None,
     ) -> dict[str, object]:
         """Undo or redo a manual action through existing append-only history semantics."""
         return call(
@@ -305,6 +309,7 @@ def create_server(client: RestorationClient):
             expected_revision=expected_revision,
             action_id=action_id,
             redo=redo,
+            **({"member_id": member_id, "media_paths": media_paths} if member_id is not None else {}),
         )
 
     @server.tool(annotations=read, structured_output=True)

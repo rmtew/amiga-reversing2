@@ -352,3 +352,72 @@ def test_generic_creation_requires_journal_snapshot_continuity(
             project_root=project,
         )
         assert owner.members["main"]["analysis"]["state"]
+
+
+def test_review_and_undo_use_the_shared_owner_journals(tmp_path, monkeypatch):
+    _, target, _, call = editable(tmp_path, monkeypatch)
+    inspected = call("inspect", member="return_view", source_offset=0)
+    edited = call("interpret", member="return_view", **request(inspected))
+    action = edited["actions"][0]["action_id"]
+    review = {"action_id": action, "decision": "defer", "reason": "Needs more context."}
+    with pytest.raises(ValueError, match="this analysis member"):
+        call("review", member="overlay", expected_revision=edited["revision"], **review)
+    deferred = call("review", expected_revision=edited["revision"], **review)
+    assert deferred["decision"]["scope"]["analysis_member_id"] == "main"
+    rejected = call(
+        "review",
+        member="return_view",
+        expected_revision=deferred["revision"],
+        **{**review, "decision": "reject"},
+    )
+    history = call("history")
+    assert history["preserved_decision_records"] == 3
+    assert history["items"][0]["decision"]["action"] == "reject_fact"
+    with pytest.raises(ValueError, match="stale_revision"):
+        call("rollback", action_id=action, expected_revision=deferred["revision"])
+    with pytest.raises(ValueError, match="this analysis member"):
+        call(
+            "rollback",
+            member="overlay",
+            action_id=action,
+            expected_revision=rejected["revision"],
+        )
+    undone = call(
+        "rollback",
+        member="return_view",
+        action_id=action,
+        expected_revision=rejected["revision"],
+    )
+    assert undone["verification"]["all_placement_coverage"]
+    assert "Seeds the observed" not in (target / "main.s").read_text()
+    redone = call(
+        "rollback", action_id=action, redo=True, expected_revision=undone["revision"]
+    )
+    assert redone["verification"]["media_exact"]
+    assert "Seeds the observed" in (target / "main.s").read_text()
+    assert next(i for i in call("history")["items"] if i["action_id"] == action)[
+        "active"
+    ]
+
+
+def test_decision_journal_cannot_be_rebound_to_another_member(tmp_path, monkeypatch):
+    project, target, _, call = editable(tmp_path, monkeypatch)
+    inspected = call("inspect", source_offset=0)
+    edited = call("interpret", **request(inspected))
+    call(
+        "review",
+        expected_revision=edited["revision"],
+        action_id=edited["actions"][0]["action_id"],
+        decision="defer",
+        reason="Needs more context.",
+    )
+    path = target / "manifest.json"
+    manifest = json.loads(path.read_bytes())
+    main, overlay = manifest["members"][:2]
+    source = main["analysis"]["state"]["decision_journal.jsonl"]
+    destination = overlay["analysis"]["state"]["decision_journal.jsonl"]
+    (target / destination["path"]).write_bytes((target / source["path"]).read_bytes())
+    destination["sha256"] = source["sha256"]
+    path.write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match="member decision subject mismatch"):
+        DiskSet.load(target, project_root=project)

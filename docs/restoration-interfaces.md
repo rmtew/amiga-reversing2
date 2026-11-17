@@ -1726,8 +1726,10 @@ complete actual write coverage, exact re-decode and whole-image identity.
 Source export returns the entire persisted vasm bundle. No emulator runs.
 
 Members with explicit editable state bindings support `inspect`, `interpret`
-(`comment.edit` and unambiguous `label.rename`) and `history` through these same
-interfaces, including CLI request JSON and MCP member parameters. Locators,
+(`comment.edit` and unambiguous `label.rename`), `history`, `rollback` (undo and
+redo), and `review` (defer and reject) through these same interfaces, including
+CLI request JSON and MCP member parameters. Discovery lists available member
+operations. Locators,
 evidence and revisions are member-bound; shared views use their canonical
 owner's journal. Other commands and sealed members refuse. Imported state and
 original journal bytes remain preserved. See
