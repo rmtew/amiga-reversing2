@@ -1650,3 +1650,30 @@ against a freshly generated, identity-checked snapshot; an arbitrary supplied
 snapshot has caller-supplied target identity. Failures require inspection, not
 automatic code conversion or fabricated labels. Normal inventory generation
 remains report-only.
+
+A source-global declaration and a runtime alias may share a spelling when a
+runtime-absolute raw input and every applicable declared execution view bind
+both to the same source byte. Label-conflict validation preserves this pair
+instead of suppressing the source owner as a duplicate. Runtime-only aliases
+still cannot own source-local labels: the explicit source declaration is
+required. Different source bytes, hunks, unmapped/ambiguous aliases, unsupported
+input address models and additional conflicting declarations remain conflicts.
+If a third declaration disagrees, the review identifies every peer, including
+an earlier alias pair, so no hidden owner survives an ambiguous name.
+
+An exact source-global row rename of a uniquely named seeded data declaration
+updates that declaration's name in place. It preserves its extent, schema,
+field/pointer interpretation, source-owner span and provenance instead of adding
+a competing code-address label that can erase static-data pointer inference.
+The previous spelling and exact section/address are required; interior locations,
+other sections, runtime-only aliases and lexical-local declarations do not take
+this path. Multiple matching data owners refuse rather than selecting a view.
+The new spelling is recognized when replaying a saved projection. A name change
+alone neither admits code nor changes the object's type or bounds.
+
+Custom-field renames also update imported seeded data leaves that refer to the
+uniquely resolved declaring field. Lookup follows the declared custom prefix
+ancestry, preserving the leaf's type, extent, source owner and provenance. A
+foreign type, missing field or shadowed/ambiguous field name does not acquire a
+guessed identity. This keeps a renamed schema and its original bound data leaves
+consistent instead of silently losing static-data field inference.

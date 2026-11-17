@@ -18,6 +18,7 @@ from amiga_reversing.disasm.binary_source import (
     DiskEntryBinarySource,
     HunkFileBinarySource,
     RawBinarySource,
+    RawAddressModel,
     read_binary_source_bytes,
 )
 from amiga_reversing.disasm.source_numbers import parse_source_int
@@ -833,14 +834,49 @@ def _metadata_global_label_names(metadata: TargetMetadata | None) -> set[str]:
     return names
 
 
+def _manual_labels_share_mapped_source(
+    left: dict[str, object], right: dict[str, object], *,
+    binary_source: BinarySource | None, metadata: TargetMetadata | None,
+    execution_views: Sequence[dict[str, object]],
+) -> bool:
+    """Recognize one explicit source declaration and its uniquely mapped alias.
+
+    This does not make a runtime alias a lexical owner. The source declaration
+    is still required. Overlapping views must all agree; integers, other hunks
+    and unsupported source kinds never acquire an implicit source binding.
+    """
+    domains = {left.get("address_domain", "source"), right.get("address_domain", "source")}
+    if domains != {"source", "runtime"} or not isinstance(binary_source, RawBinarySource):
+        return False
+    if binary_source.address_model is not RawAddressModel.RUNTIME_ABSOLUTE:
+        return False
+    source, runtime = (left, right) if left.get("address_domain", "source") == "source" else (right, left)
+    source_range, runtime_range = _manual_seed_range(source), _manual_seed_range(runtime)
+    if source_range is None or runtime_range is None or source_range[0] != 0 or runtime_range[0] != 0:
+        return False
+    size = binary_source.path.stat().st_size
+    if not 0 <= source_range[1] < size:
+        return False
+    views = [(0, size, binary_source.load_address)]
+    if metadata is not None:
+        views.extend((v.source_start, v.source_end, v.base_addr) for v in metadata.execution_views)
+    views.extend(_execution_view_key(v) for v in execution_views)
+    address = runtime_range[1]
+    matches = {start + address - base for start, end, base in views
+               if base <= address < base + end - start}
+    return matches == {source_range[1]}
+
+
 def _manual_label_conflict_items(
     labels: dict[str, dict[str, object]],
     *,
     stronger_metadata: TargetMetadata | None,
     assembler_profile: AssemblerProfile,
+    binary_source: BinarySource | None = None,
+    execution_views: Sequence[dict[str, object]] = (),
 ) -> list[dict[str, object]]:
     items: list[dict[str, object]] = []
-    global_labels: dict[str, dict[str, object]] = {}
+    global_labels: dict[str, list[dict[str, object]]] = {}
     metadata_names = _metadata_global_label_names(stronger_metadata)
     local_profile = assembler_profile.render.local_labels
     reserved_local_names = set(local_profile.reserved_names)
@@ -931,9 +967,15 @@ def _manual_label_conflict_items(
                     "message": f"Global manual label name {name!r} collides with existing metadata label",
                 }
             )
-        previous = global_labels.get(name)
+        peers = global_labels.setdefault(name, [])
+        previous = peers[0] if peers else None
+        peers.append(label)
         if previous is None:
-            global_labels[name] = label
+            continue
+        if len(peers) == 2 and _manual_labels_share_mapped_source(
+            previous, label, binary_source=binary_source, metadata=stronger_metadata,
+            execution_views=execution_views,
+        ):
             continue
         previous_id = previous.get("label_id")
         if not isinstance(previous_id, str):
@@ -948,7 +990,7 @@ def _manual_label_conflict_items(
                 "scope": ReviewItemScope.RANGE,
                 "state": ReviewItemState.OPEN,
                 "review_blocker": True,
-                "label_ids": [previous_id, label_id],
+                "label_ids": [peer["label_id"] for peer in peers],
                 "hunk": hunk,
                 "start": start,
                 "end": end,
@@ -2487,6 +2529,8 @@ def _project_actions(
             labels,
             stronger_metadata=stronger_metadata,
             assembler_profile=assembler_profile,
+            binary_source=binary_source,
+            execution_views=tuple(execution_views.values()),
         )
     )
     for note in review_notes.values():

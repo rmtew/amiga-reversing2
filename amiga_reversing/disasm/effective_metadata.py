@@ -351,6 +351,57 @@ def _manual_label_to_code_label(label: dict[str, object], metadata=None, labels=
     )
 
 
+def _rename_seeded_custom_field_references(entities, definitions, renamed_fields):
+    """Keep imported field leaves bound to their uniquely resolved declaration."""
+    if not renamed_fields:
+        return entities
+    structs = {item.name: item for item in definitions}
+    result = []
+    for entity in entities:
+        current = entity.struct_name
+        seen, matches = set(), []
+        while current in structs and current not in seen:
+            seen.add(current)
+            definition = structs[current]
+            for field in definition.fields:
+                if field.name == entity.field_name:
+                    matches.append((definition.name, field.offset, field.name))
+            current = definition.base_struct
+        if len(matches) == 1:
+            owner, offset, old_name = matches[0]
+            name = renamed_fields.get((owner, offset), old_name)
+            if name != entity.field_name:
+                entity = replace(entity, field_name=name)
+        result.append(entity)
+    return result
+
+
+def _rename_manual_data_owner(entities, label):
+    """A renamed data declaration retains its type instead of gaining code intent."""
+    if (label.get("scope") is ManualLabelScope.LOCAL or
+            label.get("address_domain", "source") != "source"):
+        return False, entities
+    previous = {r for r in label.get("previous_names", []) if isinstance(r, str)}
+    if isinstance(label.get("previous_name"), str):
+        previous.add(label["previous_name"])
+    name = _manual_seed_text(label, "name")
+    addr = _manual_seed_int(label, "addr")
+    hunk = _manual_seed_int(label, "hunk") or 0
+    if not previous or name is None or addr is None:
+        return False, entities
+    # Include the new spelling to make saved projections replay idempotently.
+    names = previous | {name}
+    matches = [i for i, item in enumerate(entities)
+               if item.hunk == hunk and item.addr == addr and item.name in names]
+    if len(matches) > 1:
+        raise ValueError("source label rename requires a unique named data owner")
+    if not matches:
+        return False, entities
+    result = list(entities)
+    result[matches[0]] = replace(result[matches[0]], name=name)
+    return True, result
+
+
 def _append_manual_label_declaration(declarations, declaration, label):
     """An explicit row rename replaces that name at its exact address identity.
 
@@ -2502,6 +2553,9 @@ def _apply_manual_seed_projection(
             if entity is not None:
                 seeded_entities.append(entity)
     for label in labels:
+        renamed_data, seeded_entities = _rename_manual_data_owner(seeded_entities, label)
+        if renamed_data:
+            continue
         code_label = _manual_label_to_code_label(label, metadata, labels)
         if code_label is not None:
             _append_manual_label_declaration(seeded_code_labels, code_label, label)
@@ -2589,6 +2643,9 @@ def _apply_manual_seed_projection(
         if (renamed_field_key := _manual_custom_struct_field_key(field)) is not None
         if (renamed_field_name := _manual_seed_text(field, "name")) is not None
     }
+    seeded_entities = _rename_seeded_custom_field_references(
+        seeded_entities, custom_structs, renamed_custom_struct_fields,
+    )
     if custom_struct_field_projections or renamed_custom_struct_fields or removed_custom_struct_field_keys:
         custom_structs = [
             _custom_struct_with_manual_field_projection(
