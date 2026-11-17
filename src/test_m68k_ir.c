@@ -12366,6 +12366,103 @@ static int test_facts_v2_counted_record_match_dispatch_is_bounded_and_conservati
   return 0;
 }
 
+static int test_facts_v2_staged_record_field_candidates_preserve_owners_and_invalidation(void) {
+  for (unsigned mapped = 0U; mapped < 2U; ++mapped) for (unsigned mode = 0U; mode < 33U; ++mode) {
+    AsmSourceFile parsed;
+    M68kObject object;
+    M68kAnalysisPolicy policy;
+    M68kFactsV2Profile profile;
+    M68kSourceAnalysisIR analysis;
+    char input[8192], *source = NULL;
+    const char *change = mode == 8U ? "\tmove.l d6,staging.l\n" :
+                         mode == 9U ? "\tmovea.l (a4),a0\n" :
+                         mode == 10U ? "\tbsr.w opaque\n" :
+                         mode == 14U ? "\tclr.l staging.l\n" :
+                         mode == 23U ? "\tclr.w stagingHi.l\n" :
+                         mode == 24U ? "\tmove.w d7,d3\n" :
+                         mode == 27U ? "\tbra.w writer\n\tmovea.l (a4),a0\nwriter:\n" :
+                         mode == 28U ? "\tbra.w clobber\n\tnop\nclobber:\n\tmovea.l (a4),a0\n" :
+                         mode == 29U ? "\tmove.w (a0)+,d6\n" :
+                         mode == 31U ? "\tadda.w d3,a0\n" :
+                         mode == 32U ? "\tadda.w d3,a0\n\tlea 4(a0),a0\n" : "";
+    int expected = mode == 0U || mode == 13U || mode == 15U || mode == 19U || mode == 20U || mode == 27U || mode >= 30U;
+    snprintf(input, sizeof(input),
+      "SECTION code,code\n%s\tbsr.w parse\n\tmove.w index(pc),d3\n%s"
+      "\tlea records(pc),a0\n%s\tmove.l %s%s,%s\n"
+      "%s\tmovea.l %u(a3),a2\n\t%s\n\trts\n"
+      "parse:\n\tclr.%s staging.l\n\tlea keywords%s,a1\n"
+      "loop:\n\tmove.w (a1),d1\n%s\tcmp.w d0,d1\n\tbeq.w %s\n"
+      "next:\n\tlea %u(a1),a1\n\ttst.w (a1)\n\tbeq.w unknown\n\tbra.w loop\n"
+      "matched:\n\tmove.l %s,staging.l\n\trts\nunknown:\n\trts\n"
+      "keywords:\n\tdc.b 'ONE',0,0,0,0,0\n\tdc.l %s\n\tdc.b 'TWO',0,0,0,0,0\n\tdc.l %s\n\tdc.w %u\n"
+      "staging:\n\tdc.w 0\nstagingHi:\n\tdc.w 0\nrecords:\n\tdcb.b 64,0\nforeign:\n\tdcb.b 64,0\nindex:\n\tdc.w 0\n"
+      "first:\n\tmoveq #1,d0\n\trts\nsecond:\n\tmoveq #2,d0\n\trts\nopaque:\n\trts\n",
+      mapped ? "\tORG $800\n" : "", mode == 3U ? "" : "\tasl.w #4,d3\n", change,
+      mode == 22U ? "#first" : "staging", mode == 22U ? "" : mapped ? ".l" : "(pc)", mode == 31U ? "4(a0)" : mode == 32U ? "(a0)" : mode == 13U ? "4(a0,d3.l)" : "4(a0,d3.w)",
+      mode == 20U ? "\tmovea.l a0,a3\n" : mode == 1U ? "\tlea foreign(pc),a3\n" : "\tlea records(pc),a3\n",
+      mode == 2U ? 8U : 4U, mode == 25U ? "jsr opaque.l" : mode == 19U ? "jmp (a2)" : "jsr (a2)",
+      mode == 7U ? "w" : "l", mode == 30U ? ".l" : "(pc)", mode == 11U ? "\tmovea.l (a4),a1\n" :
+      mode == 26U ? "\tmove.l d6,8(a1)\n" : "", mode == 12U ? "unknown" : "matched",
+      mode == 18U ? 6U : 12U, mode == 21U ? "#first" : "8(a1)",
+      mode == 4U ? "first+1" : mode == 5U ? "$fffffffe" : "first",
+      mode == 6U ? "0" : mode == 15U ? "first" : "second", mode == 16U ? 65535U : 0U);
+    M68K_C_ASSERT_INT(0, m68k_source_model_create(&parsed));
+    memset(&object, 0, sizeof(object)); memset(&analysis, 0, sizeof(analysis));
+    parsed.target_cpu = M68K_ASM_CPU_68000;
+    int parsed_ok = m68k_source_pipeline_parse_text_and_layout(&parsed, input, m68k_diag_sink(NULL));
+    if (!parsed_ok) fprintf(stderr,"staged parse mapped=%u mode=%u\n%s",mapped,mode,input);
+    M68K_C_ASSERT(parsed_ok);
+    M68K_C_ASSERT_INT(1, m68k_source_pipeline_emit_object(&parsed, &object, m68k_diag_sink(NULL)));
+    m68k_analysis_policy_init_default(&policy);
+    if (mapped) {
+      policy.runtime_range_count = 1U; policy.runtime_ranges[0].has_section_index = 1U;
+      policy.runtime_ranges[0].section_index = 0U; policy.runtime_ranges[0].size = object.sections[0].size;
+      policy.runtime_ranges[0].runtime_address = 0x800U;
+    }
+    if (mode == 17U) {
+      policy.structured_data_item_count = 1U; policy.structured_data_items[0].has_section_index = 1U;
+      policy.structured_data_items[0].section_index = 0U;
+      policy.structured_data_items[0].offset = object.sections[0].size - 6U;
+      policy.structured_data_items[0].size = 4U;
+      policy.structured_data_items[0].kind = M68K_ANALYSIS_STRUCTURED_DATA_BYTES;
+    }
+    M68kDiagList diagnostics; m68k_diag_list_reset(&diagnostics);
+    int result = m68k_facts_v2_render_asm_source_analysis_profile_alloc(&object, &policy,
+      &source, &profile, &analysis, 1U, m68k_diag_sink(&diagnostics));
+    if (result) {
+      fprintf(stderr,"staged failure mapped=%u mode=%u\n",mapped,mode);
+      for (size_t d = 0U; d < diagnostics.count; ++d) fprintf(stderr,"%s\n",diagnostics.items[d].message);
+    }
+    M68K_C_ASSERT_INT(0,result);
+    int found = 0, origins = 0;
+    for (size_t n = 0U; n < analysis.sections[0].recovered_indirect_site_count; ++n) {
+      const M68kRecoveredIndirectSiteIR *site = &analysis.sections[0].recovered_indirect_sites[n];
+      if (site->status != M68K_RECOVERED_INDIRECT_STATUS_STAGED_RECORD_CANDIDATES) continue;
+      ++found;
+      M68K_C_ASSERT_U32(2U, site->table_entry_count);
+      M68K_C_ASSERT_U32(12U, site->table_entry_size);
+      M68K_C_ASSERT_U32(16U, site->record_modulus);
+      M68K_C_ASSERT_U32(4U, site->record_field);
+      M68K_C_ASSERT_U32(mode == 15U ? 1U : 2U, site->target_count);
+      M68K_C_ASSERT(strstr(site->detail, "not closed") != NULL);
+      char *json = NULL;
+      M68K_C_ASSERT_INT(0, source_analysis_to_json(&analysis, &json, m68k_diag_sink(NULL)));
+      M68K_C_ASSERT(strstr(json,"\"target_set_scope\":\"staged_record_field_writers\"") != NULL);
+      M68K_C_ASSERT(strstr(json,"\"runtime_target_set_closed\":false") != NULL);
+      free(json);
+    }
+    for (size_t n = 0U; n < analysis.sections[0].code_start_ref_count; ++n)
+      if (analysis.sections[0].code_start_refs[n].evidence_kind == M68K_CODE_ORIGIN_EVIDENCE_STAGED_RECORD_CONTROL_TARGET)
+        ++origins;
+    if (found != expected) fprintf(stderr,"staged mapped=%u mode=%u expected=%d found=%d\n%s",mapped,mode,expected,found,source);
+    M68K_C_ASSERT_INT(expected,found); M68K_C_ASSERT_INT(expected,origins != 0);
+    M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
+    m68k_facts_v2_free_text(source); m68k_ir_source_analysis_destroy(&analysis);
+    m68k_object_destroy(&object); m68k_source_model_free(&parsed);
+  }
+  return 0;
+}
+
 static int test_facts_v2_fixed_pc_read_is_scalar_not_table(void) {
   unsigned indexed;
   for (indexed = 0U; indexed < 2U; ++indexed) {
@@ -21326,6 +21423,15 @@ static int test_facts_v2_source_control_ignores_only_rejected_copy_views(void) {
     if (mode == 2U) M68K_C_ASSERT(active_copy > 0);
     if (edge != ((mode < 2U || mode >= 4U))) fprintf(stderr, "source control mode=%u jump=%u edges=%d\n", mode, jump, edge);
     M68K_C_ASSERT_INT((mode < 2U || mode >= 4U), edge);
+    {
+      int symbolic = 0;
+      for (n = 0U; n < analysis.sections[0].runtime_address_ref_count; ++n) {
+        const M68kRuntimeAddressRefIR *ref = &analysis.sections[0].runtime_address_refs[n];
+        if (ref->offset == caller && ref->target_offset == callee &&
+            ref->runtime_address == callee + 0x800U) ++symbolic;
+      }
+      if (edge) M68K_C_ASSERT(symbolic != 0);
+    }
     M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
     m68k_facts_v2_free_text(source); m68k_ir_source_analysis_destroy(&analysis);
     m68k_object_destroy(&object); m68k_source_model_free(&parsed);
@@ -41301,6 +41407,8 @@ int m68k_c_ir_tests(void) {
       test_facts_v2_folded_pointer_prefix_is_bounded_and_conservative},
     {"facts_v2_return_probes_are_alignment_aware_and_never_promote",
       test_facts_v2_return_probes_are_alignment_aware_and_never_promote},
+    {"facts_v2_staged_record_field_candidates_preserve_owners_and_invalidation",
+      test_facts_v2_staged_record_field_candidates_preserve_owners_and_invalidation},
     {"facts_v2_counted_record_match_dispatch_is_bounded_and_conservative",
       test_facts_v2_counted_record_match_dispatch_is_bounded_and_conservative},
     {"facts_v2_initial_record_dispatch_candidates_are_bounded_and_conservative",

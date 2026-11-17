@@ -1768,6 +1768,7 @@ static const char *recovered_indirect_status_name(uint8_t status) {
   if (status == M68K_RECOVERED_INDIRECT_STATUS_BACKWARD_SLICE) return "backward_slice";
   if (status == M68K_RECOVERED_INDIRECT_STATUS_JUMP_TABLE) return "jump_table";
   if (status == M68K_RECOVERED_INDIRECT_STATUS_EXTERNAL) return "external";
+  if (status == M68K_RECOVERED_INDIRECT_STATUS_STAGED_RECORD_CANDIDATES) return "staged_record_candidates";
   if (status == M68K_RECOVERED_INDIRECT_STATUS_INITIAL_POINTER_CANDIDATES) return "initial_pointer_candidates";
   if (status == M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES) return "initial_record_candidates";
   if (status == M68K_RECOVERED_INDIRECT_STATUS_CALLBACK_STORAGE_CANDIDATES) return "callback_storage_candidates";
@@ -2737,6 +2738,11 @@ static int append_source_analysis_table_candidate_records_json(JsonBuilder *buil
       if (site->has_target_count != 0U) {
         if (json_builder_appendf(builder, "%u", (unsigned)site->target_count) != 0) return -1;
       } else if (json_builder_append(builder, "null") != 0) return -1;
+      if (site->status == M68K_RECOVERED_INDIRECT_STATUS_STAGED_RECORD_CANDIDATES &&
+          json_builder_appendf(builder, ",\"target_set_scope\":\"staged_record_field_writers\",\"runtime_target_set_closed\":false,\"pointer_producer\":%u,\"staging_slot\":%u,\"record_writer\":%u,\"record_root\":%u,\"record_modulus\":%u,\"record_field\":%u",
+            (unsigned)site->pointer_producer, (unsigned)site->staging_slot, (unsigned)site->record_writer,
+            (unsigned)site->record_root, (unsigned)site->record_modulus, (unsigned)site->record_field) != 0)
+        return -1;
       if (site->status == M68K_RECOVERED_INDIRECT_STATUS_INITIAL_POINTER_CANDIDATES &&
           json_builder_appendf(builder, ",\"target_set_scope\":\"initial_image_pointer_prefix\",\"runtime_target_set_closed\":false") != 0)
         return -1;
@@ -2767,7 +2773,8 @@ static int append_source_analysis_table_candidate_records_json(JsonBuilder *buil
       } else if (json_builder_append(builder, "null") != 0) return -1;
       if (json_builder_append(builder, ",\"table_entry_size\":") != 0) return -1;
       if (site->has_table_bounds != 0U && (site->table_entry_size != 0U ||
-          site->status != M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES)) {
+          site->status != M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES &&
+          site->status != M68K_RECOVERED_INDIRECT_STATUS_STAGED_RECORD_CANDIDATES)) {
         if (json_builder_appendf(builder, "%u", (unsigned)site->table_entry_size) != 0) return -1;
       } else if (json_builder_append(builder, "null") != 0) return -1;
       if (json_builder_append(builder, ",\"table_entry_count\":") != 0) return -1;
@@ -6354,6 +6361,11 @@ static int source_analysis_to_json_impl(const M68kSourceAnalysisIR *source_analy
       } else if (json_builder_append(&builder, "null") != 0) {
         goto oom;
       }
+      if (site->status == M68K_RECOVERED_INDIRECT_STATUS_STAGED_RECORD_CANDIDATES &&
+          json_builder_appendf(&builder, ",\"target_set_scope\":\"staged_record_field_writers\",\"runtime_target_set_closed\":false,\"pointer_producer\":%u,\"staging_slot\":%u,\"record_writer\":%u,\"record_root\":%u,\"record_modulus\":%u,\"record_field\":%u",
+            (unsigned)site->pointer_producer, (unsigned)site->staging_slot, (unsigned)site->record_writer,
+            (unsigned)site->record_root, (unsigned)site->record_modulus, (unsigned)site->record_field) != 0)
+        goto oom;
       if (site->status == M68K_RECOVERED_INDIRECT_STATUS_INITIAL_POINTER_CANDIDATES &&
           json_builder_appendf(&builder, ",\"target_set_scope\":\"initial_image_pointer_prefix\",\"runtime_target_set_closed\":false") != 0)
         goto oom;
@@ -6397,7 +6409,8 @@ static int source_analysis_to_json_impl(const M68kSourceAnalysisIR *source_analy
       if (json_builder_append(&builder, ",\"table_entry_size\":") != 0)
         goto oom;
       if (site->has_table_bounds != 0U && (site->table_entry_size != 0U ||
-          site->status != M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES)) {
+          site->status != M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES &&
+          site->status != M68K_RECOVERED_INDIRECT_STATUS_STAGED_RECORD_CANDIDATES)) {
         if (json_builder_appendf(&builder, "%u", (unsigned)site->table_entry_size) != 0)
           goto oom;
       } else if (json_builder_append(&builder, "null") != 0) {

@@ -17,7 +17,7 @@ def test_native_inventory_separates_raw_candidates_from_disconnected_accepted_co
     assert a['counts']['raw_terminal_candidates']==1
     assert a['generic_labels'][0]['source_offset']==8 # native binding, not parsed label text
     assert a['blocks_without_inbound']==[8]
-    for evidence in ('dispatch_table_control_target', 'initial_record_control_target', 'initial_pointer_control_target'):
+    for evidence in ('dispatch_table_control_target', 'initial_record_control_target', 'initial_pointer_control_target', 'staged_record_control_target'):
         section['code_start_refs']=[dict(evidence_kind=evidence,source_section_index=0,source_offset=2,offset=8)]
         b=source_inventory(dict(sections=[section]))
         assert b['counts']['disconnected_accepted_blocks']==0
@@ -103,3 +103,25 @@ def test_control_reference_audit_uses_native_identity_and_separates_indirect_bas
     # Symbol text is unnecessary: native identities govern both aliases and code ownership.
     section['rendered_symbol_accesses'].append(dict(section['rendered_symbol_accesses'][0], symbol_name='misleading_00000018'))
     assert control_reference_audit(dict(sections=[section, other])) == result
+
+
+def test_control_audit_exposes_proved_edges_without_symbolic_operands():
+    from amiga_reversing.disasm.source_inventory import control_reference_audit
+    section = dict(section_index=0,
+        accepted_code_runs=[dict(start_offset=0, end_offset=6), dict(start_offset=8, end_offset=10)],
+        rendered_symbol_accesses=[], recovered_indirect_sites=[],
+        code_start_refs=[dict(source_section_index=0, source_offset=0, offset=8,
+                             reason_name='control_target', evidence_kind='direct_control_target')])
+    analysis = dict(sections=[section])
+    audit = control_reference_audit(analysis)
+    assert audit['operand_binding_gap_counts'] == {'missing_symbolic_operand_binding': 1}
+    assert audit['operand_binding_gaps'][0]['target_offset'] == 8
+    section['rendered_symbol_accesses'] = [dict(access_kind='branch_target', offset=0,
+        operand_index=0, target_section_index=0, target_offset=8)]
+    assert not control_reference_audit(analysis)['operand_binding_gaps']
+    section['rendered_symbol_accesses'] = []
+    section['recovered_indirect_sites'] = [dict(offset=0)]
+    assert not control_reference_audit(analysis)['operand_binding_gaps']
+    section['recovered_indirect_sites'] = []
+    section['code_start_refs'][0]['source_section_index'] = 1
+    assert not control_reference_audit(analysis)['operand_binding_gaps']

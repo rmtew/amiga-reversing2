@@ -1553,3 +1553,49 @@ resolved-source admission and derives an optional runtime view separately.
 Overlapping numeric source/runtime ranges cannot cause a second translation.
 Duplicate discoveries with no runtime binding retain the same normalized origin.
 See [FOFT counted-dispatch verification](validation/foft-counted-dispatch.md).
+
+### Staged pointers and anchored record fields
+
+Native discovery can join a zero-terminated initial record walk that exports a
+LONG field to a concrete staging slot, a LONG read from that slot into an indexed
+record field, and an indirect call/jump loading the matching field family. The
+key is `(source section, anchored root, stride modulus, field)`, never register
+spelling or displacement alone. WORD/LONG data-register indices and equivalent
+folded `adda` forms normalize to the same family. The modulus is a proved index
+congruence, not a physical object extent or a closed index domain.
+
+The proof uses bounded forward-only accepted CFG witnesses. Calls and unknown
+transfers stop a path; unsupported register writes invalidate owner/alignment
+state. Known incompatible writes overlapping the staging LONG refuse the chain;
+zero initialization is allowed, but a later known overwrite on the bounded
+constructor path invalidates that path. Foreign roots, different fields,
+ambiguous surviving owners, unaligned indices and budget exhaustion remain
+unresolved. This first domain supports direct memory-to-memory staging reads;
+register-mediated staging values, interprocedural preservation, loop invariants,
+address-register indices and scaled/full-extension indexing are not inferred.
+
+Producer limits are 128 records, 64 loop-body instructions and 16 initializer
+instructions. Owner witnesses use a 512-byte window, at most 128 states per
+anchor and 4,096 processed states, with field moduli 4–256. All initial pointer
+members must map uniquely to same-section, exactly decodable, non-data starts
+before any are enqueued. Unsupported/partial collections do not seed code.
+
+Results have status `staged_record_candidates` (11), code origin
+`staged_record_control_target` (24), scope `staged_record_field_writers` and
+`runtime_target_set_closed: false`. Both JSON surfaces expose the source offsets
+`pointer_producer`, `staging_slot`, `record_writer`, `record_root` and the numeric
+`record_modulus`/`record_field`. The canonical writer is the lowest matching
+writer offset. These are may-flow candidates: ordering between functions,
+unresolved aliases, future writers, all receiver states, execution and ABI
+remain separate obligations.
+
+Source-bound absolute-control discovery now also publishes its proved operand
+binding. This permits normal symbolic rendering after the existing policy-view,
+prefix, ownership and overlap checks; it does not establish runtime lineage.
+The control-reference audit additionally reports `operand_binding_gaps` and
+`operand_binding_gap_counts` from native direct-control origins with no symbolic
+operand. This covers the discovery/rendering gap without parsing address text;
+unresolved indirect expressions and non-control origins are excluded. Such a
+report is evidence for review, not authorization to override numeric display
+choices or ambiguous address views. See
+[FOFT SCP verification](validation/foft-staged-record-flow.md).

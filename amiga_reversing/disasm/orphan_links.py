@@ -16,6 +16,7 @@ _CONTROL_EVIDENCE = frozenset(
         "dispatch_table_control_target",
         "traced_indirect_control_target",
         "initial_record_control_target",
+        "staged_record_control_target",
         "initial_pointer_control_target",
         "callback_field_control_target",
     }

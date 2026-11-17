@@ -58,11 +58,33 @@ def control_reference_audit(analysis, *, section_index=0):
                                   status='accepted_code' if is_code(target_section, r['offset']) else
                                   'non_code_destination_requires_review')
     recovered_records = [recovered[k] for k in sorted(recovered)]
+    # Discovery can prove a direct edge without publishing its operand binding.
+    # Audit that gap from native origins rather than parsing numeric asm text.
+    symbolic_edges = {(r['source_offset'], r['target_section_index'], r['target_offset']) for r in records}
+    gaps = {}
+    for target_section, target_facts in sections.items():
+        for ref in target_facts.get('code_start_refs', []):
+            source, target = ref.get('source_offset'), ref.get('offset')
+            if (ref.get('source_section_index') != section_index or
+                    ref.get('reason_name') != 'control_target' or
+                    ref.get('evidence_kind') not in ('direct_control_target', 'runtime_control_target') or
+                    type(source) is not int or type(target) is not int or source in indirect or
+                    not is_code(section_index, source)):
+                continue
+            key = (source, target_section, target)
+            if key not in symbolic_edges:
+                gaps[key] = dict(source_offset=source, target_section_index=target_section,
+                    target_offset=target, evidence_kind=ref['evidence_kind'],
+                    status='missing_symbolic_operand_binding' if is_code(target_section, target) else
+                    'unrendered_noncode_control_reference')
+    gap_records = [gaps[k] for k in sorted(gaps)]
     return dict(schema='native-control-reference-audit/v1', section_index=section_index,
                 scope='native source-bound control operands in accepted code; not execution or exhaustive dynamic targets',
                 counts=dict(Counter(r['status'] for r in records)), references=records,
                 recovered_target_references=recovered_records,
                 recovered_target_status_counts=dict(Counter(r['status'] for r in recovered_records)),
+                operand_binding_gaps=gap_records,
+                operand_binding_gap_counts=dict(Counter(r['status'] for r in gap_records)),
                 indirect_site_status_counts=dict(Counter(r.get('status', 'unknown') for r in section.get('recovered_indirect_sites', []))),
                 indirect_sites=[{k: r[k] for k in ('offset', 'status', 'target_count', 'target_set_scope',
                                                  'runtime_target_set_closed', 'table_bounds_status') if k in r}
@@ -119,7 +141,7 @@ def source_inventory(analysis, *, section_index=0, entry_offset=0):
     # Only synchronous control evidence supplements CFG serialization. Vector
     # installation identifies an asynchronous root, never an installer call.
     evidence={'direct_control_target','runtime_control_target','dispatch_table_control_target',
-              'initial_record_control_target','initial_pointer_control_target'}
+              'initial_record_control_target','initial_pointer_control_target','staged_record_control_target'}
     for ref in section['code_start_refs']:
         if ref['evidence_kind'] not in evidence or ref.get('source_section_index') != section_index:
             continue

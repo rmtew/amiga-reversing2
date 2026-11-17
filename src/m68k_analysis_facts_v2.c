@@ -642,6 +642,13 @@ typedef struct M68kRecordDispatchProbe {
   uint32_t targets[M68K_RECORD_DISPATCH_LIMIT];
   uint32_t runtime_targets[M68K_RECORD_DISPATCH_LIMIT];
 } M68kRecordDispatchProbe;
+typedef struct M68kStagedRecordProbe {
+  M68kRecordDispatchProbe initial;
+  uint32_t producer, staging_slot, writer, record_root, record_modulus, record_field;
+} M68kStagedRecordProbe;
+static int probe_staged_record_dispatch(M68kDecodeIR *, const M68kAnalysisPolicy *,
+  const M68kRuntimeAddressSpace *, uint8_t **, uint8_t **, size_t,
+  const M68kDecodeCandidate *, uint8_t, M68kStagedRecordProbe *);
 static int probe_initial_record_dispatch(M68kDecodeIR *, const M68kAnalysisPolicy *, const M68kRuntimeAddressSpace *,
   uint8_t **, uint8_t **, size_t, const M68kDecodeCandidate *, uint8_t, M68kRecordDispatchProbe *);
 static int candidate_reencodes_exactly(const M68kDecodeSectionIR *, const M68kDecodeCandidate *);
@@ -7242,7 +7249,7 @@ static void recovered_indirect_site_apply_code_start_refs(M68kRecoveredIndirectS
   size_t index;
   uint32_t count = 0U;
   uint32_t first_target = 0U;
-  int all_traced_producers = 0, has_callback_storage = 0;
+  int all_traced_producers = 0, has_callback_storage = 0, has_staged_record = 0;
   if (site == NULL || section_analysis == NULL) return;
   all_traced_producers = site->shape == M68K_RECOVERED_INDIRECT_SHAPE_IND;
   for (index = 0U; index < section_analysis->code_start_ref_count; ++index) {
@@ -7253,6 +7260,7 @@ static void recovered_indirect_site_apply_code_start_refs(M68kRecoveredIndirectS
       continue;
     }
     if (ref->evidence_kind == M68K_CODE_ORIGIN_EVIDENCE_CALLBACK_FIELD_CONTROL_TARGET) has_callback_storage = 1;
+    if (ref->evidence_kind == M68K_CODE_ORIGIN_EVIDENCE_STAGED_RECORD_CONTROL_TARGET) has_staged_record = 1;
     if (count == 0U) first_target = ref->offset;
     if (ref->evidence_kind != M68K_CODE_ORIGIN_EVIDENCE_TRACED_INDIRECT_CONTROL_TARGET)
       all_traced_producers = 0;
@@ -7263,6 +7271,10 @@ static void recovered_indirect_site_apply_code_start_refs(M68kRecoveredIndirectS
   site->target = first_target;
   site->has_target_count = 1U;
   site->target_count = count;
+  if (has_staged_record) {
+    site->status = M68K_RECOVERED_INDIRECT_STATUS_UNRESOLVED; /* reprobe attaches the chain witness */
+    return;
+  }
   if (has_callback_storage) {
     site->status = M68K_RECOVERED_INDIRECT_STATUS_CALLBACK_STORAGE_CANDIDATES;
     site->detail = "storage-linked callback candidates; runtime writes and aliases are not closed";
@@ -7675,6 +7687,28 @@ static int append_recovered_indirect_sites_for_accepted(M68kDecodeIR *decode,
             site.has_table_base = 1U; site.table_offset = probe.table_offset;
             site.table_bounds_status = probe.refusal_reason;
             site.detail = "initial-record scan refused; no partial handler collection was promoted";
+          }
+        }
+        if (site.status == M68K_RECOVERED_INDIRECT_STATUS_UNRESOLVED) {
+          M68kStagedRecordProbe probe;
+          candidate = m68k_decode_ir_find_candidate_at_offset(section, site.offset);
+          if (probe_staged_record_dispatch(decode, policy, runtime_addresses, accepted_start,
+              accepted_bytes, section_index, candidate, max_cpu, &probe)) {
+            site.status = M68K_RECOVERED_INDIRECT_STATUS_STAGED_RECORD_CANDIDATES;
+            site.has_target = site.has_target_count = site.has_table_base = site.has_table_bounds = 1U;
+            site.target = probe.initial.targets[0];
+            site.target_count = 0U;
+            for (uint32_t n = 0U; n < probe.initial.entry_count; ++n) {
+              uint32_t previous;
+              for (previous = 0U; previous < n && probe.initial.targets[previous] != probe.initial.targets[n]; ++previous) {}
+              if (previous == n) ++site.target_count;
+            }
+            site.table_offset = probe.initial.table_offset; site.table_size = probe.initial.table_size;
+            site.table_entry_count = probe.initial.entry_count; site.table_entry_size = probe.initial.entry_size;
+            site.pointer_producer = probe.producer; site.staging_slot = probe.staging_slot;
+            site.record_writer = probe.writer; site.record_root = probe.record_root;
+            site.record_modulus = probe.record_modulus; site.record_field = probe.record_field;
+            site.detail = "staged pointer / anchored record-field candidates; runtime writers and aliases are not closed";
           }
         }
         /* Probing may materialize decode candidates and move their storage. */
@@ -9053,9 +9087,12 @@ static int enqueue_source_bound_absolute_control_target(M68kDecodeIR *decode, co
     uint8_t max_cpu, M68kDiagSink diagnostics) {
   uint32_t address = 0U, offset = 0U;
   M68kFactsV2TraceState source_state;
+  M68kDecodeCandidate stable;
   const char *refusal;
   if (!runtime_unphased_absolute_control(space, section_index, state) ||
       !candidate_absolute_control_address(candidate, &address)) return 0;
+  stable = *candidate;
+  candidate = &stable;
   refusal = source_control_binding(space, section_index, candidate->offset, address, &offset);
   if (refusal == NULL) refusal = source_control_prefix(decode, policy, accepted_start, accepted_bytes,
     section_index, offset, max_cpu);
@@ -9066,11 +9103,15 @@ static int enqueue_source_bound_absolute_control_target(M68kDecodeIR *decode, co
     return 0;
   }
   /* Binding is code identity, not runtime reachability or register evidence. */
+  if (append_runtime_address_ref_fact(facts, section_index, candidate->offset, 0U,
+      offset, address, M68K_FACT_CONFIDENCE_TOOL_INFERRED) < 0) return -1;
   trace_state_init_unknown(&source_state);
   return enqueue_same_section_control_resolved_target(decode, facts, queue, accepted_start, accepted_bytes,
     profile, max_cpu, section_index, candidate, offset, 0U, 0U, M68K_FACT_CONFIDENCE_TOOL_INFERRED,
     M68K_CODE_ORIGIN_EVIDENCE_DIRECT_CONTROL_TARGET, &source_state);
 }
+
+#include "m68k_staged_record_flow.inc"
 
 static int validate_reachable_candidate_for_acceptance(const M68kAnalysisPolicy *policy, M68kFactIR *facts,
     const M68kFactsV2WorkItem *item, const M68kDecodeSectionIR *section,
@@ -11338,6 +11379,8 @@ static int facts_v2_collect_profile_internal(const M68kObject *object, const M68
     if (seed_initial_record_dispatches(&decode, &facts, &queue, &runtime_addresses,
         policy, accepted_start, accepted_bytes, out_profile, max_cpu) != 0) goto fail;
     if (seed_initial_pointer_prefixes(&decode, policy, &facts, &queue, &runtime_addresses,
+        accepted_start, accepted_bytes, out_profile, max_cpu) != 0) goto fail;
+    if (seed_staged_record_dispatches(&decode, policy, &runtime_addresses, &facts, &queue,
         accepted_start, accepted_bytes, out_profile, max_cpu) != 0) goto fail;
     if (queue.count == previous_queue) break;
     if (run_reachable_fixed_point(object, &decode, &facts, policy, &relocation_lookup, &queue,
