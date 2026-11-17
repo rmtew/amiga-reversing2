@@ -121,3 +121,10 @@ targets/starglider2_retail/*.s
 
 # Per-target cross-process coordination (stable inode; no durable facts).
 .target-history.lock
+
+# F.O.F.T. initial source package; the original full program remains private.
+!targets/amiga_raw_foft/source-package-manifest.json
+!targets/amiga_raw_foft/assets/*.bin
+!targets/amiga_raw_foft/hardware/*.i
+!targets/amiga_raw_foft/exec/*.i
+!targets/amiga_raw_foft/graphics/*.i

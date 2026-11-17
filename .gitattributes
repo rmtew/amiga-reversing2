@@ -1,2 +1,6 @@
 ext/amiga_includes/** text eol=lf
 ext/macos_includes/** -text
+
+# Preserve F.O.F.T. package hashes on every checkout.
+targets/amiga_raw_foft/** text eol=lf
+targets/amiga_raw_foft/assets/*.bin binary
