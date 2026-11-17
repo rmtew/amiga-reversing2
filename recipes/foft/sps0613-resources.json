@@ -13,7 +13,46 @@
     "reader": "ReadDecodedDiskTrack $466CA verifies track=(physical cylinder*2+side)^1, sector<3, 2000 bytes and XOR of 2000 encoded MFM words. LoadDiskResourceByIndex $46D44 copies min(6000-offset, remaining). MoveDiskToTrack sets CIAB side bit from logical track bit 0.",
     "boundary": "Exact stored sectors and static resource descriptor; no new observed menu transfer or playback. All three sectors of every contributing track must verify. Special physical tracks 158/159 and empty records 160..163 stay template-owned.",
     "program": "Unique complete match to the original naturally booted $800 handoff begins at game track 3, offset 0; matched independently across 82 decoded tracks. This does not newly trace the boot loader.",
-    "bank": "Resource 9 descriptor selects game track 102, offset 0, length 50000, destination $58000. Complete decoded bytes equal original handoff source offset $57800..$63B50. One mixed bank identity, not six banks aliased by their common destination."
+    "bank": "Resource 9 descriptor selects game track 102, offset 0, length 50000, destination $58000. Complete decoded bytes equal original handoff source offset $57800..$63B50. One mixed bank identity, not six banks aliased by their common destination.",
+    "boot_reader": {
+      "stage_sha256": "b52575d366313c1648976925c368e7a990d30477e7a099301dcabb031a3939a1",
+      "verified_bytes": 4000,
+      "entry": 491520,
+      "resource_catalog": 493802,
+      "catalog_count": 3,
+      "load_resource": 493596,
+      "decode_track": 491980,
+      "decode_mfm_byte": 493222,
+      "checksum": 493574,
+      "program_resource_order": [
+        1,
+        2
+      ],
+      "descriptors": [
+        {
+          "index": 0,
+          "destination": 360448,
+          "game_track": 85,
+          "offset": 0,
+          "length": 32000
+        },
+        {
+          "index": 1,
+          "destination": 2048,
+          "game_track": 3,
+          "offset": 0,
+          "length": 456000
+        },
+        {
+          "index": 2,
+          "destination": 458048,
+          "game_track": 79,
+          "offset": 0,
+          "length": 33472
+        }
+      ],
+      "scope": "Static original boot code and prior pre-execution prefix identity. No new runtime or protection change. The following 2000 disk bytes do not match the historical captured range and are not imported as loader source."
+    }
   },
   "actions": [
     {
@@ -520,7 +559,7 @@
         "kind": "mixed_code_interpreted_data_pcm_unknown",
         "destination": 2048,
         "trigger": "Original boot; historical natural handoff verified",
-        "reader": "Original boot stages remain template-owned. Stored-sector identity matches the historically observed natural $800 handoff; initial boot copy sequence is not newly traced. The custom sector format is independently verified against the game reader at $466CA.",
+        "reader": "Original boot LoadBootResource $7881C: descriptor 1 copies 456000 bytes game track3 to $800; descriptor 2 copies 33472 bytes game track79 to $6FD40; ReadBootDecodedTrack $781CC checks all three custom sectors. Static calls 1 then 2 precede the original jump to $800; no new runtime trace.",
         "analysis_target": "amiga_raw_foft"
       }
     },
@@ -592,6 +631,28 @@
         "trigger": "Physical HELP; Space cycles; Return selects current resource; menu registration/static path, not observed playback",
         "reader": "ReadDecodedDiskTrack $466CA / LoadDiskResourceByIndex $46D44",
         "analysis_target": "amiga_raw_foft_music_bank9_sps0613"
+      }
+    },
+    {
+      "op": "capture",
+      "file": "foft-boot-loader.bin",
+      "size": 4000,
+      "sha256": "b52575d366313c1648976925c368e7a990d30477e7a099301dcabb031a3939a1",
+      "spans": [
+        {
+          "track": 1,
+          "side": 1,
+          "offset": 0,
+          "length": 4000
+        }
+      ],
+      "resource": {
+        "id": "boot-loader-prefix",
+        "kind": "mixed_code_descriptor_data_unknown",
+        "destination": 491520,
+        "trigger": "Historical original natural boot stops at $78000; first 4000 bytes equal independently verified game-track2 sectors 0 and 1.",
+        "reader": "Original first-stage boot transfer not newly traced; matching prefix observed before this stage executes.",
+        "analysis_target": "amiga_raw_foft_boot_loader_sps0613"
       }
     }
   ]

@@ -91,6 +91,28 @@ def main():
             "foft-program.bin": program,
             "foft-music-bank9.bin": bank,
         }
+        loader_target = ROOT / "targets/amiga_raw_foft_boot_loader_sps0613"
+        loader_package = load_published_source_package(loader_target)
+        loader_action = next(
+            a for a in plan["actions"] if a["resource"]["id"] == "boot-loader-prefix"
+        )
+        loader_build = build(
+            output / "loader-assembly",
+            args.vasm,
+            target=loader_target,
+            expected=loader_action["sha256"],
+            size=4000,
+            load_address=0x78000,
+            stem="loader",
+        )
+        assembled["foft-boot-loader.bin"] = (
+            output / "loader-assembly/loader-native.bin"
+        ).read_bytes()
+        if (
+            load_published_source_package(loader_target)["sha256"]
+            != loader_package["sha256"]
+        ):
+            raise ValueError("loader source package changed during assembly")
         rebuilt, receipt = rebuild_resources(image, plan, assembled, project_root=ROOT)
         path = output / "foft-rebuilt.ipf"
         path.write_bytes(rebuilt)
@@ -114,7 +136,18 @@ def main():
                     "parent_source_offset": 0x57800,
                     "length": 50000,
                 },
+                {
+                    "file": "foft-boot-loader.bin",
+                    "target": loader_target.name,
+                    "source_offset": 0,
+                    "length": 4000,
+                },
             ],
+            "loader_build": {
+                "target": loader_target.name,
+                "package_sha256": loader_package["sha256"],
+                "builds": loader_build,
+            },
         }
     else:
         for name, data in resources.items():

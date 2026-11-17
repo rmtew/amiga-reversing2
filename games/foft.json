@@ -23,6 +23,10 @@
     "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50": {
       "size": 50000,
       "role": "Music resource 9: code, interpreted bank data, PCM and unknown bytes"
+    },
+    "b52575d366313c1648976925c368e7a990d30477e7a099301dcabb031a3939a1": {
+      "size": 4000,
+      "role": "Original boot-stage prefix independently matched to natural $78000 stop"
     }
   },
   "sources": {
@@ -40,10 +44,11 @@
       "kind": "ipf_resource_recovery",
       "input": "da33fc1e068d73078094fc4cb6f72ab69a9c2f30f4094b8321033aedb6237b93",
       "recipe": "recipes/foft/sps0613-resources.json",
-      "recipe_sha256": "b1eecb3d30f5c8c2cd94d51ad7884f82f6dea69aaee823a8d76dc7a1f930d829",
+      "recipe_sha256": "f23d78d756b37e34ca752bdb2dca58d8959b77dca68e06ad8b218b4ca794f14c",
       "outputs": {
         "foft-program.bin": "85e2684b03badc7308e7eaa059b7c717441808798f55b4642e1d8b1895914c9b",
-        "foft-music-bank9.bin": "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50"
+        "foft-music-bank9.bin": "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50",
+        "foft-boot-loader.bin": "b52575d366313c1648976925c368e7a990d30477e7a099301dcabb031a3939a1"
       }
     }
   },
@@ -65,6 +70,18 @@
         "entrypoint": 360448,
         "code_start_offset": 0,
         "phase": "decoded_resource"
+      }
+    },
+    "amiga_raw_foft_boot_loader_sps0613": {
+      "release": "amiga_sps0613",
+      "artifact": "b52575d366313c1648976925c368e7a990d30477e7a099301dcabb031a3939a1",
+      "context": {
+        "kind": "raw",
+        "address_model": "runtime_absolute",
+        "load_address": 491520,
+        "entrypoint": 491520,
+        "code_start_offset": 0,
+        "phase": "pre_handoff"
       }
     }
   },

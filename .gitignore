@@ -139,3 +139,10 @@ targets/starglider2_retail/*.s
 !targets/amiga_raw_foft_music_bank9_sps0613/assets/*.bin
 !targets/amiga_raw_foft_music_bank9_sps0613/hardware/
 !targets/amiga_raw_foft_music_bank9_sps0613/hardware/*.i
+
+# Original FOFT loader source package; no disk/ROM/whole-payload assets.
+!targets/amiga_raw_foft_boot_loader_sps0613/source-package-manifest.json
+!targets/amiga_raw_foft_boot_loader_sps0613/hardware/
+!targets/amiga_raw_foft_boot_loader_sps0613/hardware/*.i
+!targets/amiga_raw_foft_boot_loader_sps0613/graphics/
+!targets/amiga_raw_foft_boot_loader_sps0613/graphics/*.i
