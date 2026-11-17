@@ -11,7 +11,15 @@ from amiga_reversing.disasm.source_package_publish import publish_source_package
 from tests.test_disk_set import ROOT, fixture, packages_for
 
 
-def editable(tmp_path, monkeypatch, *, table=False, string=False, interior=False):
+def editable(
+    tmp_path,
+    monkeypatch,
+    *,
+    table=False,
+    string=False,
+    interior=False,
+    owner_scope=False,
+):
     from amiga_reversing.disasm import restoration, server
 
     extra = (
@@ -32,6 +40,12 @@ def editable(tmp_path, monkeypatch, *, table=False, string=False, interior=False
         if string
         else {}
     )
+    if owner_scope:
+        assert not table and not string and not interior
+        extra = {
+            "main_data": bytes.fromhex("60024e7570074e75"),
+            "main_text": " SECTION code,code\n ORG $1000\n bra.b helper\n rts\nhelper:\n moveq #7,d0\nending:\n rts\n",
+        }
     project, target, paths, manifest = fixture(tmp_path, **extra)
     metadata_path = target / manifest["members"][0]["analysis"]["metadata"]["path"]
     metadata = json.loads(metadata_path.read_bytes())
@@ -45,6 +59,17 @@ def editable(tmp_path, monkeypatch, *, table=False, string=False, interior=False
             "citation": "Synthetic RTS boundary",
         }
     ]
+    if owner_scope:
+        metadata["seeded_code_labels"].append(
+            {
+                "hunk": 0,
+                "addr": 6,
+                "name": "ending",
+                "seed_origin": "manual_analysis",
+                "review_status": "seeded",
+                "citation": "Synthetic helper's final RTS source point",
+            }
+        )
     if interior:
         assert string and not table
         metadata["seeded_code_labels"].append(
@@ -791,3 +816,38 @@ def test_scoped_string_seed_preserves_a_proven_interior_text_entry(
     text = (target / "main.s").read_text()
     assert 'stringSuffix:\n\tdc.b "llo",$00' in text
     assert '\tdc.b "He"' in text
+
+
+def test_member_local_owner_is_explicit_source_declaration_beside_runtime_alias(
+    tmp_path, monkeypatch
+):
+    _, target, _, call = editable(tmp_path, monkeypatch, owner_scope=True)
+
+    def rename(selected, name, **scope):
+        result = request(selected)
+        result.update(command_id="label.rename", parameters={"name": name, **scope})
+        result["evidence"]["reason"] = (
+            "The existing helper entry and sequential RTS establish these source identities."
+        )
+        return result
+
+    owner = call("inspect", source_offset=4, row_kind="label")
+    call("interpret", **rename(owner, "begin"))
+    owner = call("inspect", source_offset=4, row_kind="label")
+    child = call("inspect", source_offset=6, row_kind="label")
+    source_owner = rename(owner, "begin", scope="global")
+    local = rename(child, ".done", scope="local", owner_offset=4)
+    before = (target / "manifest.json").read_bytes()
+    with pytest.raises(ValueError, match="unique named global owner"):
+        call("interpret", **local)
+    assert (target / "manifest.json").read_bytes() == before
+    entries = [
+        {k: v for k, v in r.items() if k != "expected_revision"}
+        for r in (source_owner, local)
+    ]
+    saved = call(
+        "interpret_batch", expected_revision=owner["revision"], entries=entries
+    )
+    assert saved["verification"]["media_exact"]
+    text = (target / "main.s").read_text()
+    assert "begin:\n" in text and ".done:\n\trts" in text
