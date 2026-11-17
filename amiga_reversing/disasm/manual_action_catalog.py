@@ -6119,6 +6119,7 @@ def _target_data_seed_action() -> dict[str, object]:
             "end": {"type": "integer", "minimum": 1},
             "name": {"type": "string"},
             "unit": {"type": "string", "enum": ["byte", "word", "long"]},
+            "data_role": {"type": "string", "enum": ["raw", "bitmap", "sound_sample", "opaque_data"]},
             "role": {"type": "string"}},
          "required": ["hunk", "addr", "end", "name", "unit"]})
 
@@ -6161,10 +6162,15 @@ def _target_data_seed_payload(params: Mapping[str, object]) -> dict[str, object]
     width = {"byte": 1, "word": 2, "long": 4}[unit]
     if (end - addr) % width:
         raise ValueError("target.data.seed extent must contain complete units")
+    data_role = params.get("data_role", "raw")
+    if not isinstance(data_role, str) or data_role not in {"raw", "bitmap", "sound_sample", "opaque_data"}:
+        raise ValueError("target.data.seed has unsupported data_role")
+    if data_role != "raw" and unit != "byte":
+        raise ValueError("classified binary data requires byte units")
     seed = {"seed_id": f"catalog-data-seed-h{hunk}-{addr:08X}-{end:08X}",
             "kind": "data", "mode": "required", "hunk": hunk,
             "addr": addr, "end": end, "name": name.strip(),
-            "unit": unit, "data_role": "raw"}
+            "unit": unit, "data_role": data_role}
     if isinstance(params.get("role"), str) and params["role"].strip():
         seed["role"] = params["role"].strip()
     return seed

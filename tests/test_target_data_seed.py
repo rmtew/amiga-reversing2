@@ -33,6 +33,27 @@ def test_target_code_seed_remains_code():
     assert payload["seed"]["kind"] == "code"
 
 
+@pytest.mark.parametrize("data_role", ["bitmap", "sound_sample", "opaque_data"])
+def test_target_binary_classification_covers_the_explicit_whole_range(data_role):
+    _, payload = target_catalog_manual_payload("target.data.seed", {
+        "hunk": 0, "addr": 32, "end": 544, "name": "raw_asset", "unit": "byte",
+        "data_role": data_role, "role": "authored purpose"})
+    seed = payload["seed"]
+    assert (seed["addr"], seed["end"], seed["data_role"], seed["unit"]) == (32, 544, data_role, "byte")
+    assert seed["role"] == "authored purpose" and "row_indexes" not in seed
+
+
+@pytest.mark.parametrize("change", [
+    {"data_role": "code"}, {"data_role": "string"}, {"data_role": []},
+    {"data_role": None}, {"unit": "word"}, {"unit": "long"},
+])
+def test_binary_classification_rejects_other_kinds_and_nonbyte_storage(change):
+    with pytest.raises(ValueError):
+        target_catalog_manual_payload("target.data.seed", {
+            "hunk": 0, "addr": 32, "end": 544, "name": "raw_asset", "unit": "byte",
+            "data_role": "sound_sample", **change})
+
+
 def test_target_string_seed_uses_existing_ascii_fact_without_listing_rows():
     action = next(a for a in target_action_catalog() if a["action_id"] == "target.string.seed")
     assert action["parameter_schema"]["required"] == ["hunk", "addr", "end", "name"]

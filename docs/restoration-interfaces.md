@@ -234,6 +234,14 @@ the existing required data-seed fact; ordinary `target.seed.remove`/undo apply.
 It does not establish pointer targets or semantic truth, and partial units refuse.
 Use a data-block layout separately for structure and interpreted references.
 
+Optional `data_role` selects `raw` (the unchanged default), `bitmap`,
+`sound_sample`, or `opaque_data` for that complete explicit range. Classified
+binary roles require byte units and use the same existing native facts as the
+listing commands. The free-form `role` remains a purpose annotation. This does
+not force INCBIN output or bypass ownership, reference, label or relocation
+guards. A range command's locators select those individual listing rows; two
+endpoint locators do not classify the intervening rows.
+
 `target.data.name` takes only source `hunk`, `addr` and `name`. If exactly one
 bounded anonymous data declaration starts there, it receives the name in place,
 preserving every non-name fact and its saved provenance. Already named, ambiguous
