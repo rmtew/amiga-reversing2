@@ -1,0 +1,598 @@
+{
+  "schema_version": 1,
+  "kind": "ipf_resource_recovery",
+  "image_sha256": "da33fc1e068d73078094fc4cb6f72ab69a9c2f30f4094b8321033aedb6237b93",
+  "geometry": {
+    "cylinders": 82,
+    "sides": 2,
+    "records": 164
+  },
+  "codec": "foft_mfm_3x2000",
+  "evidence": {
+    "reference": "https://github.com/keirf/disk-utilities/blob/aa616ccde1e46b5badb742234a4b90e2c15e5b67/libdisk/format/amiga/federation_of_free_traders.c",
+    "reader": "ReadDecodedDiskTrack $466CA verifies track=(physical cylinder*2+side)^1, sector<3, 2000 bytes and XOR of 2000 encoded MFM words. LoadDiskResourceByIndex $46D44 copies min(6000-offset, remaining). MoveDiskToTrack sets CIAB side bit from logical track bit 0.",
+    "boundary": "Exact stored sectors and static resource descriptor; no new observed menu transfer or playback. All three sectors of every contributing track must verify. Special physical tracks 158/159 and empty records 160..163 stay template-owned.",
+    "program": "Unique complete match to the original naturally booted $800 handoff begins at game track 3, offset 0; matched independently across 82 decoded tracks. This does not newly trace the boot loader.",
+    "bank": "Resource 9 descriptor selects game track 102, offset 0, length 50000, destination $58000. Complete decoded bytes equal original handoff source offset $57800..$63B50. One mixed bank identity, not six banks aliased by their common destination."
+  },
+  "actions": [
+    {
+      "op": "capture",
+      "file": "foft-program.bin",
+      "size": 489472,
+      "sha256": "85e2684b03badc7308e7eaa059b7c717441808798f55b4642e1d8b1895914c9b",
+      "spans": [
+        {
+          "track": 1,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 2,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 2,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 3,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 3,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 4,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 4,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 5,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 5,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 6,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 6,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 7,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 7,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 8,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 8,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 9,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 9,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 10,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 10,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 11,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 11,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 12,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 12,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 13,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 13,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 14,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 14,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 15,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 15,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 16,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 16,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 17,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 17,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 18,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 18,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 19,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 19,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 20,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 20,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 21,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 21,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 22,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 22,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 23,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 23,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 24,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 24,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 25,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 25,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 26,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 26,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 27,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 27,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 28,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 28,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 29,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 29,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 30,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 30,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 31,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 31,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 32,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 32,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 33,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 33,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 34,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 34,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 35,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 35,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 36,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 36,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 37,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 37,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 38,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 38,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 39,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 39,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 40,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 40,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 41,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 41,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 42,
+          "side": 1,
+          "offset": 0,
+          "length": 3472
+        }
+      ],
+      "resource": {
+        "id": "boot-program",
+        "kind": "mixed_code_interpreted_data_pcm_unknown",
+        "destination": 2048,
+        "trigger": "Original boot; historical natural handoff verified",
+        "reader": "Original boot stages remain template-owned. Stored-sector identity matches the historically observed natural $800 handoff; initial boot copy sequence is not newly traced. The custom sector format is independently verified against the game reader at $466CA.",
+        "analysis_target": "amiga_raw_foft"
+      }
+    },
+    {
+      "op": "capture",
+      "file": "foft-music-bank9.bin",
+      "size": 50000,
+      "sha256": "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50",
+      "spans": [
+        {
+          "track": 51,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 51,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 52,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 52,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 53,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 53,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 54,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 54,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 55,
+          "side": 1,
+          "offset": 0,
+          "length": 2000
+        }
+      ],
+      "resource": {
+        "id": "music-resource-9",
+        "kind": "mixed_code_interpreted_data_pcm_unknown",
+        "destination": 360448,
+        "trigger": "Physical HELP; Space cycles; Return selects current resource; menu registration/static path, not observed playback",
+        "reader": "ReadDecodedDiskTrack $466CA / LoadDiskResourceByIndex $46D44",
+        "analysis_target": "amiga_raw_foft_music_bank9_sps0613"
+      }
+    }
+  ]
+}

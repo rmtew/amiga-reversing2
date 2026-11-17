@@ -101,10 +101,11 @@ def test_unique_counterpart_refuses_ambiguity_and_changed_data():
     with pytest.raises(ValueError):catalog.unique_counterpart(left,-1,2,left)
 
 
-def test_correspondence_requires_equal_qualified_range_identities(family):
+@pytest.mark.parametrize('role',['code','data','mixed'])
+def test_correspondence_requires_equal_qualified_range_identities(family,role):
     root,value,data,artifact,target=family
     span=dict(target='st_program',offset=0,size=2,sha256=artifact)
-    link=dict(id='same',kind='identical_bytes',role='code',left=span,right=copy.deepcopy(span),evidence='fixture')
+    link=dict(id='same',kind='identical_bytes',role=role,left=span,right=copy.deepcopy(span),evidence='fixture')
     value['correspondences']=[link];save(root,value)
     original=root/'private.bin';original.write_bytes(data);catalog.bind_source(root,'fixture',artifact,original)
     assert catalog.verify_correspondence(root,'fixture','same')['id']=='same'

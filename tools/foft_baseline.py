@@ -22,15 +22,15 @@ EXPECTED = "85e2684b03badc7308e7eaa059b7c717441808798f55b4642e1d8b1895914c9b"
 SIZE = 489472
 
 
-def verify(data):
+def verify(data, *, expected=EXPECTED, size=SIZE, load_address=0x800):
     actual = hashlib.sha256(data).hexdigest()
-    if len(data) != SIZE or actual != EXPECTED:
+    if len(data) != size or actual != expected:
         raise ValueError(f"Whole program differs: {len(data)} bytes, SHA256 {actual}")
     return {
         "bytes": len(data),
         "sha256": actual,
-        "start": "0x800",
-        "end_exclusive": "0x78000",
+        "start": hex(load_address),
+        "end_exclusive": hex(load_address+size),
         "whole_file_exact": True,
     }
 
@@ -97,7 +97,8 @@ def render(check=False):
     }
 
 
-def build(output, vasm=None):
+def build(output, vasm=None, *, target=None, expected=EXPECTED, size=SIZE,
+          load_address=0x800, stem="foft"):
     from amiga_reversing.disasm.c_backend import (
         assemble_platform_source_path_with_c_backend,
     )
@@ -106,7 +107,7 @@ def build(output, vasm=None):
         load_published_source_package,
     )
 
-    package = load_published_source_package(TARGET)
+    package = load_published_source_package(TARGET if target is None else target)
     output = output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     # The assemblers see only committed source, INCBINs and collected SDK files
@@ -121,10 +122,10 @@ def build(output, vasm=None):
             target_cpu="68000",
             project_root=ROOT,
         )
-        result = {"operation": "build", "native": verify(native)}
-        (output / "foft-native.bin").write_bytes(native)
+        result = {"operation": "build", "native": verify(native, expected=expected, size=size, load_address=load_address)}
+        (output / f"{stem}-native.bin").write_bytes(native)
         if vasm:
-            binary = output / "foft-vasm.bin"
+            binary = output / f"{stem}-vasm.bin"
             completed = subprocess.run(
                 [
                     str(vasm.resolve()),
@@ -143,7 +144,7 @@ def build(output, vasm=None):
             )
             if completed.returncode:
                 raise ValueError("vasm failed:\n" + completed.stdout + completed.stderr)
-            result["vasm"] = verify(binary.read_bytes())
+            result["vasm"] = verify(binary.read_bytes(), expected=expected, size=size, load_address=load_address)
             if binary.read_bytes() != native:
                 raise ValueError("C and vasm differ")
     return result

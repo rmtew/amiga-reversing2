@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "id": "foft",
+  "name": "Federation of Free Traders",
+  "releases": {
+    "amiga_sps0613": {
+      "platform": "amiga",
+      "edition": "Bound supplied SPS 0613 original IPF; 82 cylinders, two sides, including special and empty tracks",
+      "media": [
+        "da33fc1e068d73078094fc4cb6f72ab69a9c2f30f4094b8321033aedb6237b93"
+      ]
+    }
+  },
+  "artifacts": {
+    "da33fc1e068d73078094fc4cb6f72ab69a9c2f30f4094b8321033aedb6237b93": {
+      "size": 995846,
+      "role": "Immutable private SPS 0613 media"
+    },
+    "85e2684b03badc7308e7eaa059b7c717441808798f55b4642e1d8b1895914c9b": {
+      "size": 489472,
+      "role": "Reconstructed original $800 handoff program"
+    },
+    "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50": {
+      "size": 50000,
+      "role": "Music resource 9: code, interpreted bank data, PCM and unknown bytes"
+    }
+  },
+  "sources": {
+    "da33fc1e068d73078094fc4cb6f72ab69a9c2f30f4094b8321033aedb6237b93": {
+      "kind": "private_media",
+      "format": "ipf"
+    },
+    "85e2684b03badc7308e7eaa059b7c717441808798f55b4642e1d8b1895914c9b": {
+      "kind": "existing_target",
+      "target": "amiga_raw_foft"
+    }
+  },
+  "derivations": {
+    "sps0613_stored_resources": {
+      "kind": "ipf_resource_recovery",
+      "input": "da33fc1e068d73078094fc4cb6f72ab69a9c2f30f4094b8321033aedb6237b93",
+      "recipe": "recipes/foft/sps0613-resources.json",
+      "recipe_sha256": "b1eecb3d30f5c8c2cd94d51ad7884f82f6dea69aaee823a8d76dc7a1f930d829",
+      "outputs": {
+        "foft-program.bin": "85e2684b03badc7308e7eaa059b7c717441808798f55b4642e1d8b1895914c9b",
+        "foft-music-bank9.bin": "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50"
+      }
+    }
+  },
+  "targets": {
+    "amiga_raw_foft": {
+      "release": "amiga_sps0613",
+      "artifact": "85e2684b03badc7308e7eaa059b7c717441808798f55b4642e1d8b1895914c9b",
+      "context": {
+        "kind": "existing_target"
+      }
+    },
+    "amiga_raw_foft_music_bank9_sps0613": {
+      "release": "amiga_sps0613",
+      "artifact": "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50",
+      "context": {
+        "kind": "raw",
+        "address_model": "runtime_absolute",
+        "load_address": 360448,
+        "entrypoint": 360448,
+        "code_start_offset": 0,
+        "phase": "decoded_resource"
+      }
+    }
+  },
+  "correspondences": [
+    {
+      "id": "sps0613_bank9_initial_source",
+      "kind": "identical_bytes",
+      "role": "mixed",
+      "left": {
+        "target": "amiga_raw_foft",
+        "offset": 358400,
+        "size": 50000,
+        "sha256": "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50"
+      },
+      "right": {
+        "target": "amiga_raw_foft_music_bank9_sps0613",
+        "offset": 0,
+        "size": 50000,
+        "sha256": "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50"
+      },
+      "evidence": "Independently checksum-verified physical disk resource 9 equals the complete same-address initial source span. This is a mixed code/data/PCM/unknown byte identity, not runtime installation, callback closure or classification of every byte as code."
+    }
+  ]
+}

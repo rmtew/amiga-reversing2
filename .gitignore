@@ -131,3 +131,11 @@ targets/starglider2_retail/*.s
 
 # Preserve F.O.F.T. evidence-backed table annotations for clean regeneration.
 !targets/amiga_raw_foft/manual_actions.jsonl
+
+# Content-bound FOFT resource 9 source; no complete bank or media dumps.
+!targets/amiga_raw_foft_music_bank9_sps0613/resource-import.json
+!targets/amiga_raw_foft_music_bank9_sps0613/source-package-manifest.json
+!targets/amiga_raw_foft_music_bank9_sps0613/assets/
+!targets/amiga_raw_foft_music_bank9_sps0613/assets/*.bin
+!targets/amiga_raw_foft_music_bank9_sps0613/hardware/
+!targets/amiga_raw_foft_music_bank9_sps0613/hardware/*.i
