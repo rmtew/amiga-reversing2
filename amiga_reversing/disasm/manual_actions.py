@@ -24,6 +24,7 @@ from amiga_reversing.disasm.binary_source import (
 from amiga_reversing.disasm.source_numbers import parse_source_int
 from amiga_reversing.disasm.target_history import atomic_append_history, target_lock
 from amiga_reversing.disasm.target_metadata import (
+    SeededEntityMetadata,
     SuppressedSeededItemKind,
     TargetMetadata,
     validate_base_displacement_owner,
@@ -867,6 +868,37 @@ def _manual_labels_share_mapped_source(
     return matches == {source_range[1]}
 
 
+def _manual_label_restates_source_metadata(label, metadata):
+    """An explicit source global may restate one imported bare-label identity.
+
+    Data declarations, runtime aliases and same-name declarations elsewhere
+    remain collisions. Restating a name does not classify or admit code.
+    """
+    if metadata is None or label.get("address_domain", "source") != "source":
+        return False
+    location = _manual_seed_range(label)
+    if location is None or location[2] != location[1] + 1:
+        return False
+    name = label.get("name")
+    declarations = [item for item in (*metadata.seeded_code_labels,
+                                      *metadata.seeded_entities)
+                    if item.name == name]
+    if not declarations or any(item.name == name for item in metadata.absolute_code_labels):
+        return False
+    for item in declarations:
+        if (item.hunk, item.addr) != location[:2]:
+            return False
+        if isinstance(item, SeededEntityMetadata) and any(
+            getattr(item, key) is not None
+            for key in ("type", "end", "unit", "subtype", "encoding", "struct_name",
+                        "field_name", "field_type", "c_type", "pointer_struct",
+                        "value_kind", "value_domain", "pointer_address_domain",
+                        "pointer_symbol_group", "source_owner_start", "source_owner_size")
+        ):
+            return False
+    return True
+
+
 def _manual_label_conflict_items(
     labels: dict[str, dict[str, object]],
     *,
@@ -951,7 +983,7 @@ def _manual_label_conflict_items(
             continue
         if scope is not ManualLabelScope.GLOBAL:
             continue
-        if name in metadata_names:
+        if name in metadata_names and not _manual_label_restates_source_metadata(label, stronger_metadata):
             hunk, start, end = label_range or (0, 0, 1)
             items.append(
                 {

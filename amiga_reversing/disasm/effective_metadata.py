@@ -457,6 +457,12 @@ def _append_manual_label_declaration(declarations, declaration, label):
     if isinstance(label.get("previous_name"), str):
         previous.add(label["previous_name"])
     if not previous:
+        # A persisted projection may already contain this exact source global.
+        # Restatement retains its imported provenance and must replay once.
+        if any(item.addr == declaration.addr and item.name == declaration.name
+               and getattr(item, "hunk", None) == getattr(declaration, "hunk", None)
+               for item in declarations):
+            return
         declarations.append(declaration)
         return
     kept = []

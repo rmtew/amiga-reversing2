@@ -30,6 +30,12 @@ Cross-routine public targets should remain global even though explicit qualified
 references are supported. Macro-local isolation and `$`-suffix local syntax are
 outside this implementation.
 
+An explicit source global may restate an imported bare label with the same
+name, section and offset to own locals. Replay retains an existing identical
+code-label declaration once, with its provenance. This admits no code. Typed
+or bounded data, runtime aliases, and same-name declarations at other locations
+still collide; a matching name alone does not establish identity.
+
 ## Custom prefix inheritance
 
 Native custom-structure metadata retains `base_struct` and `base_offset`.
