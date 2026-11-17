@@ -20,6 +20,14 @@ EXPECTED = "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50"
     [
         (TARGET, EXPECTED, 50000, 0x58000, 10, 44046),
         (
+            ROOT / "targets/amiga_raw_foft_music_bank5_sps0613",
+            "3fa229a343d5fa6e050abc696911c36e55d5ee96cc7b2d852dbdd4404b299190",
+            29578,
+            0x58000,
+            5,
+            23366,
+        ),
+        (
             ROOT / "targets/amiga_raw_foft_boot_loader_sps0613",
             "b52575d366313c1648976925c368e7a990d30477e7a099301dcabb031a3939a1",
             4000,
@@ -36,7 +44,12 @@ def test_source_build_has_no_hidden_original_and_only_proven_assets(
     files = validate_source_package(package)
     assets = [f for f in package["manifest"]["files"] if f["kind"] == "asset"]
     assert len(assets) == asset_count and sum(f["size"] for f in assets) == asset_bytes
-    assert all(f["path"].startswith("assets/audioInstrument") for f in assets)
+    assert all(
+        f["path"].startswith(
+            ("assets/audioInstrument", "assets/bank5Sample", "assets/bank5Repeat")
+        )
+        for f in assets
+    )
     assert not any(
         "binary.bin" in name or name.endswith((".ipf", ".rom")) for name in files
     )
@@ -63,6 +76,38 @@ def test_source_build_has_no_hidden_original_and_only_proven_assets(
     assert result["native"] == result["vasm"]
     assert result["native"]["sha256"] == expected
     assert result["native"]["end_exclusive"] == hex(load + size)
+    if size == 29578:
+        from amiga_reversing.disasm.binary_source import (
+            BinarySourceKind,
+            RawAddressModel,
+            RawBinarySource,
+        )
+        from amiga_reversing.disasm.c_backend import (
+            analyze_project_source_with_c_backend,
+        )
+        from amiga_reversing.disasm.effective_metadata import effective_metadata_file
+
+        binary = tmp_path / "assembled/bank9-native.bin"
+        source = RawBinarySource(
+            kind=BinarySourceKind.RAW_BINARY,
+            path=binary,
+            address_model=RawAddressModel.RUNTIME_ABSOLUTE,
+            load_address=load,
+            entrypoint=load,
+            code_start_offset=0,
+            display_path="fresh source-only bank5",
+            analysis_cache_path=tmp_path / "private-analysis-cache",
+        )
+        with effective_metadata_file(target) as metadata_path:
+            analysis = analyze_project_source_with_c_backend(
+                source, metadata_path=metadata_path, project_root=ROOT
+            )
+        section = analysis["sections"][0]
+        assert any(r["start_offset"] == 0x460 for r in section["accepted_code_runs"])
+        callback = next(
+            r for r in section["recovered_indirect_sites"] if r["offset"] == 0x3EA
+        )
+        assert callback["runtime_target_set_closed"] is False
 
 
 def test_disk_outputs_require_a_fresh_private_directory(tmp_path):

@@ -146,3 +146,12 @@ targets/starglider2_retail/*.s
 !targets/amiga_raw_foft_boot_loader_sps0613/hardware/*.i
 !targets/amiga_raw_foft_boot_loader_sps0613/graphics/
 !targets/amiga_raw_foft_boot_loader_sps0613/graphics/*.i
+
+# Independently decoded FOFT resource5 source; verified PCM slices only.
+!targets/amiga_raw_foft_music_bank5_sps0613/resource-import.json
+!targets/amiga_raw_foft_music_bank5_sps0613/source-package-manifest.json
+!targets/amiga_raw_foft_music_bank5_sps0613/assets/
+!targets/amiga_raw_foft_music_bank5_sps0613/assets/*.bin
+!targets/amiga_raw_foft_music_bank5_sps0613/hardware/
+!targets/amiga_raw_foft_music_bank5_sps0613/hardware/*.i
+!targets/amiga_raw_foft_music_bank5_sps0613/manual_actions.jsonl

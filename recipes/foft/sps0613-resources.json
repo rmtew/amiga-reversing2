@@ -628,7 +628,7 @@
         "id": "music-resource-9",
         "kind": "mixed_code_interpreted_data_pcm_unknown",
         "destination": 360448,
-        "trigger": "Physical HELP; Space cycles; Return selects current resource; menu registration/static path, not observed playback",
+        "trigger": "Physical HELP -> Space at disc prompt -> Up/Down title selection -> Return; static path, not observed playback",
         "reader": "ReadDecodedDiskTrack $466CA / LoadDiskResourceByIndex $46D44",
         "analysis_target": "amiga_raw_foft_music_bank9_sps0613"
       }

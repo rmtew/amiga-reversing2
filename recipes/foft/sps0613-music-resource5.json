@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "kind": "ipf_resource_recovery",
+  "image_sha256": "da33fc1e068d73078094fc4cb6f72ab69a9c2f30f4094b8321033aedb6237b93",
+  "geometry": {
+    "cylinders": 82,
+    "sides": 2,
+    "records": 164
+  },
+  "codec": "foft_mfm_3x2000",
+  "evidence": {
+    "reader": "Original ReadDecodedDiskTrack $466CA / LoadDiskResourceByIndex $46D44. Exact resource5 descriptor at $403F0: game track132, offset0, length29578, destination$58000. All sectors independently verified.",
+    "selection": "Main menu choice9, subsong1, Sorcerers Apprentice; choice17, subsong0, Sabre Dance. Static title claims, not observed playback.",
+    "difference": "Resource5 differs from initial bank9 beginning at source byte2. It has 40-byte voice roots, callback+32 and instrument pointer+36; initial bank9 has 34-byte voices, callback+26 and pointer+30. Do not inherit Audio2, pattern grammar or callback closure."
+  },
+  "actions": [
+    {
+      "op": "capture",
+      "file": "foft-music-bank5.bin",
+      "size": 29578,
+      "sha256": "3fa229a343d5fa6e050abc696911c36e55d5ee96cc7b2d852dbdd4404b299190",
+      "spans": [
+        {
+          "track": 66,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 66,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 67,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 67,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 68,
+          "side": 1,
+          "offset": 0,
+          "length": 5578
+        }
+      ],
+      "resource": {
+        "id": "music-resource-5",
+        "kind": "mixed_code_interpreted_data_pcm_unknown",
+        "destination": 360448,
+        "trigger": "HELP -> Space at disc prompt -> select menu index9 or17 with Up/Down -> Return",
+        "reader": "ReadDecodedDiskTrack $466CA",
+        "analysis_target": "amiga_raw_foft_music_bank5_sps0613"
+      }
+    }
+  ]
+}
