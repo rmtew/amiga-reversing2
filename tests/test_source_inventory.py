@@ -17,10 +17,11 @@ def test_native_inventory_separates_raw_candidates_from_disconnected_accepted_co
     assert a['counts']['raw_terminal_candidates']==1
     assert a['generic_labels'][0]['source_offset']==8 # native binding, not parsed label text
     assert a['blocks_without_inbound']==[8]
-    section['code_start_refs']=[dict(evidence_kind='dispatch_table_control_target',source_section_index=0,source_offset=2,offset=8)]
-    b=source_inventory(dict(sections=[section]))
-    assert b['counts']['disconnected_accepted_blocks']==0
-    assert b['counts']['raw_terminal_candidates']==1
+    for evidence in ('dispatch_table_control_target', 'initial_record_control_target'):
+        section['code_start_refs']=[dict(evidence_kind=evidence,source_section_index=0,source_offset=2,offset=8)]
+        b=source_inventory(dict(sections=[section]))
+        assert b['counts']['disconnected_accepted_blocks']==0
+        assert b['counts']['raw_terminal_candidates']==1
 
 
 def test_vector_and_conditional_roots_do_not_change_ordinary_reachability():

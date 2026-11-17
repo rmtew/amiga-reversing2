@@ -634,6 +634,16 @@ static int trace_state_operand_storage_offset(const M68kRuntimeAddressSpace *run
   const M68kFactsV2TraceState *state, size_t operand_index, uint32_t *out_offset);
 static int candidate_operand_data_target_offset(const M68kDecodeCandidate *candidate, size_t operand_index,
   size_t section_index, uint32_t *out_offset);
+#define M68K_RECORD_DISPATCH_LIMIT 128U
+typedef struct M68kRecordDispatchProbe {
+  uint32_t table_offset, table_size, entry_count, entry_size;
+  uint8_t refusal_reason;
+  uint32_t targets[M68K_RECORD_DISPATCH_LIMIT];
+  uint32_t runtime_targets[M68K_RECORD_DISPATCH_LIMIT];
+} M68kRecordDispatchProbe;
+static int probe_initial_record_dispatch(M68kDecodeIR *, const M68kRuntimeAddressSpace *,
+  uint8_t **, uint8_t **, size_t, const M68kDecodeCandidate *, uint8_t, M68kRecordDispatchProbe *);
+
 static int scan_interleaved_indexed_key_stub_table(M68kDecodeIR *decode, uint8_t max_cpu, size_t section_index,
   const M68kDecodeSectionIR *section, const M68kDecodeCandidate *site_candidate, uint8_t **accepted_start,
   uint8_t **accepted_bytes, uint32_t *out_entries, uint32_t entry_limit, uint32_t *out_entry_count,
@@ -7564,7 +7574,8 @@ static int section_analysis_has_platform_call_at_offset(const M68kSectionAnalysi
 }
 
 static int append_recovered_indirect_sites_for_accepted(M68kDecodeIR *decode,
-    uint8_t **accepted_start, uint8_t **accepted_bytes, M68kSourceAnalysisIR *source_analysis, uint8_t max_cpu) {
+    uint8_t **accepted_start, uint8_t **accepted_bytes, M68kSourceAnalysisIR *source_analysis, uint8_t max_cpu,
+    const M68kRuntimeAddressSpace *runtime_addresses) {
   size_t section_index;
   if (decode == NULL || accepted_start == NULL || accepted_bytes == NULL || source_analysis == NULL ||
       source_analysis->section_count < decode->section_count) {
@@ -7614,6 +7625,31 @@ static int append_recovered_indirect_sites_for_accepted(M68kDecodeIR *decode,
           recovered_indirect_site_apply_direct_stub_table_bounds(decode, section_index, section, candidate,
             max_cpu, accepted_start, accepted_bytes, &site);
         }
+        {
+          M68kRecordDispatchProbe probe;
+          if (probe_initial_record_dispatch(decode, runtime_addresses, accepted_start, accepted_bytes,
+              section_index, candidate, max_cpu, &probe)) {
+            uint32_t n, unique = 0U;
+            for (n = 0U; n < probe.entry_count; ++n) {
+              uint32_t previous;
+              for (previous = 0U; previous < n && probe.targets[previous] != probe.targets[n]; ++previous) {}
+              if (previous == n) ++unique;
+            }
+            site.status = M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES;
+            site.has_target = site.has_target_count = site.has_table_base = site.has_table_bounds = 1U;
+            site.target = probe.targets[0]; site.target_count = unique;
+            site.table_offset = probe.table_offset; site.table_size = probe.table_size;
+            site.table_entry_count = probe.entry_count; site.table_entry_size = probe.entry_size;
+            site.table_bounds_status = M68K_RECOVERED_INDIRECT_TABLE_BOUNDS_NONE;
+            site.detail = "initial-image record handlers; runtime writes and incoming aliases are not closed";
+          } else if (probe.refusal_reason) {
+            site.has_table_base = 1U; site.table_offset = probe.table_offset;
+            site.table_bounds_status = probe.refusal_reason;
+            site.detail = "initial-record scan refused; no partial handler collection was promoted";
+          }
+        }
+        /* Probing may materialize decode candidates and move their storage. */
+        candidate = &section->candidates[candidate_index];
         recovered_indirect_site_finalize_table_candidate(&site);
         if (m68k_ir_section_analysis_append_recovered_indirect_site(&source_analysis->sections[section_index],
             &site) != 0) {
@@ -7795,6 +7831,8 @@ static int candidate_indirect_control_base_register(const M68kDecodeCandidate *c
   }
   return 0;
 }
+
+#include "m68k_record_dispatch.inc"
 
 static int enqueue_target_set_for_indirect_site(M68kDecodeIR *decode, M68kFactIR *facts,
     M68kFactsV2WorkQueue *queue, uint8_t **accepted_start, uint8_t **accepted_bytes,
@@ -11225,6 +11263,20 @@ static int facts_v2_collect_profile_internal(const M68kObject *object, const M68
       }
     }
   }
+  for (;;) {
+    size_t previous_queue = queue.count;
+    uint32_t record_accepted = 0U;
+    fail_stage = "initial record dispatch discovery";
+    if (seed_initial_record_dispatches(&decode, &facts, &queue, &runtime_addresses,
+        accepted_start, accepted_bytes, out_profile, max_cpu) != 0) goto fail;
+    if (queue.count == previous_queue) break;
+    if (run_reachable_fixed_point(object, &decode, &facts, policy, &relocation_lookup, &queue,
+        &runtime_addresses, accepted_start, accepted_bytes, &record_accepted, out_profile, max_cpu,
+        diagnostics) != 0) goto fail;
+    out_profile->accepted_instructions += record_accepted;
+    if (rebuild_accepted_bytes_from_starts(&decode, accepted_start, accepted_bytes,
+        &out_profile->accepted_instructions) != 0) goto fail;
+  }
   {
     uint32_t callback_field_entry_seeds = 0U;
     uint32_t callback_field_accepted = 0U;
@@ -11410,7 +11462,7 @@ source_analysis_projection:
   }
   if (source_analysis != NULL) {
     if (append_recovered_indirect_sites_for_accepted(&decode, accepted_start, accepted_bytes, source_analysis,
-        max_cpu) != 0) {
+        max_cpu, &runtime_addresses) != 0) {
       m68k_diag_add(diagnostics, M68K_DIAG_SEVERITY_ERROR, M68K_DIAG_CODE_RENDER_FAILED,
         "facts_v2 accepted indirect site append failed");
       goto fail;

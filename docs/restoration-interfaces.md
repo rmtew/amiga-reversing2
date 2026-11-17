@@ -555,6 +555,37 @@ The unresolved edge remains alongside candidates because discovery does not
 establish completeness across mutable stores or all callers. Table addresses,
 cross-section aliases and unaccepted instruction starts are not destinations.
 
+Native discovery recognizes bounded sentinel-terminated record walkers whose
+handler LONG is loaded immediately before an indirect call/jump. It derives the
+record base, fixed positive stride or header-WORD stride, handler displacement
+or header-WORD field offset, mismatch edge and zero-WORD terminator from decoded
+IR. No target-specific names, addresses, opcodes or manual table classifications
+are required. Each complete valid initial-image record contributes an
+`initial_record_control_target` code-origin fact (kind 22), in source coordinates
+with the original runtime pointer retained. Runtime views must map a pointer
+unambiguously; an unmapped runtime integer cannot fall back to a file offset.
+
+Recovered sites use status `initial_record_candidates` (8),
+`target_set_scope: initial_image_records`, `runtime_target_set_closed: false` and
+`record_stride_kind: constant|header_word`. Physical `table_entry_count` includes
+duplicate handlers; `target_count` counts distinct handlers. Variable stride has
+`table_entry_size: null`; `table_size` excludes the terminator. These are initial
+handler candidates, not a closed jump table or evidence of observed execution.
+The source inventory includes their possible synchronous edges; constant-register
+platform projection still enters these handlers with unknown state.
+
+The current recognizer requires a PC-relative base, accepted contiguous prefix
+of at most 64 instructions, WORD record headers/indexes, positive even 16-bit
+strides, LONG nonzero handlers, and an in-image sentinel within 128 records.
+Opaque calls, base/index/stride clobbers, unsupported indexing, ambiguous runtime
+views, code-overlapping records, mid-instruction or invalid handlers and missing
+terminators prevent admission. Recognized invalid tables report
+`rejected_record_layout`, `rejected_record_target` or `rejected_scan_limit`;
+no partial collection is promoted. Other shapes remain unresolved. Writable
+record ownership/lifetimes, all incoming aliases, future callback stores and
+caller index domains need separate data-flow proofs; this bounded recognizer
+does not infer them from plausible initial pointers or physical extents.
+
 Discovery also recognizes an inline resume producer: an address register holds
 the source instruction immediately after an unconditional transfer to shared
 code. Its continuation provenance travels through the bounded work queue,

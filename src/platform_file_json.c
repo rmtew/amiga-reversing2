@@ -1768,6 +1768,7 @@ static const char *recovered_indirect_status_name(uint8_t status) {
   if (status == M68K_RECOVERED_INDIRECT_STATUS_BACKWARD_SLICE) return "backward_slice";
   if (status == M68K_RECOVERED_INDIRECT_STATUS_JUMP_TABLE) return "jump_table";
   if (status == M68K_RECOVERED_INDIRECT_STATUS_EXTERNAL) return "external";
+  if (status == M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES) return "initial_record_candidates";
   return "unknown";
 }
 
@@ -1780,6 +1781,12 @@ static const char *recovered_indirect_table_bounds_status_name(uint8_t status) {
     return "rejected_undecoded_entry";
   if (status == M68K_RECOVERED_INDIRECT_TABLE_BOUNDS_REJECTED_UNSUPPORTED_ENTRY_SHAPE)
     return "rejected_unsupported_entry_shape";
+  if (status == M68K_RECOVERED_INDIRECT_TABLE_BOUNDS_REJECTED_RECORD_LAYOUT)
+    return "rejected_record_layout";
+  if (status == M68K_RECOVERED_INDIRECT_TABLE_BOUNDS_REJECTED_SCAN_LIMIT)
+    return "rejected_scan_limit";
+  if (status == M68K_RECOVERED_INDIRECT_TABLE_BOUNDS_REJECTED_RECORD_TARGET)
+    return "rejected_record_target";
   return "none";
 }
 
@@ -2724,6 +2731,10 @@ static int append_source_analysis_table_candidate_records_json(JsonBuilder *buil
       if (site->has_target_count != 0U) {
         if (json_builder_appendf(builder, "%u", (unsigned)site->target_count) != 0) return -1;
       } else if (json_builder_append(builder, "null") != 0) return -1;
+      if (site->status == M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES &&
+          json_builder_appendf(builder, ",\"target_set_scope\":\"initial_image_records\",\"runtime_target_set_closed\":false,\"record_stride_kind\":\"%s\"",
+            site->table_entry_size ? "constant" : "header_word") != 0)
+        return -1;
       if (json_builder_appendf(builder, ",\"has_expression_base\":%s",
           site->has_expression_base != 0U ? "true" : "false") != 0)
         return -1;
@@ -2743,7 +2754,8 @@ static int append_source_analysis_table_candidate_records_json(JsonBuilder *buil
         if (json_builder_appendf(builder, "%u", (unsigned)site->table_size) != 0) return -1;
       } else if (json_builder_append(builder, "null") != 0) return -1;
       if (json_builder_append(builder, ",\"table_entry_size\":") != 0) return -1;
-      if (site->has_table_bounds != 0U) {
+      if (site->has_table_bounds != 0U && (site->table_entry_size != 0U ||
+          site->status != M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES)) {
         if (json_builder_appendf(builder, "%u", (unsigned)site->table_entry_size) != 0) return -1;
       } else if (json_builder_append(builder, "null") != 0) return -1;
       if (json_builder_append(builder, ",\"table_entry_count\":") != 0) return -1;
@@ -6330,6 +6342,10 @@ static int source_analysis_to_json_impl(const M68kSourceAnalysisIR *source_analy
       } else if (json_builder_append(&builder, "null") != 0) {
         goto oom;
       }
+      if (site->status == M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES &&
+          json_builder_appendf(&builder, ",\"target_set_scope\":\"initial_image_records\",\"runtime_target_set_closed\":false,\"record_stride_kind\":\"%s\"",
+            site->table_entry_size ? "constant" : "header_word") != 0)
+        goto oom;
       if (json_builder_appendf(&builder, ",\"has_expression_base\":%s",
           site->has_expression_base != 0U ? "true" : "false") != 0)
         goto oom;
@@ -6362,7 +6378,8 @@ static int source_analysis_to_json_impl(const M68kSourceAnalysisIR *source_analy
       }
       if (json_builder_append(&builder, ",\"table_entry_size\":") != 0)
         goto oom;
-      if (site->has_table_bounds != 0U) {
+      if (site->has_table_bounds != 0U && (site->table_entry_size != 0U ||
+          site->status != M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES)) {
         if (json_builder_appendf(&builder, "%u", (unsigned)site->table_entry_size) != 0)
           goto oom;
       } else if (json_builder_append(&builder, "null") != 0) {
