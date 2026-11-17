@@ -1378,3 +1378,17 @@ existing fallback only when no source-global declaration exists; they do not
 become competing scope owners after a saved annotation snapshot. Multiple explicit
 source globals still refuse ambiguous ownership. Lexical rendering remains a
 separate decision. See `docs/validation/starglider2-scope-owner-snapshot-2026-11-17.md`.
+
+### Optional numeric control-text emission inventory
+
+The progress scorecard accepts `--source-plan-json` (or `build_scorecard(...,
+source_plan=...)`) using the frozen plan retained from the existing listing.
+The CLI requires its `source_plan_sha256` in provenance. The versioned domain is
+the union of accepted native `string_control_stream` owners, joined only with
+source-mapped literal BYTE data statements. Known numeric bytes, wholly numeric
+ranges and unresolved numeric-emission bytes remain distinct. Missing inputs are
+unavailable; quoted/mixed/unsupported or contradictory mappings stay unresolved.
+This does not discover text or establish complete global raw/quoted text coverage.
+`--detail text` provides the evidence inventory. See
+`docs/validation/starglider2-control-text-emission-2026-11-17.md` for domains,
+refusal fixtures, SGII's 588-byte result and retained-input workflow.

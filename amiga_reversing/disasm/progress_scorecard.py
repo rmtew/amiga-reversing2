@@ -85,7 +85,7 @@ def typed_population(section, family=None):
 
 
 def build_scorecard(analysis, *, identity, metadata=None, package=None,
-                    section_index=0, entry_offset=0, workspace_roots=(), detail=()):
+                    section_index=0, entry_offset=0, workspace_roots=(), detail=(), source_plan=None):
     section = next(s for s in analysis['sections'] if s['section_index'] == section_index)
     size = section['section_size']
     inventory = source_inventory(analysis, section_index=section_index, entry_offset=entry_offset)
@@ -172,7 +172,20 @@ def build_scorecard(analysis, *, identity, metadata=None, package=None,
     suspicion_gap = 'No native suspected-text ranges with plain/control-coded classification and consumer evidence are exported; printable scans are insufficient.'
     for kind in ['plain','control_coded']:
         measure('text.suspected_'+kind+'_ranges',None,'ranges','native candidate bounds and consumer evidence',cause=suspicion_gap)
-    details['text'] = dict(confirmed_ranges=text_ranges,emission_unavailable=emission_gap,suspected_unavailable=suspicion_gap)
+    from .control_text_emission import control_text_emission, POLICY as EMISSION_POLICY
+    control_emission = None if ownership_error else control_text_emission(section,source_plan)
+    control_error = ownership_error or ('No retained native source plan supplied for control-text emission.' if control_emission is None else None)
+    control_domain = dict(policy=EMISSION_POLICY,owners='accepted string_control_stream union',
+                          emission='source-mapped complete literal BYTE data statements; known numeric lower bound')
+    for name,key,unit,denominator in [
+        ('numeric_bytes','known_numeric_bytes','bytes','confirmed_bytes'),
+        ('wholly_numeric_ranges','wholly_numeric_ranges','ranges','confirmed_ranges'),
+        ('unresolved_numeric_emission_bytes','unresolved_numeric_emission_bytes','bytes','confirmed_bytes')]:
+        measure('text.control_stream_'+name,None if control_emission is None else control_emission[key],unit,control_domain,
+                denominator=None if control_emission is None else control_emission[denominator],cause=control_error,
+                evidence='accepted native control-text ownership joined to the retained frozen source plan',level='native_source_plan')
+    details['text'] = dict(confirmed_ranges=text_ranges,emission_unavailable=emission_gap,
+                          suspected_unavailable=suspicion_gap,control_emission=control_emission)
     requested = set(detail)
     native_policy = analysis.get('analysis_policy')
     policy_identity = None if native_policy is None else dict(
@@ -218,8 +231,12 @@ def compare_scorecards(before, after):
     for name in sorted(before['metrics'].keys() | after['metrics'].keys()):
         b=before['metrics'].get(name);a=after['metrics'].get(name)
         if b is None or a is None or b['status']!='measured' or a['status']!='measured':
-            if b and a and b['status']!=a['status']:
-                availability.append(dict(measure=name,before=b['status'],after=a['status']))
+            before_status=b['status']if b else'unavailable'
+            after_status=a['status']if a else'unavailable'
+            if before_status!=after_status:
+                row=dict(measure=name,before=before_status,after=after_status)
+                if b is None or a is None:row.update(before_recorded=b is not None,after_recorded=a is not None)
+                availability.append(row)
             continue
         if reasons or b['domain']!=a['domain'] or b['unit']!=a['unit']:
             excluded.append(name);continue
@@ -227,7 +244,7 @@ def compare_scorecards(before, after):
             changed.append(dict(measure=name,before=b['value'],after=a['value'],unit=a['unit'],
                 denominator_before=b['denominator'],denominator_after=a['denominator']))
     input_changes={key:dict(before=before['identity'].get(key),after=after['identity'].get(key))
-        for key in ['source_version','analysis_sha256','analyzer','metadata_sha256','package_manifest_sha256']
+        for key in ['source_version','analysis_sha256','analyzer','metadata_sha256','package_manifest_sha256','source_plan_sha256','control_text_emission_implementation_sha256']
         if before['identity'].get(key)!=after['identity'].get(key)}
     if before.get('native_policy')!=after.get('native_policy'):
         input_changes['native_policy']=dict(before=before.get('native_policy'),after=after.get('native_policy'))
@@ -242,7 +259,9 @@ COMMIT_MEASURES = (
     'control.disconnected_only_asynchronous_blocks','control.disconnected_only_conditional_blocks',
     'control.disconnected_both_conditional_and_asynchronous_blocks','control.disconnected_unexplained_blocks',
     'control.raw_terminal_candidates','assets.incbin_bytes','assets.confirmed_inline_assets',
-    'assets.confirmed_inline_eligible_bytes','assets.candidate_ranges','text.confirmed_raw_bytes',
+    'assets.confirmed_inline_eligible_bytes','assets.candidate_ranges','text.confirmed_bytes','text.confirmed_ranges',
+    'text.confirmed_control_stream_ranges','text.control_stream_numeric_bytes','text.control_stream_wholly_numeric_ranges',
+    'text.control_stream_unresolved_numeric_emission_bytes','text.confirmed_raw_bytes',
     'text.suspected_plain_ranges','text.suspected_control_coded_ranges')
 
 

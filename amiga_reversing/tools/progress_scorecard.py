@@ -29,7 +29,7 @@ def summary(card):
             return 'unavailable'
         text=json.dumps(m['value'],sort_keys=True,separators=(',',':'))
         return text+('/'+str(m['denominator']) if m['denominator'] is not None else '')
-    return '\n'.join([
+    lines=[
         'Typed unresolved: '+value('typed.unresolved')+'; workspace: '+value('workspace.unresolved'),
         'Unclassified payload: '+value('payload.unclassified_bytes')+' bytes; intervals: '+value('payload.unclassified_intervals'),
         'Generic labels: '+value('labels.generic')+'; code roles: '+value('labels.generic_by_role')+'; semantic locals: '+value('labels.semantic_locals'),
@@ -37,7 +37,10 @@ def summary(card):
         'Disconnected explanations: async-only '+value('control.disconnected_only_asynchronous_blocks')+', conditional-only '+value('control.disconnected_only_conditional_blocks')+', both '+value('control.disconnected_both_conditional_and_asynchronous_blocks')+', unexplained '+value('control.disconnected_unexplained_blocks'),
         'INCBIN: '+value('assets.incbin_bytes')+' bytes; confirmed inline eligibility: '+value('assets.confirmed_inline_eligible_bytes')+'; candidates: '+value('assets.candidate_ranges'),
         'Confirmed text: '+value('text.confirmed_bytes')+' bytes; raw: '+value('text.confirmed_raw_bytes')+'; suspected plain/control-coded: '+value('text.suspected_plain_ranges')+'/'+value('text.suspected_control_coded_ranges'),
-    ])
+    ]
+    if card['metrics']['text.control_stream_numeric_bytes']['status']=='measured':
+        lines.append('Accepted control text numeric emission: '+value('text.control_stream_numeric_bytes')+' bytes; wholly numeric ranges: '+value('text.control_stream_wholly_numeric_ranges')+'; unresolved bytes: '+value('text.control_stream_unresolved_numeric_emission_bytes'))
+    return '\n'.join(lines)
 
 
 def main():
@@ -46,6 +49,7 @@ def main():
     parser.add_argument('--provenance',required=True,type=Path,help='Snapshot identity receipt, containing target, payload/source/analyzer identities and analysis_sha256')
     parser.add_argument('--metadata',type=Path)
     parser.add_argument('--package-manifest',type=Path)
+    parser.add_argument('--source-plan-json',type=Path,help='Retained frozen native plan, bound by source_plan_sha256 in provenance')
     parser.add_argument('--workspace-root',action='append',default=[])
     parser.add_argument('--section',type=int,default=0)
     parser.add_argument('--entry-offset',type=lambda s:int(s,0),default=0)
@@ -69,9 +73,11 @@ def main():
             canonical=(json.dumps(package['manifest'],sort_keys=True,indent=2,ensure_ascii=True)+'\n').encode()
             if digest(canonical)!=package['sha256']:
                 raise ValueError('Source-package manifest content hash mismatch')
+        if args.source_plan_json:
+            identity['control_text_emission_implementation_sha256']=digest((Path(__file__).resolve().parents[1]/'disasm/control_text_emission.py').read_bytes())
         identity['scorecard_implementation_sha256']=digest((Path(__file__).resolve().parents[1]/'disasm/progress_scorecard.py').read_bytes())
         card=build_scorecard(analysis,identity=identity,metadata=metadata,package=package,section_index=args.section,
-            entry_offset=args.entry_offset,workspace_roots=args.workspace_root,detail=args.detail)
+            entry_offset=args.entry_offset,workspace_roots=args.workspace_root,detail=args.detail,source_plan=read_bound(args.source_plan_json,identity,'source_plan_sha256'))
         if args.compare:
             card['comparison']=compare_scorecards(json.loads(args.compare.read_text()),card)
         if args.format=='json':
