@@ -24,6 +24,8 @@ bin/            User-supplied target binaries
 resources/      External reference files (not tracked, see RESOURCES.md)
 ```
 
+For a worked graphics example, see [Faster 3D on a 68000](docs/tutorials/68000-3d-optimisation.md).
+
 ## Setup
 
 ```sh
