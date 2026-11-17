@@ -510,3 +510,32 @@ def test_build_refuses_stale_state_wrong_media_or_unreviewed_output(tmp_path):
     (target / "analysis/main.json").write_text("{}")
     with pytest.raises(ValueError, match="stale disk-set file"):
         DiskSet.load(target, project_root=project)
+
+
+def test_catalogue_members_resolve_one_owner_and_reject_wrong_identity(tmp_path):
+    from amiga_reversing.disasm import game_catalog
+
+    project, target, _, manifest = fixture(tmp_path)
+    artifacts = {m["sha256"]: {"size": m["size"], "role": m["kind"]} for m in manifest["members"]}
+    value = {
+        "schema_version": 1, "id": manifest["project_id"], "name": "Synthetic",
+        "releases": {manifest["build_id"]: {"platform": "amiga", "edition": "Synthetic", "media": []}},
+        "artifacts": artifacts,
+        "sources": {key: {"kind": "private_media", "format": "bytes"} for key in artifacts},
+        "derivations": {}, "correspondences": [],
+        "targets": {m["id"]: {"release": manifest["build_id"], "artifact": m["sha256"],
+            "context": {"kind": "disk_set_member", "owner": target.name, "member": m["id"]}}
+            for m in manifest["members"]},
+    }
+    assert game_catalog.validate(value, project) == value
+    value["targets"]["main"]["context"]["member"] = "overlay"
+    with pytest.raises(ValueError, match="differs from disk-set owner"):
+        game_catalog.validate(value, project)
+    value["targets"]["main"]["context"]["member"] = "main"
+    (project / "games").mkdir()
+    (project / "games/synthetic.json").write_text(json.dumps(value))
+    game_catalog.load_family(project, "synthetic")
+    manifest["build_id"] = "changed_build"
+    (target / "manifest.json").write_text(json.dumps(manifest))
+    with pytest.raises(ValueError):
+        game_catalog.load_family(project, "synthetic")

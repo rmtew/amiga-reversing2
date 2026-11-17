@@ -99,7 +99,19 @@ def validate(payload, root):
             raise ValueError('unknown target release or artifact')
         context=binding['context']
         if not isinstance(context,dict): raise ValueError('invalid target context')
-        if context.get('kind') == 'existing_target':
+        if context.get('kind') == 'disk_set_member':
+            object_keys(context, 'kind owner member')
+            from .disk_set import DiskSet
+            owner_id, member_id = identity(context['owner']), identity(context['member'])
+            owner = DiskSet.load(root/'targets'/owner_id, project_root=root)
+            member = owner.members.get(member_id)
+            if (member is None or member['sha256'] != binding['artifact']
+                    or member['size'] != artifacts[binding['artifact']]['size']
+                    or owner.manifest['project_id'] != payload['id']
+                    or owner.manifest['build_id'] != binding['release']
+                    or owner.manifest['platform'] != payload['releases'][binding['release']]['platform']):
+                raise ValueError('catalogue member binding differs from disk-set owner')
+        elif context.get('kind') == 'existing_target':
             object_keys(context,'kind')
             if payload['sources'].get(binding['artifact']) != {'kind':'existing_target','target':target}:
                 raise ValueError('existing target binding lacks its authoritative source')
@@ -144,6 +156,9 @@ def load_family(root, family):
     path=root/'games'/(identity(family)+'.json')
     stat=path.stat()
     result=_load(str(path.resolve()),stat.st_mtime_ns,stat.st_size)
+    # Owner manifests change independently when member state is published.
+    if any(b['context']['kind'] == 'disk_set_member' for b in result['targets'].values()):
+        result=validate(result, root)
     # Recipe files are dependencies even when the catalog file is unchanged.
     for d in result['derivations'].values():
         if digest(relative(root,d['recipe']).read_bytes()) != d['recipe_sha256']:
@@ -166,6 +181,8 @@ def target_link(root, target):
             b=family['targets'][target]
             result=dict(game_family=family['id'],release_id=b['release'],artifact_id=b['artifact'])
             if b['context']['kind']=='raw': result['artifact_phase']=b['context']['phase']
+            if b['context']['kind']=='disk_set_member':
+                result.update(owner_id=b['context']['owner'], member_id=b['context']['member'])
             found.append(result)
     if len(found)>1: raise ValueError('target belongs to multiple game families')
     return found[0] if found else {}
