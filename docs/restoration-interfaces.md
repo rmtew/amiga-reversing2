@@ -1351,3 +1351,23 @@ deterministic EQU-only definition text for include/inline consumers. The explici
 profile mask controls permitted domains; names do not establish ownership or entry
 roots. Native MFP vector installation proof and its base condition remain distinct
 from CPU vector identity. Retail plan projection is a separate dependent slice.
+
+### Sourced platform symbol projection
+
+`CListingArtifact.platform_symbol_projection_payload(profiles, inline=False,
+minimum_asset_size=256)` projects an already-built native plan using profiles
+`cpu`, `amiga-custom`, and `atari-st-mfp`. It returns the normal native package,
+used EQU-only includes, and individual binding/refusal evidence. It does not run
+analysis or mutate discovery facts. The underlying native API is
+`platform_file_facts_v2_listing_artifact_platform_symbols_json_alloc`.
+
+`source_package_payload(..., platform_symbol_profiles=(...),
+inline_platform_symbols=False)` opts into that projection; empty profiles preserve
+the existing exporter. `collect_native_package_includes(payload, include_root)`
+passes generated definitions through the normal owned package inventory, including
+collision/shadow checks. Include and inline output share exactly the same used
+symbol definitions, with disjoint platform namespaces and unconditional headers.
+Unsupported, ambiguous, conflicting or manually represented operands retain their
+existing/numeric spelling; names never establish hardware or code identity. See
+`docs/validation/starglider2-platform-symbol-projection-2026-11-17.md` for scope,
+coverage, provenance and native wrapper limitations.

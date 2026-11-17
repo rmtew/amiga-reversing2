@@ -1,4 +1,5 @@
 #include "m68k_source_package.h"
+#include "m68k_platform_projection.h"
 #include "m68k_runtime_map.h"
 #include "m68k_memory_layout.h"
 #include "m68k_layout_projection.h"
@@ -14366,6 +14367,26 @@ int platform_file_facts_v2_listing_artifact_source_package_json_alloc(PlatformFi
   if (artifact == NULL) return -1;
   return m68k_source_package_json_alloc(&artifact->object, &artifact->source_plan,
     minimum_asset_size, out_text);
+}
+
+int platform_file_facts_v2_listing_artifact_platform_symbols_json_alloc(PlatformFileListingArtifact *artifact,
+    uint32_t profiles,uint32_t inline_definitions,uint32_t minimum_asset_size,char **out_text) {
+  M68kPlatformProjection projection={0};int status=-1;
+  if(!artifact || !out_text || !minimum_asset_size || inline_definitions>1U)return -1;
+  *out_text=NULL;
+  if(!artifact->profile.asm_source_refused &&
+      m68k_platform_projection_build(&projection,&artifact->source_plan,&artifact->source_analysis,profiles,(uint8_t)inline_definitions)==0)
+    status=m68k_platform_projection_json_alloc(&projection,&artifact->object,minimum_asset_size,out_text);
+  if(status && !*out_text) {
+    JsonBuilder json={0};
+    if(!json_builder_create(&json)) {
+      if(!json_builder_append(&json,"{\"status\":\"refused\",\"reason\":") &&
+          !json_builder_append_json_string(&json,projection.reason ? projection.reason : "frozen_source_plan_refused") &&
+          !json_builder_append(&json,"}")) {*out_text=json_builder_build(&json);status=*out_text ? 0 : -1;}
+      json_builder_destroy(&json);
+    }
+  }
+  m68k_platform_projection_destroy(&projection);return status;
 }
 
 int platform_file_facts_v2_listing_artifact_layout_projection_json_alloc(PlatformFileListingArtifact *artifact,

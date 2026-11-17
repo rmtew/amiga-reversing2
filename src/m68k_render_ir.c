@@ -155,6 +155,14 @@ static void render_asm_scoped_tokens(M68kRenderIRPreview *preview, const char *t
   out[used] = '\0';
 }
 
+void m68k_render_ir_scoped_spelling(const char *scope, const char *text, char *out) {
+  M68kRenderIRPreview preview;
+  memset(&preview, 0, sizeof(preview));
+  if (scope != NULL && strlen(scope) < sizeof(preview.asm_lexical_scope))
+    strcpy(preview.asm_lexical_scope, scope);
+  render_asm_scoped_tokens(&preview, text, out);
+}
+
 static void hash_asm_text(M68kRenderIRPreview *preview, const char *text) {
   size_t index;
   size_t length;

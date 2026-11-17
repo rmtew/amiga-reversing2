@@ -554,6 +554,7 @@ def listing_artifact_source_package_with_c_backend(
     binary_source: BinarySource, *, minimum_asset_size: int = 256,
     metadata_path: Path | None = None, project_root: Path = PROJECT_ROOT,
     structure_macros: bool = False,
+    platform_symbol_profiles=(), inline_platform_symbols=False,
     artifact=None,
 ) -> dict[str, object]:
     owned = artifact is None
@@ -565,7 +566,8 @@ def listing_artifact_source_package_with_c_backend(
                 project_root=project_root,
             )
     try:
-        payload = artifact.source_package_payload(minimum_asset_size)
+        payload = artifact.source_package_payload(minimum_asset_size,
+            platform_symbol_profiles=platform_symbol_profiles,inline_platform_symbols=inline_platform_symbols) if platform_symbol_profiles else artifact.source_package_payload(minimum_asset_size)
         payload["canonical_source_text"] = artifact.inline_source_text_with_profile()[0]
         if structure_macros:
             from amiga_reversing.disasm.structure_macro_rendering import (
@@ -1827,6 +1829,8 @@ def _cached_platform_file_dll(project_root: Path) -> CDLL:
     dll.platform_file_facts_v2_listing_artifact_runtime_allocation_batch_json_alloc.restype = c_int
     dll.platform_file_facts_v2_listing_artifact_layout_projection_json_alloc.argtypes = [c_void_p, c_char_p, c_uint32, POINTER(c_void_p)]
     dll.platform_file_facts_v2_listing_artifact_layout_projection_json_alloc.restype = c_int
+    dll.platform_file_facts_v2_listing_artifact_platform_symbols_json_alloc.argtypes = [c_void_p,c_uint32,c_uint32,c_uint32,POINTER(c_void_p)]
+    dll.platform_file_facts_v2_listing_artifact_platform_symbols_json_alloc.restype = c_int
     dll.platform_file_facts_v2_listing_artifact_source_package_json_alloc.argtypes = [
         c_void_p, c_uint32, POINTER(c_void_p),
     ]
@@ -2275,13 +2279,41 @@ class CListingArtifact:
         return cast(dict[str, object], json.loads(self._text_from_artifact_call(
             self._dll.platform_file_facts_v2_listing_artifact_source_plan_json_alloc)))
 
-    def source_package_payload(self, minimum_asset_size: int = 256) -> dict[str, object]:
+    def platform_symbol_projection_payload(self, profiles, *, inline=False, minimum_asset_size=256):
+        """Project existing numeric evidence into sourced names without reanalysis."""
+        kinds={'cpu':1,'amiga-custom':2,'atari-st-mfp':4}
+        if not profiles or any(name not in kinds for name in profiles):
+            raise ValueError('Unknown or empty platform symbol profile selection')
+        if type(minimum_asset_size)is not int or not 1<=minimum_asset_size<=0xFFFFFFFF:
+            raise ValueError('minimum_asset_size must be 1..4294967295')
+        if type(inline)is not bool:
+            raise ValueError('inline must be a boolean')
+        _,profile=self.inline_source_text_with_profile()
+        if facts_v2_source_refused(profile):
+            raise FactsV2SourceRefused(profile)
+        mask=0
+        for name in profiles:mask|=kinds[name]
+        return json.loads(self._text_from_artifact_call(
+            self._dll.platform_file_facts_v2_listing_artifact_platform_symbols_json_alloc,
+            mask,int(bool(inline)),minimum_asset_size))
+
+    def source_package_payload(self, minimum_asset_size: int = 256, *, platform_symbol_profiles=(),
+                               inline_platform_symbols=False) -> dict[str, object]:
         if type(minimum_asset_size) is not int or not 1 <= minimum_asset_size <= 0xFFFFFFFF:
             raise ValueError("minimum_asset_size must be 1..4294967295")
         # Keep the exact same refusal gate as the canonical source export.
         _, profile = self.inline_source_text_with_profile()
         if facts_v2_source_refused(profile):
             raise FactsV2SourceRefused(profile)
+        if platform_symbol_profiles:
+            projection=self.platform_symbol_projection_payload(platform_symbol_profiles,
+                inline=inline_platform_symbols,minimum_asset_size=minimum_asset_size)
+            if projection.get('status')!='ok':
+                raise ValueError('Platform symbol projection refused: '+str(projection.get('reason')))
+            payload=projection['package']
+            payload['platform_symbol_includes']=projection['includes']
+            payload['platform_symbol_bindings']=projection['bindings']
+            return payload
         return cast(dict[str, object], json.loads(self._text_from_artifact_call(
             self._dll.platform_file_facts_v2_listing_artifact_source_package_json_alloc,
             minimum_asset_size,

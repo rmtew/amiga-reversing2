@@ -35,7 +35,7 @@ def generate_package(root=ROOT):
     from amiga_reversing.disasm.binary_source import resolve_target_binary_source
     from amiga_reversing.disasm.effective_metadata import effective_metadata_file
     from amiga_reversing.disasm.c_backend import CListingArtifact,_source_file_for_c_backend,_platform_include_dir_for_listing
-    from amiga_reversing.disasm.source_package import build_source_package,collect_package_includes,extend_source_package
+    from amiga_reversing.disasm.source_package import build_source_package,collect_native_package_includes,extend_source_package
     target=root/'targets/starglider2_retail'
     require_saved_annotations(target)
     load_shared_program(root)
@@ -44,7 +44,7 @@ def generate_package(root=ROOT):
         with _source_file_for_c_backend(source,project_root=root) as native:
             artifact=CListingArtifact.create(native,metadata_text=str(metadata),
                 include_dir=str(_platform_include_dir_for_listing(native.platform_name,root)),project_root=root)
-        try:payload=artifact.source_package_payload(256)
+        try:payload=artifact.source_package_payload(256,platform_symbol_profiles=('cpu','amiga-custom','atari-st-mfp'))
         finally:artifact.close()
     text=shared_source(payload['source_text'])
     references=set(re.findall(r'(?im)^\s*INCBIN\s+"([^"]+)"',text))
@@ -52,7 +52,7 @@ def generate_package(root=ROOT):
         raise ValueError('native includes and required asset inventory differ')
     if '/workspace/' in text or '/home/' in text:
         raise ValueError('local path in generated source')
-    includes=collect_package_includes(text,root/'ext/atarist_includes/devpac_3_10/include')
+    includes=collect_native_package_includes({**payload,'source_text':text},root/'ext/atarist_includes/devpac_3_10/include')
     package=build_source_package(dict(filename='retail-shared.s',source_text=text,target='starglider2_retail',
         assembler_profile='vasm',metadata_hash=hashlib.sha256((target/'target_metadata.json').read_bytes()).hexdigest(),
         target_identity_sha256=EXPECTED['st']),payload['assets'],256,includes=includes)

@@ -85,6 +85,21 @@ def collect_package_includes(source_text: str, include_root: Path, *, provided: 
     return [found[path] for path in sorted(found)]
 
 
+def collect_native_package_includes(payload: dict[str, Any], include_root: Path) -> list[dict[str, Any]]:
+    """Package sourced native EQU projections through the normal owned inventory."""
+    provided={}
+    for entry in payload.get('platform_symbol_includes',[]):
+        path=_path(entry['path']);data=entry['source_text'].encode('utf-8')
+        if path in provided and provided[path]!=data:
+            raise ValueError('Conflicting native platform include definitions')
+        provided[path]=data
+    records=collect_package_includes(payload['source_text'],include_root,provided=provided)
+    for record in records:
+        if record['path']in provided:
+            record['provenance']='native-platform-symbol-contracts'
+    return records
+
+
 def build_source_package(payload: dict[str, Any], assets: list[dict[str, Any]], minimum_asset_size: int,
                          *, includes: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Bind final profile-encoded source, native-selected bytes and provenance."""

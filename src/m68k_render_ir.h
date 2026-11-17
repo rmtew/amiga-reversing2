@@ -87,6 +87,8 @@ struct M68kRenderIRPreview {
   uint32_t planned_evidence_next_order;
 };
 
+/* Apply the same lexical spelling as the primary renderer; out needs strlen(text)+1. */
+void m68k_render_ir_scoped_spelling(const char *scope, const char *text, char *out);
 void m68k_render_ir_preview_init(M68kRenderIRPreview *preview);
 void m68k_render_ir_preview_destroy(M68kRenderIRPreview *preview);
 void m68k_render_ir_preview_set_transient_row_sink(M68kRenderIRPreview *preview,

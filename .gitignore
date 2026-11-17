@@ -109,6 +109,9 @@ targets/starglider2_retail/*.s
 !targets/starglider2_retail/.gitattributes
 !targets/starglider2_retail/rendered/*.s
 !targets/starglider2_retail/rendered/source-package-manifest.json
+!targets/starglider2_retail/rendered/platform/cpu-symbols.i
+!targets/starglider2_retail/rendered/platform/amiga-custom-symbols.i
+!targets/starglider2_retail/rendered/platform/st-mfp-symbols.i
 !targets/starglider2_retail/rendered/assets/cockpit_picture_rle_data.bin
 !targets/starglider2_retail/rendered/assets/argonaut_splash_picture_rle_data.bin
 *.analysis
