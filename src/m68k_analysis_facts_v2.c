@@ -5318,6 +5318,9 @@ static int runtime_address_space_add(M68kRuntimeAddressSpace *space, size_t sect
     confidence);
 }
 
+/* Rejected copy candidates remain in the address space for diagnostics, not
+ * as address identities. Neither translation direction may select one over a
+ * policy or accepted copy mapping merely because its extent is smaller. */
 static int runtime_address_space_translate(const M68kRuntimeAddressSpace *space, size_t section_index,
     uint32_t runtime_address, uint32_t section_size, uint32_t *out_source_offset) {
   size_t index;
@@ -5328,7 +5331,8 @@ static int runtime_address_space_translate(const M68kRuntimeAddressSpace *space,
   for (index = space->count; index > 0U; --index) {
     const M68kRuntimeAddressRange *map = &space->ranges[index - 1U];
     uint32_t delta;
-    if (map->section_index != section_index) continue;
+    if (map->kind == M68K_FACT_RUNTIME_RANGE_KIND_CONFLICTING_DISCOVERED_COPY ||
+        map->section_index != section_index) continue;
     if (runtime_address < map->runtime_address) continue;
     delta = runtime_address - map->runtime_address;
     if (delta >= map->size) continue;
@@ -5349,7 +5353,8 @@ static int runtime_address_space_section_has_range(const M68kRuntimeAddressSpace
   size_t index;
   if (space == NULL) return 0;
   for (index = 0U; index < space->count; ++index) {
-    if (space->ranges[index].section_index == section_index && space->ranges[index].size != 0U) return 1;
+    if (space->ranges[index].kind != M68K_FACT_RUNTIME_RANGE_KIND_CONFLICTING_DISCOVERED_COPY &&
+        space->ranges[index].section_index == section_index && space->ranges[index].size != 0U) return 1;
   }
   return 0;
 }
@@ -5363,7 +5368,8 @@ static int runtime_address_space_source_to_runtime_near(const M68kRuntimeAddress
       const M68kRuntimeAddressRange *map = &space->ranges[index - 1U];
       uint32_t current_delta;
       uint32_t target_delta;
-      if (map->section_index != section_index) continue;
+      if (map->kind == M68K_FACT_RUNTIME_RANGE_KIND_CONFLICTING_DISCOVERED_COPY ||
+          map->section_index != section_index) continue;
       if (current_runtime < map->runtime_address) continue;
       current_delta = current_runtime - map->runtime_address;
       if (current_delta >= map->size) continue;
@@ -5377,7 +5383,8 @@ static int runtime_address_space_source_to_runtime_near(const M68kRuntimeAddress
   for (index = space->count; index > 0U; --index) {
     const M68kRuntimeAddressRange *map = &space->ranges[index - 1U];
     uint32_t target_delta;
-    if (map->section_index != section_index || source_offset < map->source_offset) continue;
+    if (map->kind == M68K_FACT_RUNTIME_RANGE_KIND_CONFLICTING_DISCOVERED_COPY ||
+        map->section_index != section_index || source_offset < map->source_offset) continue;
     target_delta = source_offset - map->source_offset;
     if (target_delta >= map->size || map->runtime_address > UINT32_MAX - target_delta) continue;
     *out_runtime_address = map->runtime_address + target_delta;

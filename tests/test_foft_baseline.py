@@ -56,6 +56,13 @@ def test_imported_scopes_have_named_global_owners_and_real_bare_locals():
     assert "\tdbf.w d7,.loop_y" in text
 
 
+def test_rendered_references_use_the_materialized_load_view():
+    text = (TARGET / "source.s").read_text()
+    assert "\tclr.w abs_0_0004E37C.l\n" in text
+    assert "\tjsr BumpSounds80.l\n" in text
+    assert "-2646.l" not in text
+
+
 def test_import_is_provenance_bound_and_does_not_promote_generic_auto_names():
     metadata = load_target_metadata(TARGET)
     for r in (

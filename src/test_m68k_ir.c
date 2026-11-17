@@ -20799,7 +20799,7 @@ static int test_facts_v2_tool_inferred_runtime_copy_conflict_does_not_abort(void
   return 0;
 }
 
-static int test_facts_v2_runtime_ref_prefers_specific_conflicting_copy(void) {
+static int test_facts_v2_runtime_ref_ignores_specific_conflicting_copy(void) {
   AsmSourceFile parsed_source;
   M68kDiagList diagnostics;
   M68kObject object;
@@ -20810,6 +20810,7 @@ static int test_facts_v2_runtime_ref_prefers_specific_conflicting_copy(void) {
   size_t runtime_view_index;
   size_t ref_index;
   uint32_t small_offset = UINT32_MAX;
+  uint32_t broad_offset = UINT32_MAX;
   int found_conflicting_copy = 0;
   int found_runtime_ref = 0;
   const char *source_text =
@@ -20850,6 +20851,8 @@ static int test_facts_v2_runtime_ref_prefers_specific_conflicting_copy(void) {
   for (runtime_view_index = 0U; runtime_view_index < source_analysis.sections[0].runtime_view_count;
        ++runtime_view_index) {
     const M68kRuntimeViewIR *view = &source_analysis.sections[0].runtime_views[runtime_view_index];
+    if (view->kind == M68K_FACT_RUNTIME_RANGE_KIND_DISCOVERED_COPY &&
+        view->runtime_address == 0x200U) broad_offset = view->storage_offset;
     if (view->kind == M68K_FACT_RUNTIME_RANGE_KIND_CONFLICTING_DISCOVERED_COPY &&
         view->runtime_address == 0x380U && view->size == 20U) {
       M68K_C_ASSERT_U32(0U, view->materialized);
@@ -20861,10 +20864,11 @@ static int test_facts_v2_runtime_ref_prefers_specific_conflicting_copy(void) {
   }
   M68K_C_ASSERT(found_conflicting_copy);
   M68K_C_ASSERT(small_offset != UINT32_MAX);
+  M68K_C_ASSERT(broad_offset != UINT32_MAX);
   for (ref_index = 0U; ref_index < source_analysis.sections[0].runtime_address_ref_count; ++ref_index) {
     const M68kRuntimeAddressRefIR *ref = &source_analysis.sections[0].runtime_address_refs[ref_index];
     if (ref->has_runtime_address && ref->runtime_address == 0x380U &&
-        ref->target_section_index == 0U && ref->target_offset == small_offset) {
+        ref->target_section_index == 0U && ref->target_offset == broad_offset + 0x180U) {
       found_runtime_ref = 1;
       break;
     }
@@ -20887,12 +20891,16 @@ static int test_facts_v2_policy_runtime_range_wins_over_inferred_copy_conflict(v
   M68kAnalysisPolicy policy;
   M68kFactsV2Profile profile;
   char *source = NULL;
+  M68kSourceAnalysisIR analysis;
+  size_t index;
+  int found_ref = 0;
   const char *source_text =
     "SECTION section_0,code\n"
     "\tlea payload(pc),a0\n"
     "\tmovea.l #$400,a1\n"
     "\tmoveq #1,d0\n"
     "\tmove.l (a0)+,(a1)+\n"
+    "\tclr.w $400.l\n"
     "\trts\n"
     "payload:\n"
     "\tdc.l $11111111,$22222222\n";
@@ -20918,6 +20926,28 @@ static int test_facts_v2_policy_runtime_range_wins_over_inferred_copy_conflict(v
   M68K_C_ASSERT(source != NULL);
   M68K_C_ASSERT_U32(1U, profile.runtime_address_range_conflicts);
   M68K_C_ASSERT_U32(0U, profile.asm_source_refused);
+  memset(&analysis, 0, sizeof(analysis));
+  M68K_C_ASSERT_INT(0, m68k_facts_v2_collect_source_analysis_profile(&object, &policy, &profile,
+    &analysis, m68k_diag_sink(NULL)));
+  for (index = 0U; index < analysis.sections[0].runtime_address_ref_count; ++index) {
+    const M68kRuntimeAddressRefIR *ref = &analysis.sections[0].runtime_address_refs[index];
+    if (ref->offset == 14U && ref->operand_index == 0U) {
+      M68K_C_ASSERT_U32(0x400U, ref->runtime_address);
+      M68K_C_ASSERT_U32(0U, ref->target_offset);
+      found_ref = 1;
+    }
+  }
+  M68K_C_ASSERT(found_ref);
+  /* An exact load-view label needs no compensating subtraction. */
+  {
+    const char *line = strstr(source, "\tclr.w ");
+    const char *end;
+    M68K_C_ASSERT(line != NULL);
+    end = strchr(line, '\n');
+    M68K_C_ASSERT(end != NULL);
+    M68K_C_ASSERT(memchr(line, '-', (size_t)(end - line)) == NULL);
+  }
+  m68k_ir_source_analysis_destroy(&analysis);
   m68k_facts_v2_free_text(source);
   m68k_object_destroy(&object);
   m68k_source_model_free(&parsed_source);
@@ -40931,8 +40961,8 @@ int m68k_c_ir_tests(void) {
       test_facts_v2_source_zero_policy_overlay_is_temporal},
     {"facts_v2_tool_inferred_runtime_copy_conflict_does_not_abort",
       test_facts_v2_tool_inferred_runtime_copy_conflict_does_not_abort},
-    {"facts_v2_runtime_ref_prefers_specific_conflicting_copy",
-      test_facts_v2_runtime_ref_prefers_specific_conflicting_copy},
+    {"facts_v2_runtime_ref_ignores_specific_conflicting_copy",
+      test_facts_v2_runtime_ref_ignores_specific_conflicting_copy},
     {"facts_v2_policy_runtime_range_wins_over_inferred_copy_conflict",
       test_facts_v2_policy_runtime_range_wins_over_inferred_copy_conflict},
     {"facts_v2_render_asm_source_preserves_exact_byte_immediate_word",
