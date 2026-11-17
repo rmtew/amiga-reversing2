@@ -47,6 +47,13 @@ IPF_API void ipf_destroy(IpfAnalysis *analysis);
  * block is unsupported. CHRN selection instead requires a complete inventory. */
 IPF_API unsigned ipf_read_instance(const IpfAnalysis *analysis, size_t track_index, size_t sector_index,
     const unsigned char **out_data, size_t *out_size);
+/* Packed MFM cells for one explicitly indexed deterministic data block. The exact
+ * bit count is blocks[index].words[0]; final packing bits are zero. No track
+ * gaps, rotation, density variation or controller behavior are synthesized.
+ * The first implied clock uses a zero predecessor, not an observed splice
+ * clock. Consumers must establish clock context (e.g. a raw sync) themselves. */
+IPF_API unsigned ipf_read_block(const IpfAnalysis *analysis, size_t track_index, size_t block_index,
+    const unsigned char **out_data, size_t *out_size);
 IPF_API unsigned ipf_read_chrn(const IpfAnalysis *analysis, unsigned track, unsigned side,
     unsigned id_track, unsigned id_head, unsigned id_sector, unsigned id_size,
     const unsigned char **out_data, size_t *out_size);

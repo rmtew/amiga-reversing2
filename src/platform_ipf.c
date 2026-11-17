@@ -38,9 +38,18 @@ static void putbit(unsigned char *p,uint32_t *n,unsigned v) { if(v)p[*n/8]|=(uns
 static int decode_block(const IpfAnalysis *a,IpfTrack *t,IpfBlock *b,size_t *budget) {
     uint32_t p=b->words[7],out=0,previous=0,limit=b->words[0];
     const unsigned char *data=a->data+t->data_offset;int bit_mode=(b->words[5]&4U)!=0;
+    /* CAPS encoder 1 stores byte lengths where SPS encoder 2 stores a gap
+     * offset/cell type. See Keir Fraser's official Disk-Utilities
+     * libdisk/container/ipf.c, ipf_block and ENC_CAPS, commit
+     * aa616ccde1e46b5badb742234a4b90e2c15e5b67. Stream counts are bytes in
+     * the supported legacy revision; do not reinterpret SPS flags as sizes. */
+    int supported_layout=a->info[1]==1
+        ? a->info[2]==1 && b->words[2]==((uint64_t)limit+7U)/8U &&
+          b->words[3]==((uint64_t)b->words[1]+7U)/8U && b->words[5]==0
+        : a->info[1]==2 && b->words[3]==1 && !(b->words[5]&~7U);
     b->stream_offset=t->data_offset+p;b->stream_end=IPF_NONE;
     if(!limit)return 0;
-    if(b->words[3]!=1 || b->words[4]!=1 || (b->words[5]&~7U) || t->image[2]!=2 || t->image[12] || a->info[1]!=2) {
+    if(!supported_layout || b->words[4]!=1 || t->image[2]!=2 || t->image[12]) {
         b->decode_status=IPF_BLOCK_UNSUPPORTED;return 0;
     }
     if(limit>IPF_MAX_TRACK_BITS || !fits(*budget,(limit+7U)/8,IPF_DECODE_BUDGET))return -1;
@@ -53,7 +62,9 @@ static int decode_block(const IpfAnalysis *a,IpfTrack *t,IpfBlock *b,size_t *bud
         for(i=0;i<vc;i++)count=(count<<8)|data[p++];
         if(!kind) { if(count || out!=limit)return -1;b->stream_end=t->data_offset+p;return 0; }
         if(kind==5) { b->decode_status=IPF_BLOCK_WEAK;free(b->bits);b->bits=NULL;return 0; }
-        if(kind!=1 && kind!=2 && kind!=3) { b->decode_status=IPF_BLOCK_UNSUPPORTED;free(b->bits);b->bits=NULL;return 0; }
+        if(kind!=1 && kind!=2 && kind!=3) {
+            b->decode_status=IPF_BLOCK_UNSUPPORTED;free(b->bits);b->bits=NULL;return 0;
+        }
         if(!count || (!bit_mode && count>UINT32_MAX/8))return -1;
         nbits=bit_mode?count:count*8;nbytes=nbits/8+(nbits%8!=0);
         if(!fits(p,nbytes,t->data_size) || nbits>(limit-out)/(kind==1?1U:2U))return -1;
@@ -187,6 +198,16 @@ int ipf_analyze(const unsigned char *data,size_t size,IpfAnalysis *out,M68kDiagS
     *out=a;return 0;
 fail:
     ipf_destroy(&a);m68k_diag_add(diagnostics,M68K_DIAG_SEVERITY_ERROR,M68K_DIAG_CODE_PLATFORM_DISK_FAILED,error);return -1;
+}
+unsigned ipf_read_block(const IpfAnalysis *a,size_t ti,size_t bi,const unsigned char **data,size_t *size) {
+    const IpfBlock *b;if(data)*data=NULL;if(size)*size=0;
+    if(!a || ti>=a->track_count || bi>=a->tracks[ti].block_count)return IPF_READ_NOT_FOUND;
+    b=&a->tracks[ti].blocks[bi];
+    if(a->tracks[ti].image[2]!=2 || a->tracks[ti].image[12] ||
+       b->decode_status!=IPF_BLOCK_OK || !b->bits || !b->words[0])return IPF_READ_UNSUPPORTED;
+    if(data)*data=b->bits;
+    if(size)*size=((size_t)b->words[0]+7U)/8U;
+    return IPF_READ_OK;
 }
 unsigned ipf_read_instance(const IpfAnalysis *a,size_t ti,size_t si,const unsigned char **data,size_t *size) {
     const IpfSector *s;if(data)*data=NULL;if(size)*size=0;

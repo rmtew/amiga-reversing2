@@ -60,7 +60,18 @@ def assemble_ipf_sectors(data: bytes, index_pairs: list[tuple[int, int]], max_si
     return _assemble_disk_sectors(data, index_pairs, max_size, project_root, 'ipf')
 
 
-def _assemble_disk_sectors(data, index_pairs, max_size, project_root, kind):
+def assemble_ipf_blocks(data: bytes, index_pairs: list[tuple[int, int]], max_size: int,
+                        project_root: Path = PROJECT_ROOT) -> bytes:
+    """Ordered packed block cells, each bounded by inspect's exact bit count.
+
+    Output retains per-block byte packing, including a possible final partial
+    byte. The first implied clock uses the decoder's zero-predecessor convention;
+    it is not an observed splice clock. No track gaps or timing are synthesized.
+    """
+    return _assemble_disk_sectors(data, index_pairs, max_size, project_root, 'ipf', unit='blocks')
+
+
+def _assemble_disk_sectors(data, index_pairs, max_size, project_root, kind, *, unit='sectors'):
     """One bounded native parse for the complete ordered physical read list."""
     if (not index_pairs or len(index_pairs) > 65536 or type(max_size) is not int or
             not 0 < max_size <= 32*1024*1024 or
@@ -68,7 +79,7 @@ def _assemble_disk_sectors(data, index_pairs, max_size, project_root, kind):
             any(type(v) is not int or not 0 <= v < 2**32 for pair in index_pairs for v in pair)):
         raise ValueError('invalid bounded disk assembly')
     dll = _platform_disk_dll(project_root)
-    extract = getattr(dll, f'platform_disk_extract_{kind}_sectors_buffer')
+    extract = getattr(dll, f'platform_disk_extract_{kind}_{unit}_buffer')
     extract.argtypes = [C.c_void_p, C.c_size_t,
         C.POINTER(C.c_uint32), C.c_size_t, C.c_size_t]
     extract.restype = BufferResult

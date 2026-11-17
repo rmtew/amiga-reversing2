@@ -34,6 +34,12 @@ static int check(const unsigned char *p,size_t n) {
     IpfAnalysis a={0};M68kDiagList diagnostics={0};unsigned t,s;
     int result=ipf_analyze(p,n,&a,m68k_diag_sink(&diagnostics));
     if(result==0) {
+        for(t=0;t<a.track_count;t++)for(s=0;s<a.tracks[t].block_count;s++) {
+            const unsigned char *data=(const unsigned char *)1;size_t size=999;
+            if(ipf_read_block(&a,t,s,&data,&size)==IPF_READ_OK) {
+                assert(data && size);{volatile unsigned char last=data[size-1];(void)last;}
+            } else assert(!data && !size);
+        }
         for(t=0;t<a.track_count;t++)for(s=0;s<a.tracks[t].sector_count;s++) {
             const unsigned char *data=(const unsigned char *)1;size_t size=999;
             if(ipf_read_instance(&a,t,s,&data,&size)==IPF_READ_OK) {

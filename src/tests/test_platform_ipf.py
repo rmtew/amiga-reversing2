@@ -16,7 +16,7 @@ import unittest
 import zlib
 import zipfile
 from src.tests._platform_disk_test_utils import PlatformDiskTestCaseMixin, _diag_has_errors
-from amiga_reversing.disasm.mapped_execution import assemble_ipf_sectors
+from amiga_reversing.disasm.mapped_execution import assemble_ipf_blocks, assemble_ipf_sectors
 from amiga_reversing.disasm.stx_recovery import inspect_ipf, recover_ipf, read_ipf
 
 
@@ -52,7 +52,8 @@ def sample(kind, data, count=None):
 
 def fixture(*, body=b'A'*128, chrn=(0,0,1,0), mark=251, id_bad=False, data_bad=False,
             duplicate=False, weak=False, density=2, flags=0, encoder=2, gap=False,
-            bit_mode=False, no_data=False, stream_override=None, extra_weak=False):
+            bit_mode=False, no_data=False, stream_override=None, extra_weak=False,
+            legacy_layout=False, bad_legacy_size=False, encoder_revision=1):
     raw=marked(254,bytes(chrn),id_bad)
     if not no_data: raw+=marked(mark,body,data_bad)
     if duplicate:raw*=2
@@ -63,8 +64,11 @@ def fixture(*, body=b'A'*128, chrn=(0,0,1,0), mark=251, id_bad=False, data_bad=F
         stream=sample(1,raw)+b'\0';bits=len(raw)*8
     if weak:stream=sample(5,b'')+b'\0'
     if stream_override is not None:stream=stream_override
-    gap_stream=b'\x21\x01\x4e\0' if gap else b''
+    gap_stream=b'\x21\x01\x4e\0' if gap and not legacy_layout else b''
     words=[bits,16 if gap else 0,32 if gap else 0,1,1,(4 if bit_mode else 0)|(1 if gap else 0),0,32+len(gap_stream)]
+    if legacy_layout:
+        words[2:4]=[(bits+7)//8+int(bad_legacy_size),2 if gap else 0]
+        words[5]=4 if bit_mode else 0
     descriptors=struct.pack('>8I',*words)
     if extra_weak:
         words[7]+=32
@@ -73,13 +77,71 @@ def fixture(*, body=b'A'*128, chrn=(0,0,1,0), mark=251, id_bad=False, data_bad=F
     payload=descriptors+gap_stream+stream+(sample(5,b'')+b'\0' if extra_weak else b'')
     total_bits=bits+(16 if extra_weak else 0)
     im=[0,0,density,1,0,0,0,total_bits,words[1],total_bits+words[1],2 if extra_weak else 1,0,flags,1,0,0,0]
-    info=[1,encoder,1,3000,1,0,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0]
+    info=[1,encoder,encoder_revision,3000,1,0,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0]
     return (chunk(b'CAPS')+chunk(b'INFO',struct.pack('>21I',*info))+
             chunk(b'IMGE',struct.pack('>17I',*im))+
             chunk(b'DATA',struct.pack('>4I',len(payload),len(payload)*8,zlib.crc32(payload),1),payload))
 
 
 class IpfTests(PlatformDiskTestCaseMixin, unittest.TestCase):
+    def test_legacy_caps_sizes_and_exact_packed_cells_without_gap_fabrication(self):
+        data=fixture(encoder=1,legacy_layout=True,gap=True)
+        a=inspect_ipf(data);t=a['tracks'][0];block=t['blocks'][0]
+        raw=marked(254,b'\0\0\1\0')+marked(251,b'A'*128)
+        self.assertEqual(block['words'][2:4],[len(raw),2])
+        self.assertEqual(block['decode_status'],0)
+        self.assertEqual(block['gap_offset'],-1)
+        self.assertFalse(a['gaps_expanded']);self.assertFalse(a['fdc_emulation'])
+        self.assertEqual(assemble_ipf_blocks(data,[(0,0)],len(raw)),raw)
+        self.assertEqual(assemble_ipf_blocks(data,[(0,0),(0,0)],2*len(raw)),raw*2)
+        self.assertEqual(assemble_ipf_sectors(data,[(0,0)],128),b'A'*128)
+
+    def test_legacy_layout_flags_revision_and_sizes_are_not_sps_aliases(self):
+        for kwargs in [dict(bad_legacy_size=True),dict(bit_mode=True),dict(encoder_revision=2)]:
+            with self.subTest(kwargs=kwargs):
+                data=fixture(encoder=1,legacy_layout=True,**kwargs)
+                a=inspect_ipf(data)
+                self.assertEqual(a['tracks'][0]['blocks'][0]['decode_status'],1)
+                with self.assertRaises(ValueError):assemble_ipf_blocks(data,[(0,0)],4096)
+
+    def test_block_reads_are_bounded_and_all_or_none(self):
+        data=fixture()
+        for pairs,limit in [([(0,0)],1), ([(0,0),(0,1)],4096), ([(999,0)],4096),
+                            ([],4096), ([(True,0)],4096), ([(0,-1)],4096)]:
+            with self.subTest(pairs=pairs,limit=limit):
+                with self.assertRaises(ValueError):assemble_ipf_blocks(data,pairs,limit)
+        for kwargs in [dict(weak=True),dict(density=3),dict(flags=1)]:
+            with self.subTest(kwargs=kwargs):
+                with self.assertRaises(ValueError):assemble_ipf_blocks(fixture(**kwargs),[(0,0)],4096)
+
+    def test_block_reads_retain_partial_byte_packing_and_explicit_sibling_identity(self):
+        data=fixture(bit_mode=True)
+        raw=marked(254,b'\0\0\1\0')+marked(251,b'A'*128)
+        expected=(int.from_bytes(raw,'big')<<7).to_bytes(len(raw)+1,'big')
+        self.assertEqual(assemble_ipf_blocks(data,[(0,0)],len(expected)),expected)
+        self.assertEqual(inspect_ipf(data)['tracks'][0]['blocks'][0]['words'][0],len(raw)*8+1)
+        sibling=fixture(extra_weak=True)
+        self.assertEqual(assemble_ipf_blocks(sibling,[(0,0)],len(raw)),raw)
+        with self.assertRaises(ValueError):assemble_ipf_blocks(sibling,[(0,1)],4096)
+
+    def test_implied_first_clock_is_a_documented_convention_not_splice_evidence(self):
+        values=bytes([0x42])*144
+        data=fixture(stream_override=sample(2,values)+b'\0')
+        self.assertEqual(assemble_ipf_blocks(data,[(0,0)],288),mfm(values,previous=0))
+        self.assertNotEqual(mfm(values,previous=0),mfm(values,previous=1))
+
+    def test_legacy_gap_samples_are_literal_mfm_data_before_raw_sync(self):
+        # Official Copperline v1.1.0 src/ipf.rs documents data-stream types
+        # 2 and 3 as literal unencoded bytes, both MFM-expanded. This is not
+        # a descriptor gap stream, nor a count of one repeated fill byte.
+        sync=bytes.fromhex('44894489')
+        values=bytes([0x58])*129
+        stream=sample(3,bytes(13))+sample(1,sync)+sample(2,values)+b'\0'
+        data=fixture(encoder=1,legacy_layout=True,stream_override=stream)
+        expected=mfm(bytes(13),previous=0)+sync+mfm(values,previous=1)
+        self.assertEqual(len(expected),288)
+        self.assertEqual(assemble_ipf_blocks(data,[(0,0)],288),expected)
+
     def inspect_failure(self,data):
         raw=(C.c_ubyte*len(data)).from_buffer_copy(data)
         result=self.library.platform_disk_inspect_buffer_json(b'atari-st-disk',raw,len(data))
@@ -199,7 +261,8 @@ class IpfTests(PlatformDiskTestCaseMixin, unittest.TestCase):
         body=bytes([251])+b'A'*128;dc=binascii.crc_hqx(b'\xa1'*3+body,65535).to_bytes(2,'big')
         sync=bytes.fromhex('448944894489')
         stream=sample(1,sync)+sample(2,header+hc)+sample(1,sync)+sample(2,body+dc)+b'\0'
-        self.assertEqual(assemble_ipf_sectors(fixture(stream_override=stream),[(0,0)],128),b'A'*128)
+        for encoder,legacy in [(2,False),(1,True)]:
+            self.assertEqual(assemble_ipf_sectors(fixture(stream_override=stream,encoder=encoder,legacy_layout=legacy),[(0,0)],128),b'A'*128)
 
 
     @unittest.skipUnless(os.getenv('IPF_SANITIZERS'), 'set IPF_SANITIZERS=1 for ASan/UBSan mutations')
@@ -213,7 +276,9 @@ class IpfTests(PlatformDiskTestCaseMixin, unittest.TestCase):
                 'src/tests/ipf_sanitizer_driver.c','-L'+str(backend),'-lamiga_backend',
                 '-Wl,-rpath,'+str(backend),'-o',str(exe)],cwd=root,check=True)
             paths=[]
-            for i,data in enumerate([fixture(),fixture(gap=True),fixture(bit_mode=True),fixture(weak=True)]):
+            for i,data in enumerate([fixture(),fixture(gap=True),fixture(bit_mode=True),fixture(weak=True),
+                                     fixture(encoder=1,legacy_layout=True),
+                                     fixture(encoder=1,legacy_layout=True,bad_legacy_size=True)]):
                 path=Path(temp)/f'{i}.ipf';path.write_bytes(data);paths.append(str(path))
             subprocess.run([str(exe),*paths],check=True,timeout=45)
 
