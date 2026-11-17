@@ -644,6 +644,11 @@ typedef struct M68kRecordDispatchProbe {
 } M68kRecordDispatchProbe;
 static int probe_initial_record_dispatch(M68kDecodeIR *, const M68kRuntimeAddressSpace *,
   uint8_t **, uint8_t **, size_t, const M68kDecodeCandidate *, uint8_t, M68kRecordDispatchProbe *);
+static int candidate_reencodes_exactly(const M68kDecodeSectionIR *, const M68kDecodeCandidate *);
+static int probe_initial_pointer_prefix(M68kDecodeIR *, const M68kAnalysisPolicy *,
+  const M68kRuntimeAddressSpace *, uint8_t **, uint8_t **, size_t,
+  const M68kDecodeCandidate *, uint8_t, M68kRecordDispatchProbe *);
+
 
 static int scan_interleaved_indexed_key_stub_table(M68kDecodeIR *decode, uint8_t max_cpu, size_t section_index,
   const M68kDecodeSectionIR *section, const M68kDecodeCandidate *site_candidate, uint8_t **accepted_start,
@@ -7582,7 +7587,7 @@ static int section_analysis_has_platform_call_at_offset(const M68kSectionAnalysi
 
 static int append_recovered_indirect_sites_for_accepted(M68kDecodeIR *decode,
     uint8_t **accepted_start, uint8_t **accepted_bytes, M68kSourceAnalysisIR *source_analysis, uint8_t max_cpu,
-    const M68kRuntimeAddressSpace *runtime_addresses) {
+    const M68kRuntimeAddressSpace *runtime_addresses, const M68kAnalysisPolicy *policy) {
   size_t section_index;
   if (decode == NULL || accepted_start == NULL || accepted_bytes == NULL || source_analysis == NULL ||
       source_analysis->section_count < decode->section_count) {
@@ -7634,21 +7639,31 @@ static int append_recovered_indirect_sites_for_accepted(M68kDecodeIR *decode,
         }
         {
           M68kRecordDispatchProbe probe;
-          if (probe_initial_record_dispatch(decode, runtime_addresses, accepted_start, accepted_bytes,
-              section_index, candidate, max_cpu, &probe)) {
+          int pointer_prefix = 0;
+          int found = probe_initial_record_dispatch(decode, runtime_addresses, accepted_start, accepted_bytes,
+              section_index, candidate, max_cpu, &probe);
+          if (!found && !probe.refusal_reason) {
+            found = probe_initial_pointer_prefix(decode, policy, runtime_addresses, accepted_start, accepted_bytes,
+              section_index, candidate, max_cpu, &probe);
+            pointer_prefix = found;
+          }
+          if (found) {
             uint32_t n, unique = 0U;
             for (n = 0U; n < probe.entry_count; ++n) {
               uint32_t previous;
               for (previous = 0U; previous < n && probe.targets[previous] != probe.targets[n]; ++previous) {}
               if (previous == n) ++unique;
             }
-            site.status = M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES;
+            site.status = pointer_prefix ? M68K_RECOVERED_INDIRECT_STATUS_INITIAL_POINTER_CANDIDATES :
+              M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES;
             site.has_target = site.has_target_count = site.has_table_base = site.has_table_bounds = 1U;
             site.target = probe.targets[0]; site.target_count = unique;
             site.table_offset = probe.table_offset; site.table_size = probe.table_size;
             site.table_entry_count = probe.entry_count; site.table_entry_size = probe.entry_size;
             site.table_bounds_status = M68K_RECOVERED_INDIRECT_TABLE_BOUNDS_NONE;
-            site.detail = "initial-image record handlers; runtime writes and incoming aliases are not closed";
+            site.detail = pointer_prefix ?
+              "initial pointer prefix bounded by forward handler; selector and runtime writes are not closed" :
+              "initial-image record handlers; runtime writes and incoming aliases are not closed";
           } else if (probe.refusal_reason) {
             site.has_table_base = 1U; site.table_offset = probe.table_offset;
             site.table_bounds_status = probe.refusal_reason;
@@ -7656,7 +7671,7 @@ static int append_recovered_indirect_sites_for_accepted(M68kDecodeIR *decode,
           }
         }
         /* Probing may materialize decode candidates and move their storage. */
-        candidate = &section->candidates[candidate_index];
+        candidate = m68k_decode_ir_find_candidate_at_offset(section, site.offset);
         recovered_indirect_site_finalize_table_candidate(&site);
         if (m68k_ir_section_analysis_append_recovered_indirect_site(&source_analysis->sections[section_index],
             &site) != 0) {
@@ -7840,6 +7855,7 @@ static int candidate_indirect_control_base_register(const M68kDecodeCandidate *c
 }
 
 #include "m68k_record_dispatch.inc"
+#include "m68k_pointer_dispatch.inc"
 
 static int enqueue_target_set_for_indirect_site(M68kDecodeIR *decode, M68kFactIR *facts,
     M68kFactsV2WorkQueue *queue, uint8_t **accepted_start, uint8_t **accepted_bytes,
@@ -11314,6 +11330,8 @@ static int facts_v2_collect_profile_internal(const M68kObject *object, const M68
     fail_stage = "initial record dispatch discovery";
     if (seed_initial_record_dispatches(&decode, &facts, &queue, &runtime_addresses,
         accepted_start, accepted_bytes, out_profile, max_cpu) != 0) goto fail;
+    if (seed_initial_pointer_prefixes(&decode, policy, &facts, &queue, &runtime_addresses,
+        accepted_start, accepted_bytes, out_profile, max_cpu) != 0) goto fail;
     if (queue.count == previous_queue) break;
     if (run_reachable_fixed_point(object, &decode, &facts, policy, &relocation_lookup, &queue,
         &runtime_addresses, accepted_start, accepted_bytes, &record_accepted, out_profile, max_cpu,
@@ -11507,7 +11525,7 @@ source_analysis_projection:
   }
   if (source_analysis != NULL) {
     if (append_recovered_indirect_sites_for_accepted(&decode, accepted_start, accepted_bytes, source_analysis,
-        max_cpu, &runtime_addresses) != 0) {
+        max_cpu, &runtime_addresses, policy) != 0) {
       m68k_diag_add(diagnostics, M68K_DIAG_SEVERITY_ERROR, M68K_DIAG_CODE_RENDER_FAILED,
         "facts_v2 accepted indirect site append failed");
       goto fail;

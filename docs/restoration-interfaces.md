@@ -587,6 +587,35 @@ function to find a return incorrectly exhausted the 64-instruction prefix budget
 for valid long routines. Encoding, target, structured-ownership and overlap
 guards run before accepting that block boundary.
 
+Folded indexed pointer dispatch is also recognized from accepted decoded IR:
+a PC-relative table base, two WORD register doublings, a WORD addition into the
+base, a LONG pointer load and an indirect call/jump. The first forward handler
+pointer supplies a finite initial prefix boundary; all entries up to the nearest
+forward handler must be aligned, map uniquely, stay outside the prefix and
+validate as exact instructions without structured-data ownership. The whole
+prefix is validated before any new handler origins are queued. Null/invalid
+entries, unknown bounds, unsupported scaling or clobbers refuse this path.
+The prefix is limited to 128 entries; tables whose first handler lies before the
+table need different bounds evidence. Register names and call-site/handler order
+are immaterial; source offsets and encoded runtime pointers stay separate.
+
+These sites have status `initial_pointer_candidates` (10),
+`target_set_scope: initial_image_pointer_prefix`,
+`runtime_target_set_closed: false` and code-origin kind
+`initial_pointer_control_target` (23). Counts and extents describe the validated
+initial prefix, not the complete physical object or a proof of selector bounds,
+future stores, execution or ABI. Handler discovery starts with unknown registers.
+
+Native orphan reporting independently scans word-aligned return instructions
+using generated decode/flow metadata and exact re-encoding. Previously reported
+terminal positions and accepted code bytes are excluded. New `return_probe`
+(reason 3, context `terminal_probe`, confidence 10) records identify a terminal
+position only; they do not identify a function entry or extent and never enqueue
+code. Data-owned probes are suppressed, unowned probes remain unresolved. The
+review scorer retains report-only navigation/data-review actions unless separate
+durable inbound evidence exists. A return-shaped word inside data cannot become
+code merely by increasing a syntactic confidence score.
+
 Callback-store discovery now matches `(source section, complete LONG storage
 slot)` rather than `(address register name, displacement)`. Proven aliases in
 different registers and equivalent base/addend expressions can match; unknown

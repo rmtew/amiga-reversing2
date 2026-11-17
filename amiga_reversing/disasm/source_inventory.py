@@ -119,7 +119,7 @@ def source_inventory(analysis, *, section_index=0, entry_offset=0):
     # Only synchronous control evidence supplements CFG serialization. Vector
     # installation identifies an asynchronous root, never an installer call.
     evidence={'direct_control_target','runtime_control_target','dispatch_table_control_target',
-              'initial_record_control_target'}
+              'initial_record_control_target','initial_pointer_control_target'}
     for ref in section['code_start_refs']:
         if ref['evidence_kind'] not in evidence or ref.get('source_section_index') != section_index:
             continue

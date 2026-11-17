@@ -1209,6 +1209,53 @@ int m68k_analysis_render_lookup_append_orphan_code_signals_for_section(const M68
     }
     ++offset;
   }
+  /* Independently account for aligned return instructions even without a
+   * label or accepted-code boundary. This is an audit clue only: a return word
+   * in data is not evidence of an entry, function extent or runtime execution. */
+  for (offset = 0U; offset < render_extent; offset += 2U) {
+    M68kDecodeCandidate decoded;
+    const M68kDecodeCandidate *candidate;
+    M68kInstructionIR instruction;
+    const M68kSimFormMetadata *metadata;
+    M68kOrphanCodeSignalIR signal;
+    uint8_t encoded[UINT8_MAX];
+    M68kIrEncodeResult encoding;
+    int already_reported = 0, owned;
+    if (analysis_accepted_byte_at(section, accepted_bytes, offset)) continue;
+    candidate = analysis_orphan_decode_candidate_at_offset(lookup, section, offset, &decoded);
+    if (!candidate || !candidate->byte_count || candidate->byte_count > render_extent - offset ||
+        m68k_decode_candidate_to_instruction(candidate, &instruction) != 0 ||
+        !(metadata = m68k_sim_metadata_for_instruction(&instruction)) || metadata->flow_kind != M68K_SIM_FLOW_RETURN)
+      continue;
+    for (size_t n = 0U; n < section_analysis->orphan_code_signal_count; ++n)
+      if (section_analysis->orphan_code_signals[n].terminal_offset == offset) { already_reported = 1; break; }
+    if (already_reported) continue;
+    encoding = m68k_ir_encode_one(&instruction, encoded, sizeof(encoded), m68k_diag_sink(NULL));
+    if (encoding.byte_count != candidate->byte_count ||
+        memcmp(encoded, section->data + offset, candidate->byte_count) != 0) continue;
+    /* Do not diagnose an instruction extension inside already accepted code. */
+    for (uint32_t n = 0U; n < candidate->byte_count; ++n)
+      if (analysis_accepted_byte_at(section, accepted_bytes, offset + n)) { already_reported = 1; break; }
+    if (already_reported) continue;
+    owned = analysis_orphan_candidate_range_is_blocked(lookup, section, accepted_bytes,
+      offset, candidate->byte_count, 0);
+    memset(&signal, 0, sizeof(signal));
+    signal.offset = signal.terminal_offset = offset;
+    signal.size = candidate->byte_count;
+    signal.terminal_flow_kind = M68K_SIM_FLOW_RETURN;
+    signal.reason = M68K_ORPHAN_CODE_SIGNAL_RETURN_PROBE;
+    signal.context = M68K_ORPHAN_CODE_SIGNAL_CONTEXT_TERMINAL_PROBE;
+    signal.status = owned ? M68K_ORPHAN_CODE_SIGNAL_SUPPRESSED : M68K_ORPHAN_CODE_SIGNAL_UNRESOLVED;
+    signal.confidence = 10U;
+    signal.instruction_count = 1U;
+    signal.required_cpu = candidate->target_cpu;
+    signal.missing_inbound = M68K_ORPHAN_CODE_SIGNAL_INBOUND_UNKNOWN;
+    signal.detail = owned ? "aligned return probe in owned data; no code admission" :
+      "aligned return probe only; entry, extent and executable origin are unproved";
+    analysis_orphan_signal_attach_nearby_data_context(lookup, section, &signal);
+    analysis_orphan_signal_set_arbitration_flags(&signal, owned);
+    if (m68k_ir_section_analysis_append_orphan_code_signal(section_analysis, &signal) != 0) return -1;
+  }
   return 0;
 }
 

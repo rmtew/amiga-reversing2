@@ -624,6 +624,8 @@ const char *m68k_code_origin_evidence_kind_name(uint32_t evidence_kind) {
       return "dispatch_table_control_target";
     case M68K_CODE_ORIGIN_EVIDENCE_INITIAL_RECORD_CONTROL_TARGET:
       return "initial_record_control_target";
+    case M68K_CODE_ORIGIN_EVIDENCE_INITIAL_POINTER_CONTROL_TARGET:
+      return "initial_pointer_control_target";
     case M68K_CODE_ORIGIN_EVIDENCE_CALLBACK_FIELD_CONTROL_TARGET:
       return "callback_field_control_target";
     case M68K_CODE_ORIGIN_EVIDENCE_VECTOR_STORE_CONTROL_TARGET:

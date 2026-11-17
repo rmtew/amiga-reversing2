@@ -11956,6 +11956,131 @@ static int test_declared_table_comments_preserve_authored_and_unresolved_roles(v
   return 0;
 }
 
+static int test_facts_v2_folded_pointer_prefix_is_bounded_and_conservative(void) {
+  for (unsigned mapped = 0U; mapped < 2U; ++mapped) for (unsigned mode = 0U; mode < 15U; ++mode) {
+    AsmSourceFile parsed;
+    M68kObject object;
+    M68kAnalysisPolicy policy;
+    M68kFactsV2Profile profile;
+    M68kSourceAnalysisIR analysis;
+    char input[16384], entries[8192], *source = NULL;
+    unsigned count = mode == 11U ? 128U : mode == 12U ? 129U : 3U;
+    unsigned expected = mode == 0U || mode == 9U || mode == 10U || mode == 11U || mode == 13U || mode == 14U;
+    unsigned unique = mode == 9U || mode == 11U ? 1U : 3U;
+    size_t at = 0U;
+    for (unsigned n = 0U; n < count; ++n) {
+      const char *target = n == 0U ? (mode == 1U ? "first+1" : mode == 4U ? "before" : mode == 8U ? "first+2" : "first") :
+        mode == 9U || mode == 11U || mode == 12U ? "first" : n == 1U && mode == 2U ? "0" :
+        n == 2U && mode == 7U ? "$fffffff0" : n == 1U ? "second" : "third";
+      at += (size_t)snprintf(entries + at, sizeof(entries) - at, "\tdc.l %s\n", target);
+    }
+    snprintf(input, sizeof(input),
+      "SECTION code,code\n%s\tmove.w (a2),d0\n\tlea pointers(pc),a0\n"
+      "\tadd.w d0,d0\n%s\tadda.w d0,a0\n%s\tmovea.l (a0),%s\n\t%s (%s)\n\trts\n"
+      "before:\n\trts\npointers:\n%s"
+      "first:\n\tmoveq #1,d0\n\trts\nsecond:\n\tmoveq #2,d0\n\trts\nthird:\n\tmoveq #3,d0\n\trts\n",
+      mapped ? "\tORG $800\n" : "", mode == 5U ? "" : "\tadd.w d0,d0\n",
+      mode == 3U ? "\tmovea.l (a4),a0\n" : "", mode == 10U ? "a1" : "a0", mode == 14U ? "jmp" : "jsr", mode == 10U ? "a1" : "a0", entries);
+    if (mode == 13U) snprintf(input, sizeof(input),
+      "SECTION code,code\n%s\tbra.w dispatcher\npointers:\n%s"
+      "first:\n\tmoveq #1,d0\n\trts\nsecond:\n\tmoveq #2,d0\n\trts\nthird:\n\tmoveq #3,d0\n\trts\n"
+      "dispatcher:\n\tmove.w (a2),d0\n\tlea pointers(pc),a0\n"
+      "\tadd.w d0,d0\n\tadd.w d0,d0\n\tadda.w d0,a0\n\tmovea.l (a0),a0\n\tjsr (a0)\n\trts\n",
+      mapped ? "\tORG $800\n" : "", entries);
+    M68K_C_ASSERT_INT(0, m68k_source_model_create(&parsed));
+    memset(&object, 0, sizeof(object)); memset(&analysis, 0, sizeof(analysis));
+    parsed.target_cpu = M68K_ASM_CPU_68000;
+    M68K_C_ASSERT(m68k_source_pipeline_parse_text_and_layout(&parsed, input, m68k_diag_sink(NULL)));
+    M68K_C_ASSERT_INT(1, m68k_source_pipeline_emit_object(&parsed, &object, m68k_diag_sink(NULL)));
+    m68k_analysis_policy_init_default(&policy);
+    if (mapped) {
+      policy.runtime_range_count = 1U;
+      policy.runtime_ranges[0].has_section_index = 1U;
+      policy.runtime_ranges[0].size = object.sections[0].size;
+      policy.runtime_ranges[0].runtime_address = 0x800U;
+    }
+    if (mode == 6U) {
+      policy.structured_data_item_count = 1U;
+      policy.structured_data_items[0].has_section_index = 1U;
+      policy.structured_data_items[0].offset = object.sections[0].size - 12U;
+      policy.structured_data_items[0].size = 4U;
+      policy.structured_data_items[0].kind = M68K_ANALYSIS_STRUCTURED_DATA_BYTES;
+    }
+    M68K_C_ASSERT_INT(0, m68k_facts_v2_render_asm_source_analysis_profile_alloc(&object, &policy,
+      &source, &profile, &analysis, 1U, m68k_diag_sink(NULL)));
+    unsigned found = 0U, edges = 0U;
+    for (size_t n = 0U; n < analysis.sections[0].recovered_indirect_site_count; ++n) {
+      const M68kRecoveredIndirectSiteIR *site = &analysis.sections[0].recovered_indirect_sites[n];
+      if (site->status != M68K_RECOVERED_INDIRECT_STATUS_INITIAL_POINTER_CANDIDATES) continue;
+      ++found;
+      M68K_C_ASSERT_U32(count, site->table_entry_count);
+      M68K_C_ASSERT_U32(count * 4U, site->table_size);
+      M68K_C_ASSERT_U32(unique, site->target_count);
+      M68K_C_ASSERT(strstr(site->detail, "not closed") != NULL);
+    }
+    for (size_t n = 0U; n < analysis.sections[0].code_start_ref_count; ++n) {
+      const M68kCodeStartRefIR *r = &analysis.sections[0].code_start_refs[n];
+      if (r->evidence_kind != M68K_CODE_ORIGIN_EVIDENCE_INITIAL_POINTER_CONTROL_TARGET) continue;
+      ++edges;
+      M68K_C_ASSERT_U32(r->offset + (mapped ? 0x800U : 0U), r->runtime_address);
+    }
+    if (found != expected) fprintf(stderr,"pointer prefix mode=%u mapped=%u found=%u expected=%u\n",mode,mapped,found,expected);
+    M68K_C_ASSERT_U32(expected, found);
+    M68K_C_ASSERT_U32(expected ? unique : 0U, edges);
+    if (expected) {
+      char *json = NULL;
+      M68K_C_ASSERT_INT(0, source_analysis_to_json(&analysis, &json, m68k_diag_sink(NULL)));
+      M68K_C_ASSERT(strstr(json,"\"target_set_scope\":\"initial_image_pointer_prefix\"") != NULL);
+      M68K_C_ASSERT(strstr(json,"\"runtime_target_set_closed\":false") != NULL);
+      free(json);
+    }
+    M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
+    m68k_facts_v2_free_text(source); m68k_ir_source_analysis_destroy(&analysis);
+    m68k_object_destroy(&object); m68k_source_model_free(&parsed);
+  }
+  return 0;
+}
+
+static int test_facts_v2_return_probes_are_alignment_aware_and_never_promote(void) {
+  AsmSourceFile parsed;
+  M68kObject object;
+  M68kAnalysisPolicy policy;
+  M68kFactsV2Profile profile;
+  M68kSourceAnalysisIR analysis;
+  char *source = NULL;
+  const char *text = "SECTION code,code\n\trts\n\tdc.w $1234\n\trts\n\tdc.w $5678\n\trts\n\tdc.b $11\n\trts\n";
+  M68K_C_ASSERT_INT(0, m68k_source_model_create(&parsed));
+  memset(&object, 0, sizeof(object)); memset(&analysis, 0, sizeof(analysis));
+  parsed.target_cpu = M68K_ASM_CPU_68000;
+  M68K_C_ASSERT(m68k_source_pipeline_parse_text_and_layout(&parsed, text, m68k_diag_sink(NULL)));
+  M68K_C_ASSERT_INT(1, m68k_source_pipeline_emit_object(&parsed, &object, m68k_diag_sink(NULL)));
+  m68k_analysis_policy_init_default(&policy);
+  policy.structured_data_item_count = 1U;
+  policy.structured_data_items[0].has_section_index = 1U;
+  policy.structured_data_items[0].offset = 8U;
+  policy.structured_data_items[0].size = 2U;
+  policy.structured_data_items[0].kind = M68K_ANALYSIS_STRUCTURED_DATA_WORDS;
+  M68K_C_ASSERT_INT(0, m68k_facts_v2_render_asm_source_analysis_profile_alloc(&object, &policy,
+    &source, &profile, &analysis, 1U, m68k_diag_sink(NULL)));
+  int raw = 0, owned = 0;
+  for (size_t n = 0U; n < analysis.sections[0].orphan_code_signal_count; ++n) {
+    const M68kOrphanCodeSignalIR *r = &analysis.sections[0].orphan_code_signals[n];
+    M68K_C_ASSERT(r->terminal_offset != 11U);
+    if (r->reason != M68K_ORPHAN_CODE_SIGNAL_RETURN_PROBE) continue;
+    M68K_C_ASSERT_U32(1U, r->instruction_count);
+    M68K_C_ASSERT(r->confidence < 70U);
+    if (r->offset == 4U) { ++raw; M68K_C_ASSERT_U32(M68K_ORPHAN_CODE_SIGNAL_UNRESOLVED, r->status); }
+    if (r->offset == 8U) { ++owned; M68K_C_ASSERT_U32(M68K_ORPHAN_CODE_SIGNAL_SUPPRESSED, r->status); }
+  }
+  M68K_C_ASSERT_INT(1, raw); M68K_C_ASSERT_INT(1, owned);
+  M68K_C_ASSERT_U32(1U, analysis.sections[0].accepted_code_run_count);
+  M68K_C_ASSERT_U32(2U, analysis.sections[0].accepted_code_runs[0].end_offset);
+  M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
+  m68k_facts_v2_free_text(source); m68k_ir_source_analysis_destroy(&analysis);
+  m68k_object_destroy(&object); m68k_source_model_free(&parsed);
+  return 0;
+}
+
 static int test_facts_v2_initial_record_dispatch_candidates_are_bounded_and_conservative(void) {
   unsigned variable, mode, mapped;
   for (mapped = 0U; mapped < 2U; ++mapped) for (variable = 0U; variable < 2U; ++variable) for (mode = 0U; mode < 14U; ++mode) {
@@ -41022,6 +41147,10 @@ int m68k_c_ir_tests(void) {
       test_facts_v2_direct_indexed_stub_table_promotes_entries},
     {"declared_table_comments_preserve_authored_and_unresolved_roles",
       test_declared_table_comments_preserve_authored_and_unresolved_roles},
+    {"facts_v2_folded_pointer_prefix_is_bounded_and_conservative",
+      test_facts_v2_folded_pointer_prefix_is_bounded_and_conservative},
+    {"facts_v2_return_probes_are_alignment_aware_and_never_promote",
+      test_facts_v2_return_probes_are_alignment_aware_and_never_promote},
     {"facts_v2_initial_record_dispatch_candidates_are_bounded_and_conservative",
       test_facts_v2_initial_record_dispatch_candidates_are_bounded_and_conservative},
     {"facts_v2_fixed_pc_read_is_scalar_not_table",

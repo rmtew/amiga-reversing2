@@ -98,7 +98,8 @@ def test_missing_native_cause_keeps_generic_review_warning(message: object) -> N
     assert item["state"] == "open" and item["review_confidence"] == "high"
 
 
-def test_orphan_code_terminal_decode_only_is_report_only() -> None:
+@pytest.mark.parametrize("reason", ["terminal_decode", "return_probe"])
+def test_orphan_code_terminal_decode_only_is_report_only(reason: str) -> None:
     item = next(
         item
         for item in analysis_review_items(
@@ -112,7 +113,7 @@ def test_orphan_code_terminal_decode_only_is_report_only() -> None:
                             {
                                 "offset": 4,
                                 "size": 2,
-                                "reason_name": "terminal_decode",
+                                "reason_name": reason,
                                 "decode_plausibility": "valid_terminal",
                             },
                         ],

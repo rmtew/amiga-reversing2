@@ -1768,6 +1768,7 @@ static const char *recovered_indirect_status_name(uint8_t status) {
   if (status == M68K_RECOVERED_INDIRECT_STATUS_BACKWARD_SLICE) return "backward_slice";
   if (status == M68K_RECOVERED_INDIRECT_STATUS_JUMP_TABLE) return "jump_table";
   if (status == M68K_RECOVERED_INDIRECT_STATUS_EXTERNAL) return "external";
+  if (status == M68K_RECOVERED_INDIRECT_STATUS_INITIAL_POINTER_CANDIDATES) return "initial_pointer_candidates";
   if (status == M68K_RECOVERED_INDIRECT_STATUS_INITIAL_RECORD_CANDIDATES) return "initial_record_candidates";
   if (status == M68K_RECOVERED_INDIRECT_STATUS_CALLBACK_STORAGE_CANDIDATES) return "callback_storage_candidates";
   return "unknown";
@@ -1788,10 +1789,13 @@ static const char *recovered_indirect_table_bounds_status_name(uint8_t status) {
     return "rejected_scan_limit";
   if (status == M68K_RECOVERED_INDIRECT_TABLE_BOUNDS_REJECTED_RECORD_TARGET)
     return "rejected_record_target";
+  if (status == M68K_RECOVERED_INDIRECT_TABLE_BOUNDS_REJECTED_POINTER_PREFIX)
+    return "rejected_pointer_prefix";
   return "none";
 }
 
 static const char *orphan_code_signal_reason_name(uint8_t reason) {
+  if (reason == M68K_ORPHAN_CODE_SIGNAL_RETURN_PROBE) return "return_probe";
   if (reason == M68K_ORPHAN_CODE_SIGNAL_TERMINAL_DECODE) return "terminal_decode";
   if (reason == M68K_ORPHAN_CODE_SIGNAL_CALLBACK_SLOT) return "callback_slot";
   return "unknown";
@@ -1808,6 +1812,7 @@ static const char *orphan_code_signal_status_name(uint8_t status) {
 
 static const char *orphan_code_signal_context_name(uint8_t context) {
   if (context == M68K_ORPHAN_CODE_SIGNAL_CONTEXT_ACCEPTED_CODE_BOUNDARY) return "accepted_code_boundary";
+  if (context == M68K_ORPHAN_CODE_SIGNAL_CONTEXT_TERMINAL_PROBE) return "terminal_probe";
   if (context == M68K_ORPHAN_CODE_SIGNAL_CONTEXT_RENDERABLE_LABEL) return "renderable_label";
   if (context == M68K_ORPHAN_CODE_SIGNAL_CONTEXT_RUNTIME_VIEW) return "runtime_view";
   return "unknown";
@@ -2732,6 +2737,9 @@ static int append_source_analysis_table_candidate_records_json(JsonBuilder *buil
       if (site->has_target_count != 0U) {
         if (json_builder_appendf(builder, "%u", (unsigned)site->target_count) != 0) return -1;
       } else if (json_builder_append(builder, "null") != 0) return -1;
+      if (site->status == M68K_RECOVERED_INDIRECT_STATUS_INITIAL_POINTER_CANDIDATES &&
+          json_builder_appendf(builder, ",\"target_set_scope\":\"initial_image_pointer_prefix\",\"runtime_target_set_closed\":false") != 0)
+        return -1;
       if (site->status == M68K_RECOVERED_INDIRECT_STATUS_CALLBACK_STORAGE_CANDIDATES &&
           json_builder_appendf(builder, ",\"target_set_scope\":\"accepted_code_stores\",\"runtime_target_set_closed\":false") != 0)
         return -1;
@@ -6346,6 +6354,9 @@ static int source_analysis_to_json_impl(const M68kSourceAnalysisIR *source_analy
       } else if (json_builder_append(&builder, "null") != 0) {
         goto oom;
       }
+      if (site->status == M68K_RECOVERED_INDIRECT_STATUS_INITIAL_POINTER_CANDIDATES &&
+          json_builder_appendf(&builder, ",\"target_set_scope\":\"initial_image_pointer_prefix\",\"runtime_target_set_closed\":false") != 0)
+        goto oom;
       if (site->status == M68K_RECOVERED_INDIRECT_STATUS_CALLBACK_STORAGE_CANDIDATES &&
           json_builder_appendf(&builder, ",\"target_set_scope\":\"accepted_code_stores\",\"runtime_target_set_closed\":false") != 0)
         goto oom;
