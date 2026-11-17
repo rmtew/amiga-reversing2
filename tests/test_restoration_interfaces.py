@@ -235,6 +235,13 @@ def test_mcp_stdio_initialize_list_and_operation_parity(operation_server,kind):
                 "project": "demo", "expected_revision": "current", "entries": entries})
             assert not batch.is_error
             assert requests[-1] == {"operation": "interpret_batch", "expected_revision": "current", "entries": entries}
+            assert {"member_id", "media_paths"} <= set(by_name["restoration_interpret_batch"].input_schema["properties"])
+            scoped_batch = await session.call_tool("restoration_interpret_batch", {
+                "project": "demo", "expected_revision": "current", "entries": entries,
+                "member_id": "main", "media_paths": {"disc": "private-input"}})
+            assert not scoped_batch.is_error
+            assert requests[-1]["member_id"] == "main"
+            assert requests[-1]["media_paths"] == {"disc": "private-input"}
             assert not by_name["restoration_interpret_batch"].annotations.read_only_hint
             reviewed = await session.call_tool("restoration_review_batch", {
                 "project": "demo", "expected_revision": "current", "action_ids": ["action-1", "action-2"],

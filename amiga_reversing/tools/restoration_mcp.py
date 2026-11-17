@@ -179,13 +179,15 @@ def create_server(client: RestorationClient):
     @server.tool(annotations=write, structured_output=True)
     def restoration_interpret_batch(
         project: str, expected_revision: str, entries: list[dict],
+        member_id: str | None = None, media_paths: dict[str, str] | None = None,
     ) -> dict[str, object]:
         """Atomically apply 1–100 catalog interpretations from one inspected revision.
 
         Each entry has command_id, context, parameters and evidence, as in interpret.
         All evidence and catalog contexts are checked before any history changes.
         """
-        return call(project, "interpret_batch", expected_revision=expected_revision, entries=entries)
+        return call(project, "interpret_batch", expected_revision=expected_revision, entries=entries,
+                    **({"member_id": member_id, "media_paths": media_paths} if member_id is not None else {}))
 
     @server.tool(annotations=write, structured_output=True)
     def restoration_verify(project: str, expected_revision: str, output: str | None = None,

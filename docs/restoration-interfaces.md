@@ -856,6 +856,13 @@ load view. The runtime namespace and a mapped source identity remain distinct;
 ordinary value constants and accepted source identities retain their existing
 analysis paths.
 
+Disk-set members support the same `interpret_batch` operation for the scoped
+`comment.edit` and `label.rename` catalog actions. Put `member_id`, `media_paths`
+and `expected_revision` on the outer request only; entries cannot override them.
+All entries are checked against one fresh member analysis under the owner lock,
+then appended and regenerated together. The existing transaction requires exact
+member builds and complete media-placement coverage before publishing state.
+
 Use `interpret_batch` for a connected set of 1..100 interpretations from the same
 inspected revision:
 

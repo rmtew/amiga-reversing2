@@ -1013,7 +1013,8 @@ def execute_owner(root, body, *, project_root):
         current = {"revision": owner.revision, "subject_revision": owner.revision}
         operation = body.get("operation")
         if (
-            operation in {"build", "verify", "interpret", "rollback", "review"}
+            operation
+            in {"build", "verify", "interpret", "interpret_batch", "rollback", "review"}
             or body.get("expected_revision") is not None
         ) and body.get("expected_revision") != owner.revision:
             raise ValueError(
@@ -1048,6 +1049,7 @@ def execute_owner(root, body, *, project_root):
         if operation in MEMBER_OPERATIONS:
             from amiga_reversing.disasm.disk_set_state import (
                 edit_member,
+                edit_member_batch,
                 history_member,
                 inspect_member,
                 review_member,
@@ -1059,6 +1061,7 @@ def execute_owner(root, body, *, project_root):
                 raise ValueError("disk-set analysis requires an explicit member_id")
             return {
                 "interpret": edit_member,
+                "interpret_batch": edit_member_batch,
                 "inspect": inspect_member,
                 "history": history_member,
                 "rollback": rollback_member,

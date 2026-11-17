@@ -482,3 +482,55 @@ def test_member_verify_accepts_only_current_canonical_owner_receipts(
             verification_id=proof["receipt_id"],
             **review,
         )
+
+
+def test_scoped_batch_prepares_all_entries_before_one_atomic_append(
+    tmp_path, monkeypatch
+):
+    _, target, _, call = editable(tmp_path, monkeypatch)
+    first = call("inspect", source_offset=0)
+    second = call("inspect", source_offset=2, row_kind="label")
+    foreign = request(call("inspect", member="overlay", source_offset=0))
+    foreign.pop("expected_revision")
+    one = request(first)
+    two = request(second)
+    two.update(command_id="label.rename", parameters={"name": "finishBatch"})
+    revision = one.pop("expected_revision")
+    two.pop("expected_revision")
+    from amiga_reversing.disasm import disk_set_state
+
+    original_artifact = disk_set_state._artifact
+    calls = []
+
+    def counted_artifact(*args, **kwargs):
+        calls.append(args[1])
+        return original_artifact(*args, **kwargs)
+
+    monkeypatch.setattr(disk_set_state, "_artifact", counted_artifact)
+    before = (target / "manifest.json").read_bytes()
+    with pytest.raises(ValueError, match="not available"):
+        call(
+            "interpret_batch",
+            expected_revision=revision,
+            entries=[one, {**two, "command_id": "unsupported"}],
+        )
+    assert (target / "manifest.json").read_bytes() == before
+    assert calls == ["main"]
+    calls.clear()
+    with pytest.raises(ValueError, match="subject or revision mismatch"):
+        call("interpret_batch", expected_revision=revision, entries=[one, foreign])
+    assert (target / "manifest.json").read_bytes() == before
+    assert calls == ["main"]
+    calls.clear()
+    saved = call("interpret_batch", expected_revision=revision, entries=[one, two])
+    assert calls == ["main"]
+    assert len(saved["actions"]) == 2
+    assert saved["verification"]["media_exact"]
+    assert "finishBatch:" in (target / "main.s").read_text()
+    assert "Seeds the observed" in (target / "main.s").read_text()
+    with pytest.raises(ValueError, match="outer member"):
+        call(
+            "interpret_batch",
+            expected_revision=saved["revision"],
+            entries=[{**one, "member_id": "overlay"}],
+        )

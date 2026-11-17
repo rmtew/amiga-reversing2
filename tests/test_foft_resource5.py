@@ -128,10 +128,39 @@ def test_review_plan_is_inert_and_existing_prefix_guard_still_refuses_foft(tmp_p
     assert not (tmp_path / "not-created.json").exists()
     with pytest.raises(ValueError, match="Original-media"):
         validate_prefix_target("foft", "amiga_raw_foft")
-    assert (
-        plan["inputs"]["resource"]["package_sha256"]
-        == "9364f32f238f45f77a14eee16c6678353040bd6667a8081565617408acbe75c9"
-    )
+    import hashlib
+
+    evidence = plan["source_build_evidence"]
+    report_path = ROOT / evidence["path"]
+    assert hashlib.sha256(report_path.read_bytes()).hexdigest() == evidence["sha256"]
+    report = json.loads(report_path.read_bytes())
+    assert evidence["owner_revision"] == report["revision"]
+    assert evidence["verification"]["exact"]
+    assert evidence["direct_placements"] == 4
+    assert evidence["embedded_placements"] == 1
+    for key, member in [
+        ("program", "main"),
+        ("resource", "music-5"),
+        ("boot_loader", "boot"),
+    ]:
+        item = plan["inputs"][key]
+        assert (item["target"], item["member_id"]) == ("amiga_raw_foft", member)
+        assert item["owner_revision"] == evidence["owner_revision"]
+        assert item["package_sha256"] == evidence["source_package_sha256"]
+    for path, digest in plan["inputs"]["recipes"].items():
+        assert hashlib.sha256((ROOT / path).read_bytes()).hexdigest() == digest
+    assert len(plan["inputs"]["recipes"]) == 1
+    assert plan["mount_provenance_contract"]["same_hash_is_not_role_evidence"]
+    assert plan["mount_provenance_contract"]["per_run_independent_record"]
+    anchors = [
+        plan["normal_input_steps"][1]["release_at"],
+        plan["installed_bytes_contract"]["anchor"],
+        plan["playback_contract"]["after"],
+        plan["playback_contract"]["audio_stem"]["marker"],
+    ]
+    for anchor in anchors:
+        assert anchor["member_id"] == "main"
+        assert anchor["canonical_revision"] == evidence["owner_revision"]
     assert plan["installed_bytes_contract"]["read_count"] == 8
 
 

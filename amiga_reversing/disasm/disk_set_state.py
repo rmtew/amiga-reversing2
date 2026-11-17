@@ -18,7 +18,14 @@ from amiga_reversing.disasm.analysis_state_paths import STATE_FILES, bind_state_
 from amiga_reversing.disasm.disk_codecs import digest
 from amiga_reversing.disasm.source_package import _json as package_manifest_bytes
 
-MEMBER_OPERATIONS = ("inspect", "interpret", "history", "review", "rollback")
+MEMBER_OPERATIONS = (
+    "inspect",
+    "interpret",
+    "interpret_batch",
+    "history",
+    "review",
+    "rollback",
+)
 
 
 def validate_states(root, manifest, *, source_files=()):
@@ -255,7 +262,7 @@ def _artifact(owner, member, media_paths):
     return source, artifact
 
 
-def inspect_member(owner, member, body):
+def inspect_member(owner, member, body, *, artifact=None):
     """Discover a conservative subset of the normal row/element catalog."""
     from amiga_reversing.disasm.listing_context import listing_element_contexts
     from amiga_reversing.disasm.listing_projection import ListingProjectionService
@@ -278,7 +285,9 @@ def inspect_member(owner, member, body):
         or row_kind not in {"instruction", "label", "data"}
     ):
         raise ValueError("inspect requires a bounded member source location")
-    _, artifact = _artifact(owner, member, body.get("media_paths", {}))
+    owns_artifact = artifact is None
+    if owns_artifact:
+        _, artifact = _artifact(owner, member, body.get("media_paths", {}))
     try:
         try:
             row = artifact.row_for_source_identity(
@@ -341,7 +350,8 @@ def inspect_member(owner, member, body):
             "subject_revision": owner.revision,
         }
     finally:
-        artifact.close()
+        if owns_artifact:
+            artifact.close()
 
 
 def _member_packages(owner, changed, source):
@@ -411,13 +421,9 @@ def _member_packages(owner, changed, source):
     return packages
 
 
-def edit_member(owner, member, body):
+def _prepare_member_interpretation(owner, member, body, *, artifact=None):
     from amiga_reversing.disasm.manual_action_catalog import (
         listing_catalog_manual_payload,
-    )
-    from amiga_reversing.disasm.manual_actions import (
-        append_manual_actions,
-        manual_action_kind,
     )
 
     context = body.get("context", {})
@@ -436,6 +442,7 @@ def edit_member(owner, member, body):
             "row_kind": locator.get("kind"),
             "media_paths": body.get("media_paths", {}),
         },
+        artifact=artifact,
     )
     if context != inspected["context"]:
         raise ValueError("member locator subject or revision mismatch")
@@ -478,11 +485,57 @@ def edit_member(owner, member, body):
         },
     }
 
+    return kind, payload
+
+
+def edit_member(owner, member, body):
+    return _edit_member_entries(owner, member, body, [body])
+
+
+def edit_member_batch(owner, member, body):
+    entries = body.get("entries")
+    if not isinstance(entries, list) or not 1 <= len(entries) <= 100:
+        raise ValueError("interpret_batch requires 1..100 entries")
+    if any(
+        not isinstance(entry, dict)
+        or set(entry) & {"operation", "expected_revision", "member_id", "media_paths"}
+        for entry in entries
+    ):
+        raise ValueError(
+            "batch entries must use the outer member, revision and media bindings"
+        )
+    return _edit_member_entries(owner, member, body, entries)
+
+
+def _edit_member_entries(owner, member, body, entries):
+    from amiga_reversing.disasm.manual_actions import (
+        append_manual_actions,
+        manual_action_kind,
+    )
+
+    analysis_member, _ = owner.owner(member)
+    state_context(owner, analysis_member)  # Refuse sealed imports before media access.
+    _, artifact = _artifact(owner, member, body.get("media_paths", {}))
+    try:
+        prepared = [
+            _prepare_member_interpretation(
+                owner,
+                member,
+                {**entry, "media_paths": body.get("media_paths", {})},
+                artifact=artifact,
+            )
+            for entry in entries
+        ]
+    finally:
+        artifact.close()
+
     def append(root, source):
         return {
             "actions": append_manual_actions(
                 root,
-                actions=[(manual_action_kind(kind), payload)],
+                actions=[
+                    (manual_action_kind(kind), payload) for kind, payload in prepared
+                ],
                 binary_source=source,
             )
         }
