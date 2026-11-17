@@ -1,6 +1,12 @@
 import pytest
 
-from tools.foft_audio_layout_probe import decode_order, decode_pattern, probe
+from tools.foft_audio_layout_probe import (
+    decode_order,
+    decode_order_prefix,
+    decode_pattern,
+    decode_pattern_prefix,
+    probe,
+)
 
 
 def test_pattern_packet_boundaries_preserve_parameters_and_note_variants():
@@ -56,3 +62,34 @@ def test_profile_and_packet_bounds_are_explicit():
     for start, end in [(-1, 1), (0, 0), (0, 2)]:
         with pytest.raises(ValueError, match="outside"):
             decode_pattern(bytes([0xFF]), start, end)
+
+
+def test_bounded_prefixes_do_not_classify_container_tails_as_packets_or_padding():
+    data = bytes([0x20, 1, 0xFF, 0, 0xC7])
+    events, end = decode_pattern_prefix(data, 0, len(data))
+    assert end == 3 and sum(e["width"] for e in events) == 3
+    with pytest.raises(ValueError, match="precedes"):
+        decode_pattern(data, 0, len(data))
+    events, indices, end = decode_order_prefix(
+        bytes([1, 0xFE, 0xFF, 0xFF, 0xAB]), 0, 5, 2
+    )
+    assert end == 4 and indices == [1]
+    assert [e["width"] for e in events] == [1, 2, 1]
+
+
+def test_consumer_verified_pattern_profiles_preserve_parameter_ff_and_default_refusal():
+    data = bytes([0xC6, 0xFF, 0, 0xC7, 0xC7, 0xFF])
+    profile = {0xC6: 3, 0xC7: 0}
+    events = decode_pattern(data, 0, len(data), command_parameters=profile)
+    assert [e["width"] for e in events] == [4, 1, 1]
+    assert profile == {0xC6: 3, 0xC7: 0}
+    with pytest.raises(ValueError, match="Unsupported"):
+        decode_pattern(data, 0, len(data))
+
+
+@pytest.mark.parametrize(
+    "profile", [{True: 0}, {0xFF: 0}, {0xC0: -1}, {0xC0: True}, {0xC0: 256}, []]
+)
+def test_bad_pattern_profiles_do_not_admit_guessed_commands(profile):
+    with pytest.raises(ValueError, match="profile"):
+        decode_pattern_prefix(bytes([0xFF]), 0, 1, command_parameters=profile)

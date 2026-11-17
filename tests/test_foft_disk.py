@@ -102,6 +102,23 @@ def test_source_build_has_no_hidden_original_and_only_proven_assets(
             analysis = analyze_project_source_with_c_backend(
                 source, metadata_path=metadata_path, project_root=ROOT
             )
+        from tools.foft_resource5_audio_probe import probe as probe_resource5
+
+        packets = probe_resource5(binary.read_bytes())
+        assert len(packets["patterns"]) == 42 and len(packets["orders"]) == 8
+        assert (
+            sum(
+                t["source_end"] - t["source_start"] for t in packets["unconsumed_tails"]
+            )
+            == 71
+        )
+        assert packets["pattern_event_counts"] == {
+            "instrument_select": 133,
+            "note": 864,
+            "end": 42,
+            "rest": 86,
+            "command_nibble": 26,
+        }
         section = analysis["sections"][0]
         assert any(r["start_offset"] == 0x460 for r in section["accepted_code_runs"])
         callback = next(

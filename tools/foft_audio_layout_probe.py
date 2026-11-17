@@ -27,9 +27,26 @@ def _bounds(data, start, end):
         raise ValueError("Audio packet range lies outside the input")
 
 
-def decode_pattern(data: bytes, start: int, end: int):
-    """Decode one exactly bounded initial stream, requiring its final FF."""
+def decode_pattern_prefix(
+    data: bytes, start: int, end: int, *, command_parameters=None
+):
+    """Decode one stream within a containing bound; return its actual end.
+
+    A terminator does not classify any following bytes as padding. Alternate
+    command widths require an explicit consumer-verified profile.
+    """
     _bounds(data, start, end)
+    parameters = (
+        COMMAND_PARAMETERS if command_parameters is None else command_parameters
+    )
+    if not isinstance(parameters, dict) or any(
+        type(op) is not int
+        or not 0xC0 <= op < 0xFF
+        or type(count) is not int
+        or not 0 <= count <= 255
+        for op, count in parameters.items()
+    ):
+        raise ValueError("Invalid pattern command profile")
     cursor = start
     events = []
     while cursor < end:
@@ -38,9 +55,9 @@ def decode_pattern(data: bytes, start: int, end: int):
         if op == 0xFF:
             width, kind = 1, "end"
         elif op >= 0xC0:
-            if op not in COMMAND_PARAMETERS:
+            if op not in parameters:
                 raise ValueError(f"Unsupported pattern command at {at:#x}")
-            width = 1 + COMMAND_PARAMETERS[op]
+            width = 1 + parameters[op]
             kind = (
                 "slide_command"
                 if op == 0xC0
@@ -64,14 +81,22 @@ def decode_pattern(data: bytes, start: int, end: int):
             raise ValueError(f"Truncated pattern packet at {at:#x}")
         events.append({"offset": at - start, "width": width, "kind": kind})
         if op == 0xFF:
-            if cursor != end:
-                raise ValueError("Pattern terminator precedes the declared boundary")
-            return events
+            return events, cursor
     raise ValueError("Pattern has no FF terminator at its boundary")
 
 
-def decode_order(data: bytes, start: int, end: int, pattern_count: int):
-    """Validate the byte/parameter reads at $58D20-$58D82, without executing."""
+def decode_pattern(data: bytes, start: int, end: int, *, command_parameters=None):
+    """Exact stream wrapper; retained bytes after FF remain an error."""
+    events, consumed = decode_pattern_prefix(
+        data, start, end, command_parameters=command_parameters
+    )
+    if consumed != end:
+        raise ValueError("Pattern terminator precedes the declared boundary")
+    return events
+
+
+def decode_order_prefix(data: bytes, start: int, end: int, pattern_count: int):
+    """Validate one order stream inside a bound, without interpreting its tail."""
     _bounds(data, start, end)
     cursor = start
     events, indices = [], []
@@ -96,10 +121,16 @@ def decode_order(data: bytes, start: int, end: int, pattern_count: int):
             }
         )
         if op == 0xFF:
-            if cursor != end:
-                raise ValueError("Order terminator precedes the declared boundary")
-            return events, sorted(set(indices))
+            return events, sorted(set(indices)), cursor
     raise ValueError("Order has no FF terminator at its boundary")
+
+
+def decode_order(data: bytes, start: int, end: int, pattern_count: int):
+    """Exact initial-stream wrapper for the reads at $58D20-$58D82."""
+    events, indices, consumed = decode_order_prefix(data, start, end, pattern_count)
+    if consumed != end:
+        raise ValueError("Order terminator precedes the declared boundary")
+    return events, indices
 
 
 def probe(data: bytes):
