@@ -1,5 +1,6 @@
 """The resource target builds from its published source and narrow PCM assets."""
 
+import hashlib
 import json
 import struct
 from pathlib import Path
@@ -105,6 +106,12 @@ def test_source_build_has_no_hidden_original_and_only_proven_assets(
         from tools.foft_resource5_audio_probe import probe as probe_resource5
 
         packets = probe_resource5(binary.read_bytes())
+        # Independent external fingerprint; retained suffix stays in the build.
+        payload = binary.read_bytes()
+        assert payload[-2:] == bytes.fromhex("0180")
+        assert hashlib.sha256(payload[:-2]).hexdigest() == (
+            "28cd9ec22d962f65548c34a5ee2b18ef38d0a874dd8c32d76b9d7bccc2be5452"
+        )
         assert len(packets["patterns"]) == 42 and len(packets["orders"]) == 8
         assert (
             sum(
@@ -152,6 +159,10 @@ def test_source_build_has_no_hidden_original_and_only_proven_assets(
             r["offset"] == 0x1212 and r["field_name"] == "pattern_finished"
             for r in section["recovered_platform_typed_accesses"]
         )
+        assert {"repeat_offset", "repeat_length_words", "volume_delta"} <= {
+            r["field_name"] for r in section["recovered_platform_typed_accesses"]
+            if r["base_register"] == "A2" and r["owner_struct_name"] == "AudioInstrument"
+        }
 
 
 def test_disk_outputs_require_a_fresh_private_directory(tmp_path):

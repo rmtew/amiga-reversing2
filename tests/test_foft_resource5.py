@@ -90,6 +90,10 @@ def test_resource5_has_its_own_voice_type_and_shared_relative_long_aliases():
     voice = next(s for s in payload["custom_structs"] if s["name"] == "Bank5Voice")
     assert voice["size"] == 40
     assert {f["name"]: f["offset"] for f in voice["fields"]}["update_callback"] == 32
+    link = next(f for f in voice["fields"] if f["offset"] == 36)
+    assert (link["value_kind"], link["pointer_struct"], link["pointer_address_domain"]) == (
+        "struct_pointer", "AudioInstrument", "runtime_only"
+    )
     assert not any(s["name"] == "Audio2" for s in payload["custom_structs"])
     text = (TARGET / "source.s").read_text()
     assert "Bank5Voice_update_callback" in text
@@ -124,6 +128,7 @@ def test_track_prefixes_do_not_own_stride_gaps_or_the_adjacent_instrument_map():
         s for s in payload["custom_structs"] if s["name"] == "Bank5PatternTrackPrefix"
     )
     assert definition["size"] == 63
+    assert next(f for f in definition["fields"] if f["offset"] == 14)["value_kind"] == "scalar"
     assert max(f["offset"] + f["size"] for f in definition["fields"]) == 63
     roots = [0xEF6, 0xF3E, 0xF86, 0xFCE]
     layouts = [
