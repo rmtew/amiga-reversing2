@@ -215,7 +215,7 @@ def test_vetted_collections_preserve_complete_geometry_and_named_handlers():
     assert layouts["foft-scp_key_commands"].elements[0].array_count == 11
     assert layouts["foft-scp-instructions"].elements[0].array_count == 31
     text = (TARGET / "main.s").read_text()
-    assert "tableConvHandler:\n\tbra.w fConvHandleEnd\n" in text
+    assert "tableConvHandler:\n\tbra.w FinishConversationPatternScan\n" in text
     assert "\tdc.l fEditCommand\t; handler\n" in text
     assert "\tdc.l fShipIntimidator\n" in text
 

@@ -901,8 +901,12 @@ ASCII followed by one final NUL, no embedded NUL, and no overlap with a typed
 layout. It cannot include accepted code or cross a member boundary. This allows
 a string body after a separately typed header to retain readable assembly;
 seeding a string does not interpret embedded script operators as literal output.
-Other encodings, unterminated fragments and typed-field replacement are outside
-this narrow command. Existing revision, journal, build and media gates apply.
+Interior label rows may partition the catalog into several seeds. The command
+requires those source intervals to exactly cover the one inspected string,
+then retains the text fragments and point declarations under the common span
+evidence. The final NUL belongs to the complete selected string, not every
+presentation fragment. Other encodings, unterminated selections and typed-field
+replacement are outside this narrow command. Existing revision, journal, build and media gates apply.
 
 Disk-set members support the same `interpret_batch` operation for these scoped
 catalog actions, plus `comment.edit` and `label.rename`. Put `member_id`, `media_paths`

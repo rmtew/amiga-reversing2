@@ -11,7 +11,7 @@ from amiga_reversing.disasm.source_package_publish import publish_source_package
 from tests.test_disk_set import ROOT, fixture, packages_for
 
 
-def editable(tmp_path, monkeypatch, *, table=False, string=False):
+def editable(tmp_path, monkeypatch, *, table=False, string=False, interior=False):
     from amiga_reversing.disasm import restoration, server
 
     extra = (
@@ -21,8 +21,13 @@ def editable(tmp_path, monkeypatch, *, table=False, string=False):
         }
         if table
         else {
-            "main_data": bytes.fromhex("70074e753f68") + b"Hello\0",
-            "main_text": ' SECTION code,code\n ORG $1000\n moveq #7,d0\n rts\n dc.b $3f,$68,"Hello",0\n',
+            "main_data": bytes.fromhex(
+                "60024e7541fa00084e753f68" if interior else "70074e753f68"
+            )
+            + b"Hello\0",
+            "main_text": ' SECTION code,code\n ORG $1000\n bra.b useSuffix\n rts\n useSuffix:\n lea.l stringSuffix(pc),a0\n rts\n dc.b $3f,$68,"He"\n stringSuffix:\n dc.b "llo",0\n'
+            if interior
+            else ' SECTION code,code\n ORG $1000\n moveq #7,d0\n rts\n dc.b $3f,$68,"Hello",0\n',
         }
         if string
         else {}
@@ -40,6 +45,18 @@ def editable(tmp_path, monkeypatch, *, table=False, string=False):
             "citation": "Synthetic RTS boundary",
         }
     ]
+    if interior:
+        assert string and not table
+        metadata["seeded_code_labels"].append(
+            {
+                "hunk": 0,
+                "addr": 14,
+                "name": "stringSuffix",
+                "seed_origin": "manual_analysis",
+                "review_status": "seeded",
+                "citation": "Synthetic alternate entry into the same normal text bytes",
+            }
+        )
     data = json.dumps(metadata).encode()
     metadata_path.write_bytes(data)
     manifest["members"][0]["analysis"]["metadata"]["sha256"] = digest(data)
@@ -762,3 +779,15 @@ def test_scoped_string_body_preserves_typed_prefix_and_exact_source(
         with pytest.raises(ValueError, match=reason):
             call("interpret", **data_request(selected, "range.seed.data.string", {}))
         assert (target / "manifest.json").read_bytes() == manifest
+
+
+def test_scoped_string_seed_preserves_a_proven_interior_text_entry(
+    tmp_path, monkeypatch
+):
+    _, target, _, call = editable(tmp_path, monkeypatch, string=True, interior=True)
+    selected = call("inspect", source_offset=12, end_offset=18, row_kind="data")
+    saved = call("interpret", **data_request(selected, "range.seed.data.string", {}))
+    assert saved["verification"]["media_exact"]
+    text = (target / "main.s").read_text()
+    assert 'stringSuffix:\n\tdc.b "llo",$00' in text
+    assert '\tdc.b "He"' in text

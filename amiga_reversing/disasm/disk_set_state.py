@@ -622,43 +622,28 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None, source
                 parameters=body.get("parameters"),
             )
         ]
-    if command == "range.seed.data.string" and len(actions) != 1:
-        raise ValueError("string seed requires a single complete inspected data span")
-    for kind, payload in actions:
-        if command == "range.seed.data.string":
-            seed = payload.get("seed", {})
-            start, end = (
-                context["source_span"]["start_offset"],
-                context["source_span"]["end_offset"],
+    if command == "range.seed.data.string":
+        _validate_member_string_seeds(actions, context["source_span"])
+        start, end = (
+            context["source_span"]["start_offset"],
+            context["source_span"]["end_offset"],
+        )
+        if any(
+            layout["source_start"] < end and layout["source_end"] > start
+            for layout in _member_layouts(owner, member)
+        ):
+            raise ValueError("string seed overlaps an existing typed layout")
+        value = source.read_bytes()[start:end]
+        if (
+            not value
+            or value[-1] != 0
+            or 0 in value[:-1]
+            or any(byte < 32 or byte >= 127 for byte in value[:-1])
+        ):
+            raise ValueError(
+                "scoped string seed requires one complete NUL-terminated ASCII span"
             )
-            if (
-                kind != "create_manual_seed"
-                or seed.get("kind") != "data"
-                or seed.get("hunk") != 0
-                or seed.get("addr") != start
-                or seed.get("end") != end
-                or seed.get("data_role") != "string"
-                or seed.get("unit") != "byte"
-                or seed.get("encoding") != "ascii"
-            ):
-                raise ValueError(
-                    "string seed must match the exact inspected member span"
-                )
-            if any(
-                layout["source_start"] < end and layout["source_end"] > start
-                for layout in _member_layouts(owner, member)
-            ):
-                raise ValueError("string seed overlaps an existing typed layout")
-            value = source.read_bytes()[start:end]
-            if (
-                not value
-                or value[-1] != 0
-                or 0 in value[:-1]
-                or any(byte < 32 or byte >= 127 for byte in value[:-1])
-            ):
-                raise ValueError(
-                    "scoped string seed requires one complete NUL-terminated ASCII span"
-                )
+    for kind, payload in actions:
         if kind == "create_manual_data_block_layout":
             new = payload["data_block_layout"]
             if any(
@@ -713,6 +698,38 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None, source
             },
         }
     return actions
+
+
+def _validate_member_string_seeds(actions, span):
+    """Require catalog text fragments to exactly partition the selected string.
+
+    Label rows split catalog subranges. Retain those fragment boundaries so the
+    existing renderer emits each text slice and its interior declaration. Their
+    common inspected source span binds one logical string, not duplicate bytes.
+    """
+    cursor = span["start_offset"]
+    for kind, payload in actions:
+        seed = payload.get("seed", {})
+        end = seed.get("end")
+        if (
+            kind != "create_manual_seed"
+            or seed.get("kind") != "data"
+            or seed.get("hunk") != 0
+            or seed.get("addr") != cursor
+            or type(end) is not int
+            or end <= cursor
+            or seed.get("data_role") != "string"
+            or seed.get("unit") != "byte"
+            or seed.get("encoding") != "ascii"
+        ):
+            raise ValueError(
+                "string seed pieces must exactly cover the inspected data span"
+            )
+        cursor = end
+    if not actions or cursor != span["end_offset"]:
+        raise ValueError(
+            "string seed pieces must exactly cover the inspected data span"
+        )
 
 
 def _validate_member_data_action(owner, member, rows, kind, payload, source, artifact):
