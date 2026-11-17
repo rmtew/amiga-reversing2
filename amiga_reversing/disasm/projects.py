@@ -18,6 +18,7 @@ from amiga_reversing.disasm.binary_source import (
     is_internal_target,
     resolve_target_binary_source,
 )
+from amiga_reversing.disasm.disk_set import DiskSet, is_disk_set
 from amiga_reversing.disasm.macos_project_origin import (
     MACOS_CODE_FILE_TARGET_TYPE,
     MACOS_CONTAINER_TARGET_TYPE,
@@ -483,6 +484,17 @@ def dedupe_project_name(base_name: str, project_root: Path = PROJECT_ROOT) -> st
 
 def _disk_project_record(disk_dir: Path, state: BrowserState) -> ProjectRecord:
     metadata = _load_project_metadata(disk_dir)
+    if is_disk_set(disk_dir):
+        owner = DiskSet.load(disk_dir, project_root=disk_dir.parent.parent)
+        return ProjectRecord(
+            id=disk_dir.name, name=owner.manifest["name"], kind=ProjectKind.DISK,
+            target_dir=str(disk_dir), output_path=None, binary_path=None, ready=True,
+            last_opened=state.recent_projects.get(disk_dir.name),
+            manifest_path=str(disk_dir / "manifest.json"),
+            target_count=len(owner.members), source_path=None, disk_type="disk-set",
+            parent_project_id=None, target_type=None,
+            created_at=metadata.created_at, updated_at=metadata.updated_at, origin=metadata.origin,
+            game_family=owner.manifest["project_id"], release_id=owner.manifest["build_id"])
     manifest_path = disk_dir / "manifest.json"
     if not manifest_path.exists():
         raise FileNotFoundError(f"Missing manifest.json for disk project: {disk_dir.name}")
@@ -555,7 +567,7 @@ def _macos_child_target_count(target_dir: Path) -> int:
 
 def _load_project_record(project_name: str, state: BrowserState, project_root: Path) -> ProjectRecord:
     target_dir = resolve_project_dir(project_name, project_root=project_root)
-    if is_disk_project_id(project_name):
+    if is_disk_project_id(project_name) or is_disk_set(target_dir):
         return _disk_project_record(target_dir, state)
     metadata = _load_project_metadata(target_dir)
     if is_macos_project_origin(metadata.origin):
@@ -576,7 +588,7 @@ def list_projects(project_root: Path = PROJECT_ROOT) -> list[ProjectRecord]:
     for target_dir in targets_dir.iterdir():
         if not target_dir.is_dir() or target_dir.name.startswith("."):
             continue
-        if is_disk_project_id(target_dir.name):
+        if is_disk_project_id(target_dir.name) or is_disk_set(target_dir):
             projects.append(_disk_project_record(target_dir, state))
             continue
         if _is_internal_target(target_dir, project_root):
@@ -638,7 +650,11 @@ def delete_project(project_name: str, project_root: Path = PROJECT_ROOT) -> None
     project = get_project(project_name, project_root=project_root)
     state = _load_state(project_root)
     state.recent_projects.pop(project_name, None)
-    if project.kind is ProjectKind.DISK:
+    if project.kind is ProjectKind.DISK and is_disk_set(Path(project.target_dir)):
+        # The owner never owns the private original media path. Removing its
+        # source/state directory must not delete those immutable inputs.
+        shutil.rmtree(Path(project.target_dir))
+    elif project.kind is ProjectKind.DISK:
         assert project.manifest_path is not None
         manifest = DiskManifest.load(Path(project.manifest_path))
         if manifest.bootblock_target_name is not None:

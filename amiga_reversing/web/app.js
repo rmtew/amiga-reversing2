@@ -578,9 +578,13 @@ function formatProjectDetails(projectData) {
       details.push(origin);
     }
     if (projectData.project.target_count !== undefined) {
-      details.push(`${projectData.project.target_count} targets`);
+      details.push(`${projectData.project.target_count} ${projectData.project.disk_type === "disk-set" ? "members" : "targets"}`);
     }
     const manifest = requireObject(projectData.disk_manifest, "Disk manifest");
+    if (manifest.kind === "disk_set") {
+      details.push(`${manifest.media.length} media`, `${manifest.members.length} members`);
+      return details.join(" | ");
+    }
     const analysis = requireObject(manifest.analysis, "Disk analysis");
     const filesystem = analysis.filesystem || null;
     const diskInfo = analysis.disk_info || null;
@@ -667,7 +671,7 @@ function buildProjectBadges(project, projectData = null) {
       title: [
         "Disk project",
         diskInfo && diskInfo.variant ? `Variant: ${diskInfo.variant}` : null,
-        project.target_count !== undefined ? `Targets: ${project.target_count}` : null,
+        project.target_count !== undefined ? `${project.disk_type === "disk-set" ? "Members" : "Targets"}: ${project.target_count}` : null,
       ].filter(Boolean).join("\n"),
     });
     if (project.disk_type) {

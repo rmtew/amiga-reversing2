@@ -499,6 +499,10 @@ def _discard_read_snapshot(target_id):
 
 def execute(target_id: str, body: dict) -> dict:
     """One shared operation boundary for HTTP, UI, CLI and MCP."""
+    from amiga_reversing.disasm.disk_set import execute_owner, is_disk_set
+    owner = _server().PROJECT_ROOT / "targets" / target_id
+    if owner.parent == _server().PROJECT_ROOT / "targets" and is_disk_set(owner):
+        return execute_owner(owner, body, project_root=_server().PROJECT_ROOT)
     operation = body.get("operation")
     directory = _paths(target_id).target_dir
     snapshot = getattr(_server(), "_listing_read_snapshot", nullcontext)

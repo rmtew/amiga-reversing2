@@ -892,6 +892,26 @@ def _reproduction_profile_payload(project_name: str) -> dict[str, object]:
 
 def _source_export_payload(project_name: str, query: dict[str, list[str]]) -> dict[str, object]:
     project = get_project(project_name)
+    from amiga_reversing.disasm.disk_set import DiskSet, is_disk_set
+    if project.kind is ProjectKind.DISK and is_disk_set(Path(project.target_dir)):
+        import base64
+
+        from amiga_reversing.disasm.source_package import (
+            source_package_zip,
+            validate_source_package,
+        )
+        if ((_first_query_value(query, "assembler_profile") or "vasm") != "vasm"
+                or (_first_query_value(query, "structure_macros") or "false") != "false"
+                or _first_query_value(query, "layout_id")):
+            raise ValueError("sealed disk-set export supports its persisted vasm source package only")
+        owner = DiskSet.load(Path(project.target_dir), project_root=PROJECT_ROOT)
+        files = validate_source_package(owner.package)
+        return {"project": project_name, "filename": project_name + "-vasm.s",
+                "assembler_profile": "vasm", "source_text": files[owner.package["manifest"]["source"]].decode(),
+                "package": owner.package, "revision": owner.revision,
+                "asset_policy": "persisted_source_package", "scope": "whole_disk_set_source_package",
+                "archive_filename": project_name + "-sources.zip",
+                "archive_base64": base64.b64encode(source_package_zip(owner.package)).decode("ascii")}
     if not _is_listing_project(project) or not project.ready:
         raise ValueError(f"Project {project_name} is not ready for source export")
     assembler_profile = _first_query_value(query, "assembler_profile") or "vasm"
@@ -1914,6 +1934,10 @@ def _project_payload(project_name: str) -> ProjectPayload:
         manifest_path = project.manifest_path
         if manifest_path is None:
             raise ValueError(f"Disk project {project_name} is missing manifest_path")
+        from amiga_reversing.disasm.disk_set import DiskSet, is_disk_set
+        if is_disk_set(Path(project.target_dir)):
+            payload["disk_manifest"] = DiskSet.load(Path(project.target_dir), project_root=PROJECT_ROOT).manifest
+            return payload
         manifest = DiskManifest.load(Path(manifest_path))
         payload["disk_manifest"] = manifest.to_dict()
         target_state_path = Path(manifest_path).with_name("target_state.json")
@@ -3523,6 +3547,17 @@ def _project_disk_browser_payload(project_name: str, path: str = "") -> dict[str
     manifest_path = project.manifest_path
     if manifest_path is None:
         raise ValueError(f"Disk project {project_name} is missing manifest_path")
+    from amiga_reversing.disasm.disk_set import DiskSet, is_disk_set
+    if is_disk_set(Path(project.target_dir)):
+        owner = DiskSet.load(Path(project.target_dir), project_root=PROJECT_ROOT)
+        entries = [{"name": m["id"], "full_path": m["id"], "size": m["size"],
+                    "content": {"kind": "disk_set_member"}} for m in owner.manifest["members"]]
+        return disk_browser.browser_payload(
+            disk={"id": project_name, "name": owner.manifest["name"], "kind": "disk_set"},
+            entries=entries, path=path,
+            content_for_entry=lambda entry: disk_browser.content_payload_from_bytes(json.dumps({
+                **owner.members[entry["name"]], "analysis_owner": owner.owner(entry["name"])[0],
+                "member_mutation_supported": False}, indent=2).encode()))
     manifest = DiskManifest.load(Path(manifest_path))
     manifest_dict = manifest.to_dict()
     target_index: dict[str, str] = {}

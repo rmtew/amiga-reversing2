@@ -59,6 +59,8 @@ def create_server(client: RestorationClient):
     def restoration_query(
         project: str,
         kind: Literal[
+            "members",
+            "summary",
             "symbols",
             "references",
             "fields",
@@ -94,6 +96,8 @@ def create_server(client: RestorationClient):
         direction: Literal["incoming", "outgoing", "both"] | None = None,
         limit: int = 25,
         cursor: str | None = None,
+        member_id: str | None = None,
+        media_paths: dict[str, str] | None = None,
     ) -> dict[str, object]:
         """Query compact native facts, with revision-bound pagination (limit 1–100). Unknown indirect transfers remain explicit."""
         parameters = {
@@ -111,6 +115,8 @@ def create_server(client: RestorationClient):
             "direction": direction,
             "limit": limit,
             "cursor": cursor,
+            "member_id": member_id,
+            "media_paths": media_paths,
         }
         return call(
             project,
@@ -176,9 +182,11 @@ def create_server(client: RestorationClient):
         return call(project, "interpret_batch", expected_revision=expected_revision, entries=entries)
 
     @server.tool(annotations=write, structured_output=True)
-    def restoration_verify(project: str, expected_revision: str) -> dict[str, object]:
+    def restoration_verify(project: str, expected_revision: str, output: str | None = None,
+                           media_paths: dict[str, str] | None = None) -> dict[str, object]:
         """Regenerate source and check exact reproduction; record a revision-bound receipt."""
-        return call(project, "verify", expected_revision=expected_revision)
+        options = {k: v for k, v in {"output": output, "media_paths": media_paths}.items() if v is not None}
+        return call(project, "verify", expected_revision=expected_revision, **options)
 
     @server.tool(annotations=read, structured_output=True)
     def restoration_memory_plan(project: str, expected_revision: str, region_id: str,
@@ -193,6 +201,17 @@ def create_server(client: RestorationClient):
         """Get bounded typed-data fixups or validate an actual allocator return natively."""
         return call(project, "allocation_plan", expected_revision=expected_revision,
                     region_id=region_id, layout_id=layout_id, actual_base=actual_base)
+
+    @server.tool(annotations=write, structured_output=True)
+    def restoration_build(project: str, expected_revision: str, output: str,
+                          media_paths: dict[str, str]) -> dict[str, object]:
+        """Build every disk-set assembly owner and re-decode exact private media.
+
+        Requires a fresh private output directory. Does not launch an emulator
+        or qualify runtime behavior. Members remain scoped to their one owner.
+        """
+        return call(project, "build", expected_revision=expected_revision,
+                    output=output, media_paths=media_paths)
 
     @server.tool(annotations=write, structured_output=True)
     def restoration_memory_build(project: str, expected_revision: str, region_id: str,

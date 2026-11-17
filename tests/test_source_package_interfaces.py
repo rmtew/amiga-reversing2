@@ -11,6 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 from amiga_reversing.disasm import server, source_export
+from amiga_reversing.disasm.projects import ProjectKind
 from amiga_reversing.disasm.restoration_client import RestorationClient
 from amiga_reversing.disasm.source_package import build_source_package
 from amiga_reversing.tools import source_export as cli
@@ -23,7 +24,7 @@ def exported():
 
 
 def test_source_export_route_returns_complete_archive(monkeypatch):
-    monkeypatch.setattr(server, "get_project", lambda _: SimpleNamespace(ready=True))
+    monkeypatch.setattr(server, "get_project", lambda _: SimpleNamespace(ready=True, kind=ProjectKind.BINARY))
     monkeypatch.setattr(server, "_is_listing_project", lambda _: True)
     calls = []
     monkeypatch.setattr(server, "source_export_payload", lambda target, **options: calls.append(options) or exported())
@@ -64,7 +65,7 @@ def test_devpac_assets_are_explicitly_unverified():
 
 
 def test_server_layout_option_is_forwarded_and_refusal_is_not_promoted(monkeypatch):
-    monkeypatch.setattr(server,'get_project',lambda _:SimpleNamespace(ready=True))
+    monkeypatch.setattr(server,'get_project',lambda _:SimpleNamespace(ready=True, kind=ProjectKind.BINARY))
     monkeypatch.setattr(server,'_is_listing_project',lambda _:True)
     calls=[]
     def export(target,**options):

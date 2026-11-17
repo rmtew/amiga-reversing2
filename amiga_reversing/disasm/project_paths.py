@@ -42,6 +42,11 @@ def resolve_project_dir(name: str, project_root: Path = PROJECT_ROOT) -> Path:
         manifest_path = disk_dir / "manifest.json"
         if not manifest_path.exists():
             continue
+        from amiga_reversing.disasm.disk_set import is_disk_set
+        if is_disk_set(disk_dir):
+            # Members are scoped views of their owner, never discoverable as
+            # independently mutable target names or nested target directories.
+            continue
         manifest = DiskManifest.load(manifest_path)
         if manifest.bootblock_target_name == name:
             return project_root / Path(manifest.bootblock_target_path)

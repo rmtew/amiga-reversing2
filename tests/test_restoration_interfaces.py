@@ -7,9 +7,9 @@ import json
 import subprocess
 import sys
 import threading
-from urllib.parse import urlparse, parse_qs
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 
@@ -174,8 +174,11 @@ def test_mcp_stdio_initialize_list_and_operation_parity(operation_server,kind):
             initialized = await session.initialize()
             assert initialized.server_info.name == "Amiga source restoration"
             tools = (await session.list_tools()).tools
-            assert len(tools) == 16
+            assert len(tools) == 17
             by_name = {tool.name: tool for tool in tools}
+            assert not by_name["restoration_build"].annotations.read_only_hint
+            assert set(by_name["restoration_build"].input_schema["required"]) == {"project", "expected_revision", "output", "media_paths"}
+            assert {"member_id", "media_paths"} <= set(by_name["restoration_query"].input_schema["properties"])
             assert 'layout_id' in by_name['restoration_export'].input_schema['properties']
             exported=await session.call_tool('restoration_export',dict(project='demo',layout_id='placed'))
             assert not exported.is_error and exported.structured_content['layout_status']=='source_only_unqualified'

@@ -21,6 +21,7 @@ def main(argv: list[str] | None = None) -> int:
         "operation",
         choices=(
             "state",
+            "build",
             "export",
             "query",
             "inspect",
@@ -51,6 +52,8 @@ def main(argv: list[str] | None = None) -> int:
         "--kind",
         choices=(
             "symbols",
+            "members",
+            "summary",
             "references",
             "fields",
             "field_gaps",
@@ -89,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--direction", choices=("incoming", "outgoing", "both"))
     parser.add_argument("--limit", type=int)
     parser.add_argument("--cursor")
+    parser.add_argument("--member-id")
     args = parser.parse_args(argv)
     try:
         parameters = {}
@@ -123,6 +127,7 @@ def main(argv: list[str] | None = None) -> int:
             "direction",
             "limit",
             "cursor",
+            "member_id",
         ):
             value = getattr(args, name)
             if value is not None:

@@ -1713,3 +1713,19 @@ existing layout bounds, typed elements and interpreted references remain intact.
 Derived role captions disappear from the source. Layout names still require
 nonempty text, and non-string role values refuse. Replay and the existing undo
 history retain both the original description and its clearing action.
+
+## Disk-set owners
+
+The common sealed disk-set slice uses these same operation interfaces. One
+target owns media and scoped members; members are not child projects. Query
+`kind: members` for inventory, then use explicit `member_id` and private
+`media_paths` for native facts. `build` accepts `expected_revision`, a fresh
+private `output`, and those media bindings. `verify` additionally checks native
+source regeneration. Both independently assemble all source owners and require
+complete actual write coverage, exact re-decode and whole-image identity.
+Source export returns the entire persisted vasm bundle. No emulator runs.
+
+Member-aware mutation is not implemented in this first slice and is refused
+explicitly; imported annotation/journal bytes remain preserved. See
+[disk-set ownership and the next-title workflow](proposals/048-disk-set-targets.md)
+and [the private F.O.F.T. migration acceptance](validation/foft-disk-set.md).

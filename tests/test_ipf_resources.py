@@ -9,6 +9,7 @@ import pytest
 
 from amiga_reversing.disasm.ipf_resources import (
     CODEC,
+    PROJECT_ROOT,
     _encode_foft_sector,
     decode_foft_block,
     digest,
@@ -112,8 +113,62 @@ def test_partial_resource_crosses_sectors_and_exact_template_rebuild():
     rebuilt, proof = rebuild_resources(image, plan, outputs)
     assert rebuilt == image
     assert proof["regenerated_sectors"] == 3 and proof["untouched_bytes_preserved"]
+    assert proof["encoded_write_sectors"] == [[0, 0], [0, 1], [0, 2]]
+    assert proof["write_coverage"] == [
+        {
+            "file": "mixed_bank.bin",
+            "sha256": plan["actions"][0]["sha256"],
+            "size": 3123,
+            "spans": [
+                {
+                    "source_offset": 0,
+                    "length": 3123,
+                    "storage": {"track": 1, "side": 0, "offset": 1000},
+                }
+            ],
+        }
+    ]
     assert proof["scope"].endswith("boot and playback not tested")
     assert digest(image) == plan["image_sha256"]
+
+
+def test_omitted_ipf_placement_cannot_pass_using_unchanged_template():
+    from amiga_reversing.disasm.disk_codecs import IpfResources, verify_write_coverage
+
+    image = media_fixture()
+    plan = plan_for(image)
+    # A second placement is required even though both payloads already occur
+    # in the immutable template. Coverage comes from the actual write loop.
+    other = copy.deepcopy(plan["actions"][0])
+    other.update(
+        file="second.bin",
+        size=100,
+        sha256=digest(b"\1" * 100),
+        spans=[{"track": 1, "side": 0, "offset": 0, "length": 100}],
+    )
+    other["resource"].pop("analysis_target")
+    plan["actions"].append(other)
+    _, outputs = IpfResources.extract(image, plan, project_root=PROJECT_ROOT)
+    rebuilt, receipt = IpfResources.rebuild(
+        image, plan, outputs, project_root=PROJECT_ROOT
+    )
+    verify_write_coverage(
+        IpfResources.required_coverage(plan), receipt["write_coverage"]
+    )
+    assert rebuilt == image
+    reduced = copy.deepcopy(plan)
+    reduced["actions"].pop()
+    rebuilt, receipt = IpfResources.rebuild(
+        image,
+        reduced,
+        {"mixed_bank.bin": outputs["mixed_bank.bin"]},
+        project_root=PROJECT_ROOT,
+    )
+    assert rebuilt == image
+    with pytest.raises(ValueError, match="placement write coverage"):
+        verify_write_coverage(
+            IpfResources.required_coverage(plan), receipt["write_coverage"]
+        )
 
 
 def test_sector_encoder_changes_bytes_and_checksums_against_independent_oracle():

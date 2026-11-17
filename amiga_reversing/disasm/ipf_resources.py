@@ -160,10 +160,19 @@ def validate_plan(plan):
         _sha(action["sha256"])
         if not isinstance(action["resource"], dict):
             raise ValueError("missing resource evidence")
-        keys(action["resource"], "id kind destination trigger reader analysis_target")
+        # Analysis ownership belongs to the enclosing disk-set manifest. The
+        # older optional field remains provenance for pre-migration recipes;
+        # neither extraction nor rebuild resolves it as a target.
+        fields = "id kind destination trigger reader"
+        if "analysis_target" in action["resource"]:
+            fields += " analysis_target"
+        keys(action["resource"], fields)
+        text_fields = ("id", "kind", "trigger", "reader")
+        if "analysis_target" in action["resource"]:
+            text_fields += ("analysis_target",)
         if any(
             not isinstance(action["resource"][key], str) or not action["resource"][key]
-            for key in ("id", "kind", "trigger", "reader", "analysis_target")
+            for key in text_fields
         ):
             raise ValueError("invalid resource evidence")
         integer(action["resource"]["destination"], 0xFFFFFF)
@@ -324,10 +333,13 @@ def rebuild_resources(image, plan, outputs, *, project_root=PROJECT_ROOT):
         raise ValueError("template writer requires encoder 1 revision 1")
     result = bytearray(image)
     cache = _read_tracks(image, analysis, plan, project_root)
-    replacements = {}
+    replacements, write_coverage = {}, []
     for action in plan["actions"]:
         cursor = 0
+        completed = {"file": action["file"], "sha256": digest(outputs[action["file"]]),
+                     "size": len(outputs[action["file"]]), "spans": []}
         for span in action["spans"]:
+            source_start = cursor
             track, sectors = cache[span["track"], span["side"]]
             for pos in range(span["offset"], span["offset"] + span["length"]):
                 sector, within = divmod(pos, 2000)
@@ -346,8 +358,11 @@ def rebuild_resources(image, plan, outputs, *, project_root=PROJECT_ROOT):
                     raise ValueError("conflicting resource ownership")
                 record[2][within] = value
                 record[3].add(within)
-    allowed = set()
-    for track, sector, payload, _ in replacements.values():
+            completed["spans"].append({"source_offset": source_start, "length": cursor - source_start,
+                                       "storage": {k: v for k, v in span.items() if k != "length"}})
+        write_coverage.append(completed)
+    allowed, encoded_writes = set(), set()
+    for sector_key, (track, sector, payload, _) in replacements.items():
         block = sector["block"]
         at = _literal_sector_offset(image, block)
         # Reject descriptor/stream aliasing rather than changing another owner.
@@ -371,7 +386,16 @@ def rebuild_resources(image, plan, outputs, *, project_root=PROJECT_ROOT):
         if block["stream_offset"] < track["data_offset"] + 32 * len(track["blocks"]):
             raise ValueError("literal stream overlaps descriptors")
         result[at : at + 2005] = _encode_foft_sector(image[at : at + 3], payload)
+        encoded_writes.add(sector_key)
         allowed.update(range(at, at + 2005))
+    for completed in write_coverage:
+        for span in completed["spans"]:
+            storage = span["storage"]
+            track = cache[storage["track"], storage["side"]][0]
+            needed = {(track["index"], n) for n in range(storage["offset"] // 2000,
+                      (storage["offset"] + span["length"] - 1) // 2000 + 1)}
+            if not needed <= encoded_writes:
+                raise ValueError("incomplete encoded resource write coverage")
     for offset in sorted(
         {record[0]["data_offset"] for record in replacements.values()}
     ):
@@ -409,7 +433,9 @@ def rebuild_resources(image, plan, outputs, *, project_root=PROJECT_ROOT):
         original_sha256=digest(image),
         rebuilt_sha256=digest(result),
         untouched_bytes_preserved=True,
-        regenerated_sectors=len(replacements),
+        regenerated_sectors=len(encoded_writes),
+        encoded_write_sectors=[list(v) for v in sorted(encoded_writes)],
+        write_coverage=write_coverage,
         original_captures=original_receipt["captures"],
         scope="Exact literal template rebuild; boot and playback not tested",
     )
