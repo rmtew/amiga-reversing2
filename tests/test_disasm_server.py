@@ -6527,9 +6527,11 @@ def test_route_listing_returns_cached_window(monkeypatch: pytest.MonkeyPatch) ->
     }
 
 
+@pytest.mark.parametrize("metadata_filename", ["target_seeded_metadata.json", "target_metadata.json"])
 def test_route_listing_marks_target_seeded_rows_suppressible(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    metadata_filename: str,
 ) -> None:
     rows = [
         ListingRow(
@@ -6544,7 +6546,7 @@ def test_route_listing_marks_target_seeded_rows_suppressible(
     ]
     target_dir = tmp_path / "bloodwych"
     target_dir.mkdir()
-    (target_dir / "target_seeded_metadata.json").write_text(
+    (target_dir / metadata_filename).write_text(
         json.dumps(
             {
                 "target_type": "program",
@@ -6639,10 +6641,12 @@ def test_route_listing_marks_target_seeded_rows_suppressible(
 
 
 @pytest.mark.parametrize("command_id", ["data_symbol.rename", "data_symbol.rename_existing", "data_symbol.edit"])
+@pytest.mark.parametrize("metadata_filename", ["target_seeded_metadata.json", "target_metadata.json"])
 def test_route_manual_action_catalog_execute_renames_seeded_data_symbol(
     command_id: str,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    metadata_filename: str,
 ) -> None:
     rows = [
         ListingRow(
@@ -6658,7 +6662,7 @@ def test_route_manual_action_catalog_execute_renames_seeded_data_symbol(
     ]
     target_dir = tmp_path / "bloodwych"
     target_dir.mkdir()
-    (target_dir / "target_seeded_metadata.json").write_text(
+    (target_dir / metadata_filename).write_text(
         json.dumps(
             {
                 "target_type": "program",

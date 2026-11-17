@@ -120,7 +120,7 @@ from amiga_reversing.disasm.source_numbers import parse_source_int
 from amiga_reversing.disasm.target_metadata import (
     SuppressedSeededItemKind,
     TargetMetadata,
-    load_target_seeded_metadata,
+    load_target_metadata,
 )
 from amiga_reversing.disasm.tool_graph import (
     capability_availability_for_modes,
@@ -533,7 +533,11 @@ def _target_suppressible_seeded_items(project_name: str) -> list[dict[str, objec
         paths = resolve_project_paths(project_name, project_root=PROJECT_ROOT)
     except (FileNotFoundError, ValueError):
         return []
-    metadata = load_target_seeded_metadata(paths.target_dir)
+    # Imported declarations can live in the base metadata as well as the
+    # generated-seed layer. Their correction identity is the same section and
+    # extent; storage-file choice must not remove the normal reversible path.
+    # Read declared metadata, not the MAL projection we are annotating.
+    metadata = load_target_metadata(paths.target_dir)
     if metadata is None:
         return []
     return _suppressible_seeded_items_from_metadata(metadata)

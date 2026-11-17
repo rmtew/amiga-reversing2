@@ -115,3 +115,37 @@ def test_review_plan_is_inert_and_existing_prefix_guard_still_refuses_foft(tmp_p
         == load_published_source_package(TARGET)["sha256"]
     )
     assert plan["installed_bytes_contract"]["read_count"] == 8
+
+
+def test_track_prefixes_do_not_own_stride_gaps_or_the_adjacent_instrument_map():
+    with effective_metadata_file(TARGET) as path:
+        payload = json.loads(Path(path).read_bytes())
+    definition = next(
+        s for s in payload["custom_structs"] if s["name"] == "Bank5PatternTrackPrefix"
+    )
+    assert definition["size"] == 63
+    assert max(f["offset"] + f["size"] for f in definition["fields"]) == 63
+    roots = [0xEF6, 0xF3E, 0xF86, 0xFCE]
+    layouts = [
+        r
+        for r in payload["data_block_layouts"]
+        if r["layout_id"].startswith("foft-bank5-track-prefix-")
+    ]
+    assert [(r["source_start"], r["source_end"]) for r in layouts] == [
+        (r, r + 63) for r in roots
+    ]
+    assert roots[-1] + 63 < 0x1015 < roots[-1] + 72
+    assert not any(
+        r["addr"] in roots and r.get("end") == r["addr"] + 72
+        for r in payload["seeded_entities"]
+    )
+    assert (
+        len(
+            [
+                r
+                for r in payload["suppressed_seeded_items"]
+                if r["kind"] == "seeded_entity" and r["addr"] in roots
+            ]
+        )
+        == 4
+    )
