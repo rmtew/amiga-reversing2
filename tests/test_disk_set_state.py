@@ -11,10 +11,18 @@ from amiga_reversing.disasm.source_package_publish import publish_source_package
 from tests.test_disk_set import ROOT, fixture, packages_for
 
 
-def editable(tmp_path, monkeypatch):
+def editable(tmp_path, monkeypatch, *, table=False):
     from amiga_reversing.disasm import restoration, server
 
-    project, target, paths, manifest = fixture(tmp_path)
+    extra = (
+        {
+            "main_data": bytes.fromhex("70074e75000200001002"),
+            "main_text": " SECTION code,code\n ORG $1000\n moveq #7,d0\n rts\n dc.w $0002\n dc.l $00001002\n",
+        }
+        if table
+        else {}
+    )
+    project, target, paths, manifest = fixture(tmp_path, **extra)
     metadata_path = target / manifest["members"][0]["analysis"]["metadata"]["path"]
     metadata = json.loads(metadata_path.read_bytes())
     metadata["seeded_code_labels"] = [
@@ -533,4 +541,156 @@ def test_scoped_batch_prepares_all_entries_before_one_atomic_append(
             "interpret_batch",
             expected_revision=saved["revision"],
             entries=[{**one, "member_id": "overlay"}],
+        )
+
+
+def data_request(inspected, command, parameters):
+    rows = inspected.get("rows") or [inspected["row"]]
+    return {
+        "expected_revision": inspected["revision"],
+        "command_id": command,
+        "context": inspected["context"],
+        "parameters": parameters,
+        "evidence": {
+            "reason": "Synthetic bounded scalar record and absolute pointer.",
+            "evidence_refs": [r.get("stable_key") or r["row_key"] for r in rows],
+        },
+    }
+
+
+def test_scoped_data_range_scalar_pointer_and_conservative_bounds(
+    tmp_path, monkeypatch
+):
+    _, target, _, call = editable(tmp_path, monkeypatch, table=True)
+    with pytest.raises(ValueError, match="contiguous native data"):
+        call("inspect", source_offset=0, end_offset=4, row_kind="data")
+    with pytest.raises(ValueError, match="bounded data range"):
+        call("inspect", source_offset=4, end_offset=11, row_kind="data")
+    inspected = call("inspect", source_offset=4, end_offset=10, row_kind="data")
+    assert all(
+        c["target_context"] == inspected["context"] for c in inspected["commands"]
+    )
+    import copy
+
+    forged = data_request(inspected, "range.data_block.layout.create", {})
+    forged["context"] = copy.deepcopy(forged["context"])
+    forged["context"]["locators"][0]["member_id"] = "overlay"
+    with pytest.raises(ValueError, match="subject or revision mismatch"):
+        call("interpret", **forged)
+    created = call(
+        "interpret",
+        **data_request(
+            inspected,
+            "range.data_block.layout.create",
+            {
+                "name": "syntheticCommand",
+                "role": "WORD keyboard offset and LONG handler",
+                "default_unit": "word",
+            },
+        ),
+    )
+    overlap = call("inspect", source_offset=4, end_offset=6, row_kind="data")
+    with pytest.raises(ValueError, match="overlaps an existing layout"):
+        call("interpret", **data_request(overlap, "range.data_block.layout.create", {}))
+    ptr = call("inspect", source_offset=6, end_offset=10, row_kind="data")
+    assert ptr["context"]["source_span"] == {
+        "section_index": 0,
+        "start_offset": 6,
+        "end_offset": 10,
+    }
+    assert ptr["context"]["locators"][0]["start_offset"] == 4
+    before = (target / "manifest.json").read_bytes()
+    with pytest.raises(ValueError, match="exact span"):
+        call(
+            "interpret",
+            **data_request(
+                ptr, "range.data_block.element.set", {"kind": "scalar", "width": 2}
+            ),
+        )
+    assert (target / "manifest.json").read_bytes() == before
+    scalar = call(
+        "interpret",
+        **data_request(
+            ptr,
+            "range.data_block.element.set",
+            {"kind": "scalar", "name": "commandHandler"},
+        ),
+    )
+    assert scalar["verification"]["media_exact"]
+    inspected = call("inspect", source_offset=6, row_kind="data")
+    params = {
+        "reference_kind": "absolute",
+        "source_value": 0x1002,
+        "runtime_address": 0x1002,
+        "target_hunk": 0,
+        "target_offset": 2,
+    }
+    before = (target / "manifest.json").read_bytes()
+    with pytest.raises(ValueError, match="resolve uniquely"):
+        call(
+            "interpret",
+            **data_request(
+                inspected,
+                "row.data_block.element.interpret_ref",
+                {**params, "target_offset": 0},
+            ),
+        )
+    with pytest.raises(ValueError, match="selected source bytes"):
+        call(
+            "interpret",
+            **data_request(
+                inspected,
+                "row.data_block.element.interpret_ref",
+                {**params, "runtime_address": 0x1000},
+            ),
+        )
+    with pytest.raises(ValueError, match="exact span"):
+        call(
+            "interpret",
+            **data_request(
+                inspected,
+                "row.data_block.element.interpret_ref",
+                {**params, "layout_id": "foreign"},
+            ),
+        )
+    assert (target / "manifest.json").read_bytes() == before
+    linked = call(
+        "interpret",
+        **data_request(inspected, "row.data_block.element.interpret_ref", params),
+    )
+    assert linked["verification"]["media_exact"]
+    assert "dc.l finish" in (target / "main.s").read_text()
+    described = call("inspect", source_offset=6, row_kind="data")
+    with pytest.raises(ValueError, match="inspected member layout"):
+        call(
+            "interpret",
+            **data_request(
+                described,
+                "row.data_block.layout.describe",
+                {"layout_id": "foreign", "role": ""},
+            ),
+        )
+    cleared = call(
+        "interpret",
+        **data_request(described, "row.data_block.layout.describe", {"role": ""}),
+    )
+    assert cleared["verification"]["media_exact"]
+    assert (
+        "WORD keyboard offset and LONG handler" not in (target / "main.s").read_text()
+    )
+    assert "dc.l finish" in (target / "main.s").read_text()
+    assert created["revision"] != linked["revision"]
+
+
+def test_legacy_row_range_does_not_silently_ignore_member_span():
+    from amiga_reversing.disasm import server
+
+    with pytest.raises(server.CommandContractError, match="scoped disk-set member"):
+        server._command_context_from_body(
+            "unopened",
+            {
+                "kind": "range",
+                "locators": [],
+                "source_span": {"section_index": 0, "start_offset": 2, "end_offset": 4},
+            },
         )

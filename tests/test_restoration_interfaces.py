@@ -179,6 +179,15 @@ def test_mcp_stdio_initialize_list_and_operation_parity(operation_server,kind):
             assert not by_name["restoration_build"].annotations.read_only_hint
             assert set(by_name["restoration_build"].input_schema["required"]) == {"project", "expected_revision", "output", "media_paths"}
             assert {"member_id", "media_paths"} <= set(by_name["restoration_query"].input_schema["properties"])
+            assert "end_offset" in by_name["restoration_inspect"].input_schema["properties"]
+            selected = await session.call_tool("restoration_inspect", {
+                "project": "demo", "expected_revision": "current", "source_offset": 4,
+                "end_offset": 10, "row_kind": "data", "member_id": "main",
+                "media_paths": {"disc": "private-input"}})
+            assert not selected.is_error
+            assert requests[-1]["end_offset"] == 10
+            assert requests[-1]["member_id"] == "main"
+
             assert 'layout_id' in by_name['restoration_export'].input_schema['properties']
             exported=await session.call_tool('restoration_export',dict(project='demo',layout_id='placed'))
             assert not exported.is_error and exported.structured_content['layout_status']=='source_only_unqualified'

@@ -25,7 +25,7 @@ from tests.test_import_adf import _ffs_adf_with_single_file
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def fixture(tmp_path):
+def fixture(tmp_path, *, main_data=None, main_text=None):
     project = tmp_path / "project"
     target = project / "targets/amiga_disk_fixture"
     target.mkdir(parents=True)
@@ -41,6 +41,10 @@ def fixture(tmp_path):
         "return_view": bytes.fromhex("4e75"),
         "palette": bytes.fromhex("01020304"),
     }
+    if main_data is not None:
+        payloads["main"] = main_data
+    if main_text is not None:
+        texts["main"] = main_text
     (target / "analysis").mkdir()
     members = []
     for name, data in payloads.items():

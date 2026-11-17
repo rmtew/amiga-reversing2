@@ -2132,7 +2132,10 @@ def _public_command_context(context: Mapping[str, object]) -> dict[str, object]:
                 public[key] = context[key]
         return public
     if kind == "range":
-        return {"kind": "range", "locators": context["locators"], "row_count": context.get("row_count")}
+        return {
+            "kind": "range", "locators": context["locators"], "row_count": context.get("row_count"),
+            **({"source_span": context["source_span"]} if "source_span" in context else {}),
+        }
     if kind == "review_item":
         return {"kind": "review_item", "item_id": context.get("item_id")}
     return {"kind": "target"}
@@ -2317,6 +2320,8 @@ def _command_context_from_body(
         element_context["projection_hash"] = projection_hash
         return element_context, [row]
     if kind == "range":
+        if "source_span" in raw_context:
+            raise _command_contract_error("invalid_command_context", "Bounded data spans require the scoped disk-set member workflow")
         raw_locators = raw_context.get("locators")
         if not isinstance(raw_locators, list):
             raise _command_contract_error("missing_locator", "context.locators is required")

@@ -466,6 +466,13 @@ def listing_row_action_catalog(
     actions.extend(_row_data_role_actions(context))
     if _row_allows_data_seed(row):
         active_layout = _active_data_block_layout(row)
+        if active_layout is not None:
+            actions.append(_context_log_action(
+                "row.data_block.layout.describe", "Describe data-block layout",
+                "edit_manual_data_block_layout", context,
+                {"layout_id": active_layout["layout_id"], "role": active_layout.get("role") or ""},
+                {"type": "object", "properties": {"role": {"type": "string"}}},
+            ))
         actions.append(
             _context_log_action(
                 "row.data_block.layout.remove",
@@ -2048,6 +2055,8 @@ def listing_catalog_manual_payload(
         return "create_manual_rsset_use_site_binding", {
             "rsset_use_site_binding": _rsset_use_site_binding_payload(row, element_context, params)
         }
+    if ui_action == "edit_manual_data_block_layout":
+        return target_catalog_manual_payload("target.data_block.layout.describe", params)
     if ui_action == "create_manual_data_block_layout":
         return "create_manual_data_block_layout", {"data_block_layout": _data_block_layout_payload([row], params)}
     if ui_action == "remove_manual_data_block_layout":

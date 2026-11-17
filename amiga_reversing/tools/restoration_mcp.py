@@ -133,6 +133,7 @@ def create_server(client: RestorationClient):
         row_kind: Literal["instruction", "label", "data"] | None = None,
         member_id: str | None = None,
         media_paths: dict[str, str] | None = None,
+        end_offset: int | None = None,
     ) -> dict[str, object]:
         """Inspect a canonical source coordinate, related facts and available commands."""
         return call(
@@ -141,6 +142,7 @@ def create_server(client: RestorationClient):
             expected_revision=expected_revision,
             section_index=section_index,
             source_offset=source_offset,
+            **({"end_offset": end_offset} if end_offset is not None else {}),
             **({"row_kind": row_kind} if row_kind else {}),
             **({"member_id": member_id, "media_paths": media_paths} if member_id is not None else {}),
         )

@@ -262,10 +262,130 @@ def _artifact(owner, member, media_paths):
     return source, artifact
 
 
+def _member_locator(owner, member, row):
+    from amiga_reversing.disasm.listing_projection import ListingProjectionService
+
+    analysis_member, _ = owner.owner(member)
+    locator = (
+        ListingProjectionService()
+        .locator_for_row(
+            target_id=owner.manifest["id"], projection_hash=owner.revision, row=row
+        )
+        .to_dict()
+    )
+    locator.update(
+        member_id=member,
+        analysis_member_id=analysis_member,
+        artifact_sha256=owner.members[analysis_member]["sha256"],
+    )
+    return locator
+
+
+def _member_layouts(owner, member):
+    from amiga_reversing.disasm.disk_set import file_at
+
+    analysis_member, _ = owner.owner(member)
+    metadata = json.loads(
+        file_at(
+            owner.root, owner.members[analysis_member]["analysis"]["metadata"]["path"]
+        ).read_bytes()
+    )
+    return metadata.get("data_block_layouts", [])
+
+
+def _member_data_layout_row(owner, member, row, layouts=None):
+    """Join hash-validated layout seeds to compact native catalog context.
+
+    This is existing target metadata, not a new discovered analysis fact.
+    """
+    if layouts is None:
+        layouts = _member_layouts(owner, member)
+    layouts = [
+        layout
+        for layout in layouts
+        if layout["hunk"] == 0
+        and layout["source_start"] <= row["start_offset"]
+        and row["end_offset"] <= layout["source_end"]
+    ]
+    if len(layouts) > 1:
+        raise ValueError("ambiguous member data layout")
+    return {**row, **({"active_data_block_layout": layouts[0]} if layouts else {})}
+
+
+def _inspect_member_data_range(owner, member, body, artifact):
+    from amiga_reversing.disasm.manual_action_catalog import (
+        listing_range_action_catalog,
+    )
+    from amiga_reversing.disasm.server import _command_entry
+
+    analysis_member, bias = owner.owner(member)
+    start, end = body["source_offset"], body["end_offset"]
+    rows, cursor = [], start + bias
+    while cursor < end + bias:
+        row = artifact.row_for_source_identity(
+            section_index=0, offset=cursor, kind="data"
+        )
+        if row is None:
+            row = artifact.row_for_source_offset(section_index=0, offset=cursor)
+        if (
+            row is None
+            or row["kind"] != "data"
+            or not row["start_offset"] <= cursor < row["end_offset"]
+        ):
+            raise ValueError("data range requires contiguous native data coverage")
+        rows.append(row)
+        if len(rows) > 1000:
+            raise ValueError("data range exceeds 1000 native rows")
+        cursor = min(row["end_offset"], end + bias)
+    context = {
+        "kind": "range",
+        "locators": [_member_locator(owner, member, row) for row in rows],
+        "row_count": len(rows),
+        "source_span": {
+            "section_index": 0,
+            "start_offset": start + bias,
+            "end_offset": end + bias,
+        },
+    }
+    # Native rows may group several scalar fields. Selection bounds are not
+    # new analysis facts: only coordinate-sensitive catalog payloads use these
+    # clipped copies, while locators/evidence retain the full native witnesses.
+    selected = [
+        {
+            **row,
+            "start_offset": max(row["start_offset"], start + bias),
+            "end_offset": min(row["end_offset"], end + bias),
+        }
+        for row in rows
+    ]
+    layouts = _member_layouts(owner, member)
+    selected = [
+        _member_data_layout_row(owner, member, row, layouts) for row in selected
+    ]
+    supported = {"range.data_block.layout.create"}
+    layout_ids = {
+        row.get("active_data_block_layout", {}).get("layout_id") for row in selected
+    }
+    if len(layout_ids) == 1 and None not in layout_ids:
+        supported.add("range.data_block.element.set")
+    return {
+        "context": context,
+        "rows": rows,
+        "selection_rows": selected,
+        "commands": [
+            _command_entry(c, context)
+            for c in listing_range_action_catalog(selected)
+            if c["action_id"] in supported
+        ],
+        "scope": {**subject(owner.manifest, analysis_member), "member_id": member},
+        "revision": owner.revision,
+        "subject_revision": owner.revision,
+    }
+
+
 def inspect_member(owner, member, body, *, artifact=None):
     """Discover a conservative subset of the normal row/element catalog."""
     from amiga_reversing.disasm.listing_context import listing_element_contexts
-    from amiga_reversing.disasm.listing_projection import ListingProjectionService
     from amiga_reversing.disasm.manual_action_catalog import (
         listing_element_action_catalog,
         listing_row_action_catalog,
@@ -285,10 +405,20 @@ def inspect_member(owner, member, body, *, artifact=None):
         or row_kind not in {"instruction", "label", "data"}
     ):
         raise ValueError("inspect requires a bounded member source location")
+    end = body.get("end_offset")
+    if end is not None and (
+        type(end) is not int
+        or row_kind != "data"
+        or not offset < end <= owner.members[member]["size"]
+        or end - offset > 65536
+    ):
+        raise ValueError("inspect requires a bounded data range of at most 65536 bytes")
     owns_artifact = artifact is None
     if owns_artifact:
         _, artifact = _artifact(owner, member, body.get("media_paths", {}))
     try:
+        if end is not None:
+            return _inspect_member_data_range(owner, member, body, artifact)
         try:
             row = artifact.row_for_source_identity(
                 section_index=0, offset=offset + bias, kind=row_kind
@@ -308,18 +438,9 @@ def inspect_member(owner, member, body, *, artifact=None):
             <= bias + owner.members[member]["size"]
         ):
             raise ValueError("canonical row crosses the member view boundary")
-        locator = (
-            ListingProjectionService()
-            .locator_for_row(
-                target_id=owner.manifest["id"], projection_hash=owner.revision, row=row
-            )
-            .to_dict()
-        )
-        locator.update(
-            member_id=member,
-            analysis_member_id=analysis_member,
-            artifact_sha256=owner.members[analysis_member]["sha256"],
-        )
+        if row["kind"] == "data":
+            row = _member_data_layout_row(owner, member, row)
+        locator = _member_locator(owner, member, row)
         context = {"kind": "row", "locator": locator}
         commands = listing_row_action_catalog(row)
         if row["kind"] == "label":
@@ -335,6 +456,14 @@ def inspect_member(owner, member, body, *, artifact=None):
                 context.update(kind="element", element_id=label["element_id"])
                 commands = listing_element_action_catalog(row, label)
         supported = {"comment.edit", "label.rename"}
+        if row["kind"] == "data" and row.get("active_data_block_layout"):
+            supported.update(
+                {
+                    "row.data_block.element.set",
+                    "row.data_block.element.interpret_ref",
+                    "row.data_block.layout.describe",
+                }
+            )
         from amiga_reversing.disasm.server import _command_entry
 
         return {
@@ -421,29 +550,40 @@ def _member_packages(owner, changed, source):
     return packages
 
 
-def _prepare_member_interpretation(owner, member, body, *, artifact=None):
+def _prepare_member_interpretation(owner, member, body, *, artifact=None, source=None):
     from amiga_reversing.disasm.manual_action_catalog import (
         listing_catalog_manual_payload,
+        listing_range_catalog_manual_payload,
     )
 
     context = body.get("context", {})
-    locator = context.get("locator", {})
+    locators = context.get("locators") if context.get("kind") == "range" else None
+    if locators is not None and (
+        not isinstance(locators, list)
+        or not locators
+        or any(not isinstance(item, dict) for item in locators)
+    ):
+        raise ValueError("member range requires inspected locators")
+    locator = locators[0] if locators else context.get("locator", {})
     analysis_member, bias = owner.owner(member)
-    # Reconstruct the current locator from native facts, never caller row text.
     state_context(owner, analysis_member)
-    offset = locator.get("start_offset")
+    span = context.get("source_span", {}) if locators else locator
+    if not isinstance(span, dict):
+        raise ValueError("member range requires an inspected source span")
+    offset = span.get("start_offset")
     if type(offset) is not int:
         raise ValueError("member edit requires an inspected locator")
-    inspected = inspect_member(
-        owner,
-        member,
-        {
-            "source_offset": offset - bias,
-            "row_kind": locator.get("kind"),
-            "media_paths": body.get("media_paths", {}),
-        },
-        artifact=artifact,
-    )
+    selection = {
+        "source_offset": offset - bias,
+        "row_kind": locator.get("kind"),
+        "media_paths": body.get("media_paths", {}),
+    }
+    if context.get("kind") == "range":
+        end = span.get("end_offset")
+        if type(end) is not int:
+            raise ValueError("member range requires an inspected end")
+        selection.update(row_kind="data", end_offset=end - bias)
+    inspected = inspect_member(owner, member, selection, artifact=artifact)
     if context != inspected["context"]:
         raise ValueError("member locator subject or revision mismatch")
     command = body.get("command_id")
@@ -456,36 +596,134 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None):
         or not evidence["reason"].strip()
     ):
         raise ValueError("member interpretation needs concrete source evidence")
-    row = inspected["row"]
-    key = row.get("stable_key") or row.get("row_key")
+    rows = inspected.get("rows") or [inspected["row"]]
+    keys = [row.get("stable_key") or row.get("row_key") for row in rows]
     refs = evidence.get("evidence_refs", evidence.get("source_evidence_refs"))
-    if refs != [key]:
+    if refs != keys:
         raise ValueError("member edit requires the inspected canonical row evidence")
-    element = None
-    if context["kind"] == "element":
-        from amiga_reversing.disasm.listing_context import (
-            selected_listing_element_context,
+    if context["kind"] == "range":
+        actions = listing_range_catalog_manual_payload(
+            inspected["selection_rows"], command, parameters=body.get("parameters")
         )
+    else:
+        element = None
+        if context["kind"] == "element":
+            from amiga_reversing.disasm.listing_context import (
+                selected_listing_element_context,
+            )
 
-        element = selected_listing_element_context(row, context)
-    kind, payload = listing_catalog_manual_payload(
-        row, command, element_context=element, parameters=body.get("parameters")
+            element = selected_listing_element_context(rows[0], context)
+        actions = [
+            listing_catalog_manual_payload(
+                rows[0],
+                command,
+                element_context=element,
+                parameters=body.get("parameters"),
+            )
+        ]
+    for kind, payload in actions:
+        if kind == "create_manual_data_block_layout":
+            new = payload["data_block_layout"]
+            if any(
+                layout["hunk"] == new["hunk"]
+                and layout["source_start"] < new["source_end"]
+                and layout["source_end"] > new["source_start"]
+                for layout in _member_layouts(owner, member)
+            ):
+                raise ValueError("scoped layout creation overlaps an existing layout")
+        if kind == "edit_manual_data_block_layout":
+            layout = rows[0].get("active_data_block_layout")
+            if (
+                not layout
+                or payload["data_block_layout"]["layout_id"] != layout["layout_id"]
+                or not bias
+                <= layout["source_start"]
+                < layout["source_end"]
+                <= bias + owner.members[member]["size"]
+            ):
+                raise ValueError(
+                    "layout description must match the inspected member layout"
+                )
+        if kind in {
+            "set_manual_data_block_element",
+            "interpret_manual_data_block_element_ref",
+        }:
+            _validate_member_data_action(
+                owner,
+                member,
+                inspected.get("selection_rows", rows),
+                kind,
+                payload,
+                source,
+                artifact,
+            )
+        payload["interpretation"] = {
+            "source_evidence_status": "hypothesis",
+            **evidence,
+            "evidence_refs": refs,
+            "member_subject": subject(owner.manifest, analysis_member),
+            "subject_revision": owner.revision,
+            "subject": {
+                "section_index": 0,
+                "source_offset": offset,
+                "row_key": keys[0],
+                "command_id": command,
+                **(
+                    {"source_span": context["source_span"]}
+                    if "source_span" in context
+                    else {}
+                ),
+            },
+        }
+    return actions
+
+
+def _validate_member_data_action(owner, member, rows, kind, payload, source, artifact):
+    analysis_member, bias = owner.owner(member)
+    layout = rows[0].get("active_data_block_layout") or rows[0].get("data_block_layout")
+    value = payload[
+        "data_block_element"
+        if kind == "set_manual_data_block_element"
+        else "data_block_interpreted_ref"
+    ]
+    if (
+        not isinstance(layout, dict)
+        or value["layout_id"] != layout["layout_id"]
+        or not bias
+        <= layout["source_start"]
+        < layout["source_end"]
+        <= bias + owner.members[member]["size"]
+        or value["offset"] != rows[0]["start_offset"] - layout["source_start"]
+        or value["width"] != rows[-1]["end_offset"] - rows[0]["start_offset"]
+    ):
+        raise ValueError(
+            "data action must match the inspected member layout and exact span"
+        )
+    if kind == "set_manual_data_block_element":
+        if value["kind"] != "scalar" or value["width"] not in {1, 2, 4}:
+            raise ValueError(
+                "scoped data elements currently require byte/word/long scalars"
+            )
+        return
+    if (
+        value["reference_kind"] != "absolute"
+        or value["target_hunk"] != 0
+        or not 0 <= value["target_offset"] < owner.members[analysis_member]["size"]
+    ):
+        raise ValueError("scoped references require an absolute in-owner source target")
+    actual = int.from_bytes(
+        source.read_bytes()[rows[0]["start_offset"] : rows[-1]["end_offset"]], "big"
     )
-    payload["interpretation"] = {
-        "source_evidence_status": "hypothesis",
-        **evidence,
-        "evidence_refs": refs,
-        "member_subject": subject(owner.manifest, analysis_member),
-        "subject_revision": owner.revision,
-        "subject": {
-            "section_index": 0,
-            "source_offset": offset,
-            "row_key": key,
-            "command_id": command,
-        },
-    }
-
-    return kind, payload
+    resolved = artifact.source_for_runtime_address(address=actual)
+    if (
+        value["source_value"] != actual
+        or resolved.get("status") != "resolved"
+        or resolved.get("section_index") != 0
+        or resolved.get("source_offset") != value["target_offset"]
+    ):
+        raise ValueError(
+            "reference bytes must resolve uniquely to the inspected owner target"
+        )
 
 
 def edit_member(owner, member, body):
@@ -515,16 +753,18 @@ def _edit_member_entries(owner, member, body, entries):
 
     analysis_member, _ = owner.owner(member)
     state_context(owner, analysis_member)  # Refuse sealed imports before media access.
-    _, artifact = _artifact(owner, member, body.get("media_paths", {}))
+    source, artifact = _artifact(owner, member, body.get("media_paths", {}))
     try:
         prepared = [
-            _prepare_member_interpretation(
+            action
+            for entry in entries
+            for action in _prepare_member_interpretation(
                 owner,
                 member,
                 {**entry, "media_paths": body.get("media_paths", {})},
                 artifact=artifact,
+                source=source,
             )
-            for entry in entries
         ]
     finally:
         artifact.close()

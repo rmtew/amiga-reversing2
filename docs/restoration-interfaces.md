@@ -856,8 +856,27 @@ load view. The runtime namespace and a mapped source identity remain distinct;
 ordinary value constants and accepted source identities retain their existing
 analysis paths.
 
-Disk-set members support the same `interpret_batch` operation for the scoped
-`comment.edit` and `label.rename` catalog actions. Put `member_id`, `media_paths`
+Disk-set member `inspect` accepts `row_kind: "data"` and an exclusive
+`end_offset` to inspect a bounded data span (at most 65,536 bytes and 1,000 native
+rows). The selected bytes must all have native data coverage. A display row may
+group several fields: `source_span` records the selected interval separately
+from the unchanged native `locators` and their evidence keys. CLI `--end-offset`
+and MCP `restoration_inspect(end_offset=...)` expose the same selection.
+
+The scoped catalog supports `range.data_block.layout.create`,
+`range.data_block.element.set`, `row.data_block.element.set` and
+`row.data_block.element.interpret_ref`. `row.data_block.layout.describe` edits
+or clears the inspected layout's optional caption without removing its elements
+or references. Scalar edits require an existing,
+unambiguous owner layout and exactly the inspected byte/word/long span.
+Absolute references require the selected original bytes to resolve uniquely to
+the specified source offset in the same analysis owner. Runtime-only,
+ambiguous, cross-member and displacement interpretations remain unsupported by
+this scoped path; they are not inferred from numeric resemblance. Layout and
+scalar actions retain the existing Manual Action representations and validators.
+
+Disk-set members support the same `interpret_batch` operation for these scoped
+catalog actions, plus `comment.edit` and `label.rename`. Put `member_id`, `media_paths`
 and `expected_revision` on the outer request only; entries cannot override them.
 All entries are checked against one fresh member analysis under the owner lock,
 then appended and regenerated together. The existing transaction requires exact
