@@ -332,6 +332,13 @@ def test_generic_import_and_canonical_service_do_not_register_child_targets(
     assert len(browser["entries"]) == 4 and not any(
         "target_id" in r or r.get("importable") for r in browser["entries"]
     )
+    selected = server._project_disk_browser_payload(root.name, "return_view")
+    detail = json.loads(selected["selected_entry"]["content"]["text"])
+    discovered = next(m for m in state["members"] if m["id"] == "return_view")
+    assert detail["member_id"] == "return_view"
+    assert detail["analysis_owner"] == discovered["analysis_owner"] == "main"
+    assert detail["source_offset_bias"] == discovered["source_offset_bias"] == 2
+    assert detail["restoration_operations"] == discovered["restoration_operations"] == []
     exported = server._source_export_payload(root.name, {})
     assert (
         exported["scope"] == "whole_disk_set_source_package"

@@ -189,9 +189,10 @@ def create_server(client: RestorationClient):
 
     @server.tool(annotations=write, structured_output=True)
     def restoration_verify(project: str, expected_revision: str, output: str | None = None,
-                           media_paths: dict[str, str] | None = None) -> dict[str, object]:
+                           media_paths: dict[str, str] | None = None,
+                           member_id: str | None = None) -> dict[str, object]:
         """Regenerate source and check exact reproduction; record a revision-bound receipt."""
-        options = {k: v for k, v in {"output": output, "media_paths": media_paths}.items() if v is not None}
+        options = {k: v for k, v in {"output": output, "media_paths": media_paths, "member_id": member_id}.items() if v is not None}
         return call(project, "verify", expected_revision=expected_revision, **options)
 
     @server.tool(annotations=read, structured_output=True)

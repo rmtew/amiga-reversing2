@@ -1727,9 +1727,14 @@ Source export returns the entire persisted vasm bundle. No emulator runs.
 
 Members with explicit editable state bindings support `inspect`, `interpret`
 (`comment.edit` and unambiguous `label.rename`), `history`, `rollback` (undo and
-redo), and `review` (defer and reject) through these same interfaces, including
-CLI request JSON and MCP member parameters. Discovery lists available member
-operations. Locators,
+redo), and `review` through these same interfaces, including CLI request JSON
+and MCP member parameters. For acceptance, run `verify` with `member_id` and
+pass the returned `verification.receipt_id` as `verification_id`. The receipt
+binds the canonical analysis owner and the current disk-set revision to exact
+regeneration, dual assembly and aggregate placement coverage. A shared view
+and its owner use the same receipt scope. Any change to the disk-set revision
+requires new verification for acceptance. Discovery lists member operations.
+Locators,
 evidence and revisions are member-bound; shared views use their canonical
 owner's journal. Other commands and sealed members refuse. Imported state and
 original journal bytes remain preserved. See

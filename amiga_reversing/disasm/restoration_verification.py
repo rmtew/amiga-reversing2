@@ -37,17 +37,17 @@ def _hash(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _directory(target_id: str) -> Path:
+def _directory(target_id: str, *, project_root: Path | None = None) -> Path:
     # Hash untrusted identifiers rather than permitting path components.
-    path = PROJECT_ROOT / ".runtime-state" / "restoration" / _hash(target_id.encode())
+    path = (project_root or PROJECT_ROOT) / ".runtime-state" / "restoration" / _hash(target_id.encode())
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
-def _persist(target_id: str, receipt: dict) -> dict:
+def _persist(target_id: str, receipt: dict, *, project_root: Path | None = None) -> dict:
     encoded = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
     identity = _hash(encoded)
-    (_directory(target_id) / f"{identity}.json").write_bytes(encoded)
+    (_directory(target_id, project_root=project_root) / f"{identity}.json").write_bytes(encoded)
     return {**receipt, "receipt_id": identity}
 
 
@@ -141,7 +141,7 @@ def verify(target_id: str, subject_revision: str, *, artifact=None) -> dict:
     )
 
 
-def load_receipt(target_id: str, receipt_id: str) -> dict:
+def load_receipt(target_id: str, receipt_id: str, *, project_root: Path | None = None) -> dict:
     """Read content-addressed evidence; never accept a caller-supplied path."""
     if (
         not isinstance(receipt_id, str)
@@ -149,7 +149,7 @@ def load_receipt(target_id: str, receipt_id: str) -> dict:
         or any(c not in "0123456789abcdef" for c in receipt_id)
     ):
         raise ValueError("A persisted receipt identity is required.")
-    encoded = (_directory(target_id) / f"{receipt_id}.json").read_bytes()
+    encoded = (_directory(target_id, project_root=project_root) / f"{receipt_id}.json").read_bytes()
     if _hash(encoded) != receipt_id:
         raise ValueError("Receipt integrity mismatch.")
     saved = json.loads(encoded)

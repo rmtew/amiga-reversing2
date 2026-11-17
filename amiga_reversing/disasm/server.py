@@ -3549,18 +3549,22 @@ def _project_disk_browser_payload(project_name: str, path: str = "") -> dict[str
         raise ValueError(f"Disk project {project_name} is missing manifest_path")
     from amiga_reversing.disasm.disk_set import DiskSet, is_disk_set
     if is_disk_set(Path(project.target_dir)):
-        from amiga_reversing.disasm.disk_set_state import MEMBER_OPERATIONS
         owner = DiskSet.load(Path(project.target_dir), project_root=PROJECT_ROOT)
+
+        def member_detail(entry):
+            member_id = entry["name"]
+            detail = owner.member_restoration(member_id)
+            return disk_browser.content_payload_from_bytes(json.dumps({
+                **owner.members[member_id], **detail,
+                "member_mutation_supported": detail["editable"],
+            }, indent=2).encode())
+
         entries = [{"name": m["id"], "full_path": m["id"], "size": m["size"],
                     "content": {"kind": "disk_set_member"}} for m in owner.manifest["members"]]
         return disk_browser.browser_payload(
             disk={"id": project_name, "name": owner.manifest["name"], "kind": "disk_set"},
-            entries=entries, path=path,
-            content_for_entry=lambda entry: disk_browser.content_payload_from_bytes(json.dumps({
-                **owner.members[entry["name"]], "analysis_owner": owner.owner(entry["name"])[0],
-                "member_mutation_supported": bool((owner.members[owner.owner(entry["name"])[0]]["analysis"] or {}).get("state")),
-                "restoration_operations": list(MEMBER_OPERATIONS) if (owner.members[owner.owner(entry["name"])[0]]["analysis"] or {}).get("state") else [],
-                "member_id": entry["name"]}, indent=2).encode()))
+            entries=entries, path=path, content_for_entry=member_detail,
+        )
     manifest = DiskManifest.load(Path(manifest_path))
     manifest_dict = manifest.to_dict()
     target_index: dict[str, str] = {}

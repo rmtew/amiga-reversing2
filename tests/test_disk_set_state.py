@@ -421,3 +421,64 @@ def test_decision_journal_cannot_be_rebound_to_another_member(tmp_path, monkeypa
     path.write_text(json.dumps(manifest))
     with pytest.raises(ValueError, match="member decision subject mismatch"):
         DiskSet.load(target, project_root=project)
+
+
+def test_member_verify_accepts_only_current_canonical_owner_receipts(
+    tmp_path, monkeypatch
+):
+    _, _, _, call = editable(tmp_path, monkeypatch)
+    inspected = call("inspect", member="return_view", source_offset=0)
+    edited = call("interpret", member="return_view", **request(inspected))
+    revision = edited["revision"]
+    review = {
+        "action_id": edited["actions"][0]["action_id"],
+        "decision": "accept",
+        "reason": "The instruction and exact rebuild support the interpretation.",
+    }
+    with pytest.raises(ValueError, match="persisted receipt identity"):
+        call("review", expected_revision=revision, **review)
+    wrong = call(
+        "verify",
+        member="overlay",
+        expected_revision=revision,
+        output=str(tmp_path / "overlay-proof"),
+    )["verification"]
+    with pytest.raises(ValueError, match="does not match this member"):
+        call(
+            "review",
+            expected_revision=revision,
+            verification_id=wrong["receipt_id"],
+            **review,
+        )
+    verified = call(
+        "verify",
+        member="return_view",
+        expected_revision=revision,
+        output=str(tmp_path / "main-proof"),
+    )
+    proof = verified["verification"]
+    assert (
+        verified["coverage"]["complete"]
+        and verified["coverage"]["independent_redecode"]
+    )
+    assert proof["member_subject"]["analysis_member_id"] == "main"
+    assert proof["member_build"]["native_exact"] and proof["member_build"]["vasm_exact"]
+    accepted = call(
+        "review",
+        expected_revision=revision,
+        verification_id=proof["receipt_id"],
+        **review,
+    )
+    assert accepted["decision"]["verification_id"] == proof["receipt_id"]
+    assert accepted["decision"]["action"] == "accept_fact"
+    assert (
+        call("history", member="return_view")["items"][0]["decision"]
+        == accepted["decision"]
+    )
+    with pytest.raises(ValueError, match="does not match this member and revision"):
+        call(
+            "review",
+            expected_revision=accepted["revision"],
+            verification_id=proof["receipt_id"],
+            **review,
+        )

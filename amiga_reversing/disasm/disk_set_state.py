@@ -559,6 +559,42 @@ def _member_decisions(records):
     return decisions
 
 
+def persist_member_verification(owner, analysis_member, build, regeneration):
+    from amiga_reversing.disasm.restoration_verification import _persist
+
+    proof = build["members"][analysis_member]
+    coverage = build["coverage"]
+    if not (
+        regeneration[analysis_member].get("whole_source_package_exact") is True
+        and proof.get("native_exact") is True
+        and proof.get("vasm_exact") is True
+        and coverage["complete"]
+        and coverage["independent_redecode"]
+        and all(media["whole_file_exact"] for media in build["media"].values())
+    ):
+        raise ValueError(
+            "member verification requires exact regeneration and aggregate coverage"
+        )
+    target = owner.manifest["id"]
+    return _persist(
+        target,
+        {
+            "kind": "disk_set_member_verification",
+            "target_id": target,
+            "subject_revision": owner.revision,
+            "member_subject": subject(owner.manifest, analysis_member),
+            "source_package_sha256": owner.package["sha256"],
+            "exact": True,
+            "member_build": proof,
+            "media_sha256": {
+                name: media["sha256"] for name, media in build["media"].items()
+            },
+            "coverage_sha256": digest(json.dumps(coverage, sort_keys=True).encode()),
+        },
+        project_root=owner.project_root,
+    )
+
+
 def review_member(owner, member, body):
     from amiga_reversing.disasm.decision_journal import (
         append_decision_records,
@@ -569,22 +605,40 @@ def review_member(owner, member, body):
         manual_action_interpretation,
     )
     from amiga_reversing.disasm.restoration import _prepare_review_records
+    from amiga_reversing.disasm.restoration_verification import load_receipt
 
     choice, reason = body.get("decision"), body.get("reason")
-    if choice == "accept":
-        raise ValueError(
-            "member acceptance requires a durable member-scoped verification receipt"
-        )
     if (
-        choice not in ("defer", "reject")
+        choice not in ("accept", "defer", "reject")
         or not isinstance(reason, str)
         or not 0 < len(reason.strip()) <= 4096
     ):
         raise ValueError(
-            "member review requires defer or reject and a reason of at most 4096 characters"
+            "member review requires accept, defer or reject and a reason of at most 4096 characters"
         )
-    if body.get("verification_id") is not None or body.get("probe_id") is not None:
-        raise ValueError("member review does not accept unscoped receipt IDs")
+    if body.get("probe_id") is not None:
+        raise ValueError("member review does not accept runtime probe receipts")
+    analysis_member, _ = owner.owner(member)
+    verification_id = body.get("verification_id")
+    verification = None
+    if verification_id is not None or choice == "accept":
+        try:
+            verification = load_receipt(
+                owner.manifest["id"], verification_id, project_root=owner.project_root
+            )
+        except FileNotFoundError as exc:
+            raise ValueError("member verification receipt was not found") from exc
+        if (
+            verification.get("kind") != "disk_set_member_verification"
+            or verification.get("exact") is not True
+            or verification.get("subject_revision") != owner.revision
+            or verification.get("member_subject")
+            != subject(owner.manifest, analysis_member)
+            or verification.get("source_package_sha256") != owner.package["sha256"]
+        ):
+            raise ValueError(
+                "verification receipt does not match this member and revision"
+            )
 
     def append(root, source):
         action_id = body.get("action_id")
@@ -619,11 +673,11 @@ def review_member(owner, member, body):
             item,
             chain,
         )
-        decision["scope"]["analysis_member_id"] = owner.owner(member)[0]
+        decision["scope"]["analysis_member_id"] = analysis_member
         result = append_decision_records(root, additions)
         if result["status"] != "appended":
             raise ValueError(f"member decision rejected: {result.get('diagnostics')}")
-        return {"decision": decision}
+        return {"decision": decision, "review_verification": verification}
 
     return _apply_member_change(owner, member, body, append)
 

@@ -513,6 +513,22 @@ class DiskSet:
     def members(self):
         return {m["id"]: m for m in self.manifest["members"]}
 
+    def member_restoration(self, member_id):
+        from amiga_reversing.disasm.disk_set_state import MEMBER_OPERATIONS
+
+        analysis_member, bias = self.owner(member_id)
+        analysis = self.members[analysis_member]["analysis"]
+        editable = bool((analysis or {}).get("state"))
+        return {
+            "member_id": member_id,
+            "analysis_owner": analysis_member if analysis is not None else None,
+            "source_offset_bias": bias,
+            "editable": editable,
+            "restoration_operations": [*MEMBER_OPERATIONS, "verify"]
+            if editable
+            else [],
+        }
+
     def owner(self, member_id):
         if member_id not in self.members:
             raise ValueError("unknown disk-set member")
@@ -1004,24 +1020,9 @@ def execute_owner(root, body, *, project_root):
                 "stale_revision: reload the disk-set owner before deciding"
             )
         members = [
-            {
-                **m,
-                "analysis_owner": owner.owner(m["id"])[0]
-                if owner.members[owner.owner(m["id"])[0]]["analysis"] is not None
-                else None,
-                "source_offset_bias": owner.owner(m["id"])[1],
-                "editable": bool(
-                    (owner.members[owner.owner(m["id"])[0]]["analysis"] or {}).get(
-                        "state"
-                    )
-                ),
-            }
+            {**m, **owner.member_restoration(m["id"])}
             for m in owner.manifest["members"]
         ]
-        for member in members:
-            member["restoration_operations"] = (
-                list(MEMBER_OPERATIONS) if member["editable"] else []
-            )
         if operation == "state":
             return {
                 **current,
@@ -1092,19 +1093,50 @@ def execute_owner(root, body, *, project_root):
                 raise ValueError("disk-set state changed during analysis")
             return {**_envelope(page, current, filters), "scope": scope}
         if operation in {"build", "verify"}:
+            output = body.get("output")
+            if not isinstance(output, (str, Path)) or not output:
+                raise ValueError(
+                    "disk-set build and verification require a fresh private output directory"
+                )
+            media_paths = body.get("media_paths", {})
+            analysis_member = None
+            if body.get("member_id") is not None:
+                if operation != "verify" or not isinstance(body["member_id"], str):
+                    raise ValueError(
+                        "member_id is supported only for scoped verification"
+                    )
+                analysis_member, _ = owner.owner(body["member_id"])
+                if not (owner.members[analysis_member]["analysis"] or {}).get("state"):
+                    raise ValueError(
+                        "scoped verification requires editable member analysis"
+                    )
+                from amiga_reversing.disasm.disk_set_state import (
+                    verify_journal_snapshots,
+                )
+
+                verify_journal_snapshots(owner, media_paths)
             regeneration = (
-                owner.regenerate(body.get("media_paths", {}))
-                if operation == "verify"
-                else None
+                owner.regenerate(media_paths) if operation == "verify" else None
             )
             result = owner.build(
-                body["output"],
-                body.get("media_paths", {}),
+                output,
+                media_paths,
                 vasm=Path(project_root) / "tools/vasmm68k_mot.exe",
             )
             if regeneration is not None:
                 result["regeneration"] = regeneration
-                (Path(body["output"]) / "receipt.json").write_text(
+                if analysis_member is not None:
+                    from amiga_reversing.disasm.disk_set_state import (
+                        persist_member_verification,
+                    )
+
+                    result["verification"] = persist_member_verification(
+                        owner,
+                        analysis_member,
+                        result,
+                        regeneration,
+                    )
+                (Path(output) / "receipt.json").write_text(
                     json.dumps(result, indent=2) + "\n"
                 )
             return result
