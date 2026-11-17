@@ -20983,6 +20983,86 @@ static int test_facts_v2_runtime_range_conflict_fails_instead_of_last_map(void) 
   return 0;
 }
 
+static int test_facts_v2_source_control_ignores_only_rejected_copy_views(void) {
+  unsigned mode, jump;
+  for (jump = 0U; jump < 2U; ++jump) for (mode = 0U; mode < 4U; ++mode) {
+    AsmSourceFile parsed;
+    M68kObject object;
+    M68kAnalysisPolicy policy;
+    M68kFactsV2Profile profile;
+    M68kSourceAnalysisIR analysis;
+    char input[1024], *source = NULL;
+    size_t n;
+    uint32_t caller = UINT32_MAX, callee = UINT32_MAX;
+    int edge = 0, rejected = 0, active_copy = 0;
+    snprintf(input, sizeof(input),
+      "SECTION code,code\n\tORG $800\n"
+      "\tlea %s(pc),a0\n\tmovea.l #$%x,a1\n\tmoveq #1,d0\n\tmove.l (a0)+,(a1)+\n"
+      "caller:\n\t%s callee.l\n\trts\n"
+      "callee:\n\tmoveq #7,d0\n\trts\n\tnop\n\tnop\n"
+      "payload:\n\tdc.l $11111111,$22222222\n",
+      mode == 2U ? "callee" : "payload", mode == 2U ? 0x2000U : 0x800U,
+      jump ? "jmp" : "jsr");
+    M68K_C_ASSERT_INT(0, m68k_source_model_create(&parsed));
+    memset(&object, 0, sizeof(object)); memset(&analysis, 0, sizeof(analysis));
+    parsed.target_cpu = M68K_ASM_CPU_68000;
+    M68K_C_ASSERT(m68k_source_pipeline_parse_text_and_layout(&parsed, input, m68k_diag_sink(NULL)));
+    M68K_C_ASSERT_INT(1, m68k_source_pipeline_emit_object(&parsed, &object, m68k_diag_sink(NULL)));
+    {
+      M68kDecodeIR decode;
+      m68k_decode_ir_init(&decode);
+      M68K_C_ASSERT_INT(0, m68k_decode_ir_build_object(&decode, &object,
+        M68K_ASM_CPU_68000, m68k_diag_sink(NULL)));
+      for (n = 0U; n < decode.sections[0].candidate_count; ++n) {
+        const M68kDecodeCandidate *c = &decode.sections[0].candidates[n];
+        if (c->mnemonic_id == (jump ? M68K_ASM_MNEMONIC_JMP : M68K_ASM_MNEMONIC_JSR)) {
+          caller = c->offset;
+          callee = c->operands[0].value - 0x800U;
+          break;
+        }
+      }
+      m68k_decode_ir_destroy(&decode);
+    }
+    M68K_C_ASSERT(caller < object.sections[0].size && callee < object.sections[0].size);
+    m68k_analysis_policy_init_default(&policy);
+    policy.disable_implicit_entry_points = 1U;
+    policy.entry_point_count = 1U;
+    policy.entry_points[0].has_section_index = 1U;
+    policy.entry_points[0].offset = mode == 0U ? caller : 0U;
+    policy.runtime_range_count = 1U;
+    policy.runtime_ranges[0].has_section_index = 1U;
+    policy.runtime_ranges[0].size = object.sections[0].size;
+    policy.runtime_ranges[0].runtime_address = 0x800U;
+    if (mode == 3U) {
+      policy.structured_data_item_count = 1U;
+      policy.structured_data_items[0].has_section_index = 1U;
+      policy.structured_data_items[0].offset = callee;
+      policy.structured_data_items[0].size = 8U;
+      policy.structured_data_items[0].kind = M68K_ANALYSIS_STRUCTURED_DATA_BYTES;
+    }
+    M68K_C_ASSERT_INT(0, m68k_facts_v2_render_asm_source_analysis_profile_alloc(&object, &policy,
+      &source, &profile, &analysis, 1U, m68k_diag_sink(NULL)));
+    for (n = 0U; n < analysis.sections[0].runtime_view_count; ++n) {
+      const M68kRuntimeViewIR *view = &analysis.sections[0].runtime_views[n];
+      if (view->kind == M68K_FACT_RUNTIME_RANGE_KIND_CONFLICTING_DISCOVERED_COPY) ++rejected;
+      if (view->kind == M68K_FACT_RUNTIME_RANGE_KIND_DISCOVERED_COPY) ++active_copy;
+    }
+    for (n = 0U; n < analysis.sections[0].code_start_ref_count; ++n) {
+      const M68kCodeStartRefIR *ref = &analysis.sections[0].code_start_refs[n];
+      if (ref->source_offset == caller && ref->offset == callee &&
+          ref->evidence_kind == M68K_CODE_ORIGIN_EVIDENCE_DIRECT_CONTROL_TARGET) ++edge;
+    }
+    if (mode == 1U || mode == 3U) M68K_C_ASSERT(rejected > 0);
+    if (mode == 2U) M68K_C_ASSERT(active_copy > 0);
+    if (edge != (mode < 2U)) fprintf(stderr, "source control mode=%u jump=%u edges=%d\n", mode, jump, edge);
+    M68K_C_ASSERT_INT(mode < 2U, edge);
+    M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
+    m68k_facts_v2_free_text(source); m68k_ir_source_analysis_destroy(&analysis);
+    m68k_object_destroy(&object); m68k_source_model_free(&parsed);
+  }
+  return 0;
+}
+
 static int test_facts_v2_tool_inferred_runtime_copy_conflict_does_not_abort(void) {
   AsmSourceFile parsed_source;
   M68kDiagList diagnostics;
@@ -41224,6 +41304,8 @@ int m68k_c_ir_tests(void) {
       test_facts_v2_runtime_range_conflict_fails_instead_of_last_map},
     {"facts_v2_source_zero_policy_overlay_is_temporal",
       test_facts_v2_source_zero_policy_overlay_is_temporal},
+    {"facts_v2_source_control_ignores_only_rejected_copy_views",
+      test_facts_v2_source_control_ignores_only_rejected_copy_views},
     {"facts_v2_tool_inferred_runtime_copy_conflict_does_not_abort",
       test_facts_v2_tool_inferred_runtime_copy_conflict_does_not_abort},
     {"facts_v2_runtime_ref_ignores_specific_conflicting_copy",

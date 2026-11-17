@@ -8910,9 +8910,10 @@ static int reject_or_demote_unsafe_candidate(M68kFactIR *facts, const M68kFactsV
 }
 
 /* A source-only root is not a runtime entry. It can nevertheless bind a direct
- * absolute edge when one policy view covers both endpoints and every known
- * view agrees. Do not use the smallest-range runtime heuristic for this proof.
- * Discovered aliases of either endpoint make the unphased binding ambiguous. */
+ * absolute edge when one policy view covers both endpoints and every active
+ * view agrees. Rejected copy candidates are diagnostics, not aliases. Do not
+ * use the smallest-range runtime heuristic for this proof. Accepted discovered
+ * aliases of either endpoint make the unphased binding ambiguous. */
 static const char *source_control_binding(const M68kRuntimeAddressSpace *space,
     size_t section_index, uint32_t source_offset, uint32_t address, uint32_t *out_offset) {
   size_t i;
@@ -8933,7 +8934,8 @@ static const char *source_control_binding(const M68kRuntimeAddressSpace *space,
   if (!found) return "no policy view covers both endpoints";
   for (i = 0U; i < space->count; ++i) {
     const M68kRuntimeAddressRange *r = &space->ranges[i];
-    if (r->section_index != section_index) continue;
+    if (r->section_index != section_index ||
+        r->kind == M68K_FACT_RUNTIME_RANGE_KIND_CONFLICTING_DISCOVERED_COPY) continue;
     if ((source_offset >= r->source_offset && source_offset - r->source_offset < r->size &&
          bias != r->runtime_address - r->source_offset) ||
         (target >= r->source_offset && target - r->source_offset < r->size &&

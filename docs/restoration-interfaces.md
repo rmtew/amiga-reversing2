@@ -555,6 +555,15 @@ The unresolved edge remains alongside candidates because discovery does not
 establish completeness across mutable stores or all callers. Table addresses,
 cross-section aliases and unaccepted instruction starts are not destinations.
 
+A source-only code root can expose direct absolute `jsr`/`jmp` edges without
+establishing a runtime phase. The native binder requires a policy view covering
+both caller and destination and agreement across all active address views.
+Rejected (`conflicting_discovered_copy`) candidates remain diagnostics and do
+not veto that identity. Accepted copy aliases still do. Admission also requires
+a bounded, exact-decodable instruction prefix free of structured-data ownership,
+instruction interiors and overlap. Discovery starts with unknown register state;
+source identity does not establish execution or a callback ABI.
+
 Native discovery recognizes bounded sentinel-terminated record walkers whose
 handler LONG is loaded immediately before an indirect call/jump. It derives the
 record base, fixed positive stride or header-WORD stride, handler displacement
