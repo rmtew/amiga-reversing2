@@ -5355,3 +5355,61 @@ def test_brave_cdp_references_page_without_embedded_navigation_refs(monkeypatch:
         page.click(".navigation-item")
         page.wait_for_expression("document.querySelector('.listing-row-focus')?.dataset.rowKey === 'ref-100'")
         page.assert_no_errors()
+
+
+def test_disk_set_restore_uses_single_owner_for_shared_member(tmp_path, monkeypatch):
+    from tests.test_disk_set_state import editable
+
+    project_root, target, paths, call = editable(tmp_path, monkeypatch)
+    monkeypatch.setattr(disasm_server, "list_projects", lambda: project_store.list_projects(project_root))
+    monkeypatch.setattr(disasm_server, "get_project", lambda name: project_store.get_project(name, project_root))
+    monkeypatch.setattr(disasm_server, "mark_project_opened", lambda name: project_store.mark_project_opened(name, project_root))
+
+    with _live_server() as base_url, brave_page() as page:
+        page.call("Page.navigate", {"url": base_url})
+        page.wait_for_event("Page.loadEventFired")
+        page.wait_for_expression("document.querySelectorAll('.project-open-button').length === 1")
+        page.click(".project-open-button")
+        page.wait_for_expression("document.querySelector('[data-open-restoration-member=return_view]')")
+        page.click("[data-open-restoration-member=return_view]")
+        page.wait_for_expression("document.querySelector('#restoration-member')?.value === 'return_view'")
+        assert page.evaluate("document.querySelector('#restoration-member-owner').textContent") == "Analysis owner: main"
+        page.evaluate(f"""(() => {{
+            const paths = {json.dumps(paths)};
+            for (const input of document.querySelectorAll('[data-restore-media]')) {{
+                input.value = paths[input.dataset.restoreMedia];
+                input.dispatchEvent(new Event('input', {{bubbles:true}}));
+            }}
+        }})()""")
+        page.click("#restoration-search button")
+        page.wait_for_expression("document.querySelector('[data-restore-inspect]')?.textContent === 's0:$0'")
+        page.click("[data-restore-inspect]")
+        page.wait_for_expression("document.querySelector('#restoration-inspection pre')?.textContent.includes('rts')")
+        page.evaluate("""(() => {
+            const form = document.querySelector('#restoration-interpret');
+            form.querySelector('[data-command-parameter-name=text]').value = 'Returns from the synthetic routine.';
+            form.elements.question.value = 'What does this row do?';
+            form.elements.reason.value = 'The instruction is RTS.';
+        })()""")
+        page.click("#restoration-interpret button[type=submit], #restoration-interpret button:not([type])")
+        page.wait_for_expression("document.querySelector('#restoration-status').textContent.includes('Interpretation saved')")
+        page.evaluate(f"document.querySelector('#restoration-output').value = {json.dumps(str(tmp_path / 'browser-verify'))}")
+        page.click("#restoration-verify")
+        page.wait_for_expression("document.querySelector('#restoration-verification').textContent.includes('receipt_id')")
+        page.evaluate("""(() => {
+            const form = document.querySelector('#restoration-review');
+            form.elements.decision.value = 'accept';
+            form.elements.reason.value = 'The original instruction supports the comment.';
+        })()""")
+        page.click("#restoration-review button:not([type])")
+        page.wait_for_expression("document.querySelector('#restoration-status').textContent.includes('Review recorded')")
+        assert call("history", member="main")["items"][0]["decision"]["action"] == "accept_fact"
+        page.evaluate("""(() => {
+            const member = document.querySelector('#restoration-member');
+            member.value = 'overlay';
+            member.dispatchEvent(new Event('change', {bubbles:true}));
+        })()""")
+        assert page.evaluate("document.querySelector('#restoration-review [name=action_id]').value") == ""
+        assert page.evaluate("document.querySelector('#restoration-verification').textContent") == ""
+        assert page.evaluate("location.pathname") == f"/{target.name}"
+        page.assert_no_errors()

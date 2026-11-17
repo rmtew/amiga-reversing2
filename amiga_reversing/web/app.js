@@ -9386,6 +9386,21 @@ function renderDiskFiles(files, targetIndex = new Map(), addedTargetIds = new Se
 
 function renderDiskProject(projectData) {
   const manifest = requireObject(projectData.disk_manifest, "Disk manifest");
+  if (manifest.kind === "disk_set") {
+    const scopes = new Map(projectData.restoration_members.map(member => [member.member_id, member]));
+    document.getElementById("listing-viewport").innerHTML = `
+      <section class="disk-view"><div class="disk-section">
+        <h2>${escapeHtml(manifest.name)}</h2>
+        <table><caption>Disk-set members</caption><thead><tr><th>Member</th><th>Analysis owner</th><th>Restore</th></tr></thead>
+        <tbody>${manifest.members.map(member => {
+          const scope = scopes.get(member.id);
+          return `<tr><th scope="row">${escapeHtml(member.id)}</th>
+            <td>${escapeHtml(scope.analysis_owner || "None")}</td>
+            <td>${scope.editable ? `<button type="button" data-open-restoration-member="${escapeHtml(member.id)}">Restore ${escapeHtml(member.id)}</button>` : "Read only"}</td></tr>`;
+        }).join("")}</tbody></table>
+      </div></section>`;
+    return;
+  }
   const analysis = requireObject(manifest.analysis, "Disk analysis");
   const hasIndexedFiles = analysis.files !== null && analysis.files !== undefined;
   const files = hasIndexedFiles ? requireArray(analysis.files, "Indexed disk files") : null;

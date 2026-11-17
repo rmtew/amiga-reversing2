@@ -175,6 +175,7 @@ class ProjectPayload(TypedDict):
     project: dict[str, object]
     asset_data: NotRequired[dict[str, object]]
     disk_manifest: NotRequired[dict[str, object]]
+    restoration_members: NotRequired[list[dict[str, object]]]
     macos: NotRequired[dict[str, object]]
     target_state: NotRequired[dict[str, object]]
     reproduction: NotRequired[dict[str, object]]
@@ -1936,7 +1937,9 @@ def _project_payload(project_name: str) -> ProjectPayload:
             raise ValueError(f"Disk project {project_name} is missing manifest_path")
         from amiga_reversing.disasm.disk_set import DiskSet, is_disk_set
         if is_disk_set(Path(project.target_dir)):
-            payload["disk_manifest"] = DiskSet.load(Path(project.target_dir), project_root=PROJECT_ROOT).manifest
+            owner = DiskSet.load(Path(project.target_dir), project_root=PROJECT_ROOT)
+            payload["disk_manifest"] = owner.manifest
+            payload["restoration_members"] = [owner.member_restoration(member_id) for member_id in owner.members]
             return payload
         manifest = DiskManifest.load(Path(manifest_path))
         payload["disk_manifest"] = manifest.to_dict()

@@ -1740,3 +1740,11 @@ owner's journal. Other commands and sealed members refuse. Imported state and
 original journal bytes remain preserved. See
 [disk-set ownership and the next-title workflow](proposals/048-disk-set-targets.md)
 and [the private F.O.F.T. migration acceptance](validation/foft-disk-set.md).
+
+In the project catalogue, open the disk-set owner and select a member under
+Restore. The panel shows the canonical analysis owner and asks for the local
+paths of the original media. It uses member-relative offsets for inspection
+and keeps shared-member edits and history in the canonical member's journal.
+Verification also needs a fresh private output directory. Selecting a
+different member clears the inspection, review action and verification
+receipt in the panel.
