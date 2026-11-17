@@ -1502,3 +1502,24 @@ This does not discover text or establish complete global raw/quoted text coverag
 `--detail text` provides the evidence inventory. See
 `docs/validation/starglider2-control-text-emission-2026-11-17.md` for domains,
 refusal fixtures, SGII's 588-byte result and retained-input workflow.
+
+### Read-only orphan-link hypotheses
+
+`python -m amiga_reversing.tools.orphan_link_report --analysis-json <snapshot>
+--manifest <manifest> [--output <report>]` compares audited source positions with
+explicit assumed entry families using native accepted code, CFG edges and
+same-section control-origin facts. The manifest supplies `section_index`, even
+in-range `case_source_offsets`, and `entry_groups` mapping names to even source
+offsets. Roots must already be accepted native block starts in that snapshot;
+the helper never discovers or promotes code. Snapshots from private experiments
+must retain their assumed-root preparation and input identity separately.
+
+The deterministic report preserves overlapping families, refused roots and
+shortest native block-path witnesses. Terminal positions are distinguished from
+other positions inside accepted code; native terminal edges include traps, so
+return identity requires separate decoded evidence. Asynchronous vector stores
+and cross-section origins do not create call edges. The CLI hashes both inputs,
+refuses overwriting them, and writes only its explicit output. No target is
+loaded, no MAL decision is accepted, and no runtime execution, function extent,
+selector closure or ABI proof is inferred. See the
+[F.O.F.T. investigation](validation/foft-orphan-links.md) for a concrete use.
