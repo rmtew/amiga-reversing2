@@ -73,3 +73,33 @@ def test_inventory_cli_reuses_native_snapshot_without_building_listing(tmp_path,
     assert result['snapshot_provenance']['sha256']==hashlib.sha256(path.read_bytes()).hexdigest()
     assert result['snapshot_provenance']['analyzer_identity']is None
     assert result['counts']['scoped_labels']==0
+
+
+def test_control_reference_audit_uses_native_identity_and_separates_indirect_bases():
+    from amiga_reversing.disasm.source_inventory import control_reference_audit
+    section = dict(section_index=0,
+                   accepted_code_runs=[dict(start_offset=0, end_offset=8), dict(start_offset=16, end_offset=20)],
+                   recovered_indirect_sites=[dict(offset=4)],
+                   rendered_symbol_accesses=[
+                       dict(access_kind='branch_target', offset=0, operand_index=0, target_section_index=0, target_offset=16),
+                       dict(access_kind='branch_target', offset=2, operand_index=0, target_section_index=0, target_offset=24),
+                       dict(access_kind='branch_target', offset=4, operand_index=0, target_section_index=0, target_offset=28),
+                       dict(access_kind='branch_target', offset=6, operand_index=0, target_section_index=1, target_offset=0),
+                       dict(access_kind='branch_target', offset=7, operand_index=0, target_section_index=0, target_offset=30, comment_only=True),
+                       dict(access_kind='branch_target', offset=8, operand_index=0, target_section_index=0, target_offset=24)])
+    other = dict(section_index=1, accepted_code_runs=[dict(start_offset=0, end_offset=2)])
+    result = control_reference_audit(dict(sections=[section, other]))
+    assert result['counts'] == dict(accepted_code=2, non_code_destination_requires_review=1,
+                                   expression_base_not_a_destination=1)
+    assert [r['source_offset'] for r in result['references']] == [0, 2, 4, 6]
+    assert result['indirect_site_status_counts'] == {'unknown': 1}
+    assert result['indirect_sites'] == [dict(offset=4)]
+    section['code_start_refs'] = [dict(source_section_index=0, source_offset=4, offset=24,
+                                      reason_name='control_target', evidence_kind='initial_record_control_target')]
+    recovered = control_reference_audit(dict(sections=[section, other]))
+    assert recovered['recovered_target_status_counts'] == {'non_code_destination_requires_review': 1}
+    assert recovered['recovered_target_references'][0]['target_offset'] == 24
+    del section['code_start_refs']
+    # Symbol text is unnecessary: native identities govern both aliases and code ownership.
+    section['rendered_symbol_accesses'].append(dict(section['rendered_symbol_accesses'][0], symbol_name='misleading_00000018'))
+    assert control_reference_audit(dict(sections=[section, other])) == result

@@ -564,6 +564,47 @@ a bounded, exact-decodable instruction prefix free of structured-data ownership,
 instruction interiors and overlap. Discovery starts with unknown register state;
 source identity does not establish execution or a callback ABI.
 
+`source_inventory` additionally emits `control_reference_audit`: native
+source-bound `branch_target` operands from accepted code, deduplicated by source
+operand and destination identity. Its `accepted_code` and
+`non_code_destination_requires_review` counts expose referenced destinations
+still rendered outside accepted code. An indirect operand's symbolic base is
+reported separately as `expression_base_not_a_destination`; it cannot seed code
+merely by appearing in an operand. Comment-only and unaccepted-source rows are
+excluded. `indirect_sites` and `indirect_site_status_counts` retain the separate
+native dynamic-transfer inventory, including unresolved sites.
+`recovered_target_references` checks the accepted-code ownership of destinations
+already linked to those indirect sites by native code-origin facts; it does not
+invent missing candidates. Cross-section
+code ownership uses the destination section. Symbol
+spellings are never parsed into addresses. This is a coverage audit of native
+bindings, not a claim that unbound numeric or dynamic transfers are closed.
+
+The source-only prefix proof ends at a validated direct call/branch as well as
+a non-fallthrough transfer or existing code. Calls and conditional branches end
+a basic block even though they have a fallthrough successor; scanning the whole
+function to find a return incorrectly exhausted the 64-instruction prefix budget
+for valid long routines. Encoding, target, structured-ownership and overlap
+guards run before accepting that block boundary.
+
+Callback-store discovery now matches `(source section, complete LONG storage
+slot)` rather than `(address register name, displacement)`. Proven aliases in
+different registers and equivalent base/addend expressions can match; unknown
+owners or different objects cannot. Numeric runtime addresses require agreement
+across active mappings, and normalized handler offsets are never translated a
+second time. The current scope is in-image storage and same-section handlers.
+A single valid stored handler is sufficient to contribute a candidate.
+
+Both store-value and load-owner slices are bounded to 48 accepted sequential
+instructions. They stop at known entry/join boundaries, calls, branches and
+other transfers. A callback load may precede the call through harmless
+instructions, but an intervening overwrite of its control register refuses the
+link. Unsupported forms remain unresolved. Storage-linked sites have status
+`callback_storage_candidates` (9), `target_set_scope: accepted_code_stores` and
+`runtime_target_set_closed: false`; they are not jump-table proofs. Candidate
+handlers start with unknown registers. Store order, future writes, all aliases,
+execution and callee ABI require separate proofs, not a register-name match.
+
 Native discovery recognizes bounded sentinel-terminated record walkers whose
 handler LONG is loaded immediately before an indirect call/jump. It derives the
 record base, fixed positive stride or header-WORD stride, handler displacement

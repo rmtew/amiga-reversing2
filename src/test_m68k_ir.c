@@ -8631,114 +8631,104 @@ static int test_facts_v2_traced_indirect_jump_invalidates_full_data_reg_after_wo
   return 0;
 }
 
-static int test_facts_v2_callback_field_store_promotes_indirect_call_target(void) {
+/* Textual fixtures use the generated assembler/decoder, never opcode literals.
+ * A3 and A2 can alias one slot; identical field offsets on other owners cannot. */
+static int run_callback_storage_identity_case(unsigned mode, unsigned mapped) {
+  AsmSourceFile parsed;
+  M68kDiagList diagnostics;
   M68kObject object;
-  M68kSection section;
-  M68kObjectAddResult added;
   M68kAnalysisPolicy policy;
   M68kFactsV2Profile profile;
-  M68kSourceAnalysisIR source_analysis;
-  char *source = NULL;
-  size_t code_start_index;
-  int saw_indirect_target = 0;
-  uint8_t bytes[42] = {
-    0x61u, 0x00u, 0x00u, 0x08u,
-    0x61u, 0x00u, 0x00u, 0x16u,
-    0x4eu, 0x75u,
-    0x41u, 0xfau, 0x00u, 0x1au,
-    0x27u, 0x48u, 0x00u, 0x3eu,
-    0x41u, 0xfau, 0x00u, 0x14u,
-    0x27u, 0x48u, 0x00u, 0x3eu,
-    0x4eu, 0x75u,
-    0x20u, 0x6bu, 0x00u, 0x3eu,
-    0x4eu, 0xa8u, 0x00u, 0x00u,
-    0x4eu, 0x75u,
-    0x4eu, 0x75u,
-    0x4eu, 0x75u
-  };
-  memset(&section, 0, sizeof(section));
-  memset(&source_analysis, 0, sizeof(source_analysis));
-  M68K_C_ASSERT_INT(0, m68k_object_create(&object));
-  section.kind = M68K_SECTION_CODE;
-  section.size = sizeof(bytes);
-  section.data_size = sizeof(bytes);
-  section.data = bytes;
-  added = m68k_object_add_section(&object, &section);
-  M68K_C_ASSERT(added.ok);
-  m68k_analysis_policy_init_default(&policy);
-  M68K_C_ASSERT_INT(0, m68k_facts_v2_render_asm_source_analysis_profile_alloc(&object, &policy, &source,
-    &profile, &source_analysis, 1U, m68k_diag_sink(NULL)));
-  M68K_C_ASSERT(source != NULL);
-  M68K_C_ASSERT(strstr(source, "\tlea.l loc_0_00000026(pc),a0\n\tmove.l a0,$003E(a3)\n") != NULL);
-  M68K_C_ASSERT(strstr(source, "\tlea.l loc_0_00000028(pc),a0\n\tmove.l a0,$003E(a3)\n") != NULL);
-  M68K_C_ASSERT(strstr(source, "\tmovea.l $003E(a3),a0\n\tjsr $0000(a0)\n") != NULL);
-  M68K_C_ASSERT(strstr(source, "loc_0_00000026:\n\trts\n") != NULL);
-  M68K_C_ASSERT(strstr(source, "loc_0_00000028:\n\trts\n") != NULL);
-  M68K_C_ASSERT(strstr(source, "\tdc.b $4E,$75") == NULL);
-  for (code_start_index = 0U; code_start_index < source_analysis.sections[0].code_start_ref_count;
-      ++code_start_index) {
-    const M68kCodeStartRefIR *ref = &source_analysis.sections[0].code_start_refs[code_start_index];
-    if ((ref->offset == 0x26U || ref->offset == 0x28U) &&
-        ref->reason == M68K_FACT_CODE_START_REASON_CONTROL_TARGET && ref->source_offset == 0x20U) {
-      ++saw_indirect_target;
-    }
+  M68kSourceAnalysisIR analysis;
+  char text[4096], gap_text[512], *source = NULL;
+  unsigned expected = mode == 1U || mode == 2U || mode == 3U ||
+    mode == 6U || mode == 7U || mode == 8U || mode == 9U || mode == 12U || mode == 14U ? 0U : mode == 4U ? 1U : 2U;
+  unsigned edges = 0U;
+  const char *gap = mode == 5U ? "\tnop\n\tmoveq #3,d0\n" :
+    mode == 6U ? "\tmovea.l (a4),a1\n" : mode == 7U ? "\tbsr.w opaque\n" :
+    mode == 8U ? "\ttst.w d0\n\tbne.w done\n" : "";
+  if (mode >= 14U) {
+    size_t at = 0U;
+    for (unsigned n = 0U; n < (mode == 14U ? 48U : 47U); ++n)
+      at += (size_t)snprintf(gap_text + at, sizeof(gap_text) - at, "\tnop\n");
+    gap = gap_text;
   }
-  M68K_C_ASSERT_INT(2, saw_indirect_target);
-  M68K_C_ASSERT_U32(0U, profile.asm_source_refused);
+  snprintf(text, sizeof(text),
+    "SECTION code,code\n%s\tbsr.w install\n\tbsr.w invoke\n\trts\n"
+    "install:\n%s\tlea %s,a0\n\tmove.l a0,6(a3)\n%s\trts\n"
+    "invoke:\n%s\tlea $DFF000.l,a5\n%s\tmovea.l %u(%s),a1\n%s"
+    "callsite:\n\tjsr (a1)\ndone:\n\trts\n"
+    "opaque:\n\trts\nowner:\n\tdcb.b 16,0\nother:\n\tdcb.b 16,0\n"
+    "handler1:\n\tmove.w #$20,$9c(a5)\n\trts\nhandler2:\n\trts\n",
+    mapped ? "\tORG $800\n" : "",
+    mode == 2U ? "" : "\tlea owner(pc),a3\n",
+    mode == 13U ? "handler1.l" : "handler1(pc)",
+    mode == 4U ? "" : "\tlea handler2(pc),a0\n\tmove.l a0,6(a3)\n",
+    mode == 3U ? "" : mode == 1U ? "\tlea other(pc),a3\n" :
+      mode == 10U ? "\tlea owner-2(pc),a2\n" :
+      mode == 11U ? "\tlea owner.l,a2\n" : "\tlea owner(pc),a2\n",
+    mode == 12U ? "\ttst.w d0\n\tbeq.w callsite\n" : "",
+    mode == 10U ? 8U : mode == 9U ? 4U : 6U,
+    mode == 1U ? "a3" : "a2", gap);
+  M68K_C_ASSERT_INT(0, m68k_source_model_create(&parsed));
+  memset(&object, 0, sizeof(object)); memset(&analysis, 0, sizeof(analysis));
+  parsed.target_cpu = M68K_ASM_CPU_68000;
+  m68k_diag_list_reset(&diagnostics);
+  if (!m68k_source_pipeline_parse_text_and_layout(&parsed, text, m68k_diag_sink(&diagnostics))) {
+    for (size_t n = 0U; n < diagnostics.count; ++n) fprintf(stderr, "%s\n", diagnostics.items[n].message);
+    M68K_C_ASSERT(0);
+  }
+  M68K_C_ASSERT_INT(1, m68k_source_pipeline_emit_object(&parsed, &object, m68k_diag_sink(NULL)));
+  object.platform_backend_kind = M68K_PLATFORM_BACKEND_AMIGA_HUNK;
+  m68k_analysis_policy_init_default(&policy);
+  if (mapped) {
+    policy.runtime_range_count = 1U;
+    policy.runtime_ranges[0].has_section_index = 1U;
+    policy.runtime_ranges[0].size = object.sections[0].size;
+    policy.runtime_ranges[0].runtime_address = 0x800U;
+  }
+  M68K_C_ASSERT_INT(0, m68k_facts_v2_render_asm_source_analysis_profile_alloc(&object, &policy,
+    &source, &profile, &analysis, 1U, m68k_diag_sink(NULL)));
+  for (size_t n = 0U; n < analysis.sections[0].code_start_ref_count; ++n) {
+    const M68kCodeStartRefIR *r = &analysis.sections[0].code_start_refs[n];
+    if (r->evidence_kind == M68K_CODE_ORIGIN_EVIDENCE_CALLBACK_FIELD_CONTROL_TARGET) ++edges;
+  }
+  if (edges != expected) fprintf(stderr,"callback identity mode=%u mapped=%u edges=%u expected=%u\n",mode,mapped,edges,expected);
+  M68K_C_ASSERT_U32(expected, edges);
+  if (expected) {
+    int found = 0;
+    for (size_t n = 0U; n < analysis.sections[0].recovered_indirect_site_count; ++n) {
+      const M68kRecoveredIndirectSiteIR *site = &analysis.sections[0].recovered_indirect_sites[n];
+      if (site->status != M68K_RECOVERED_INDIRECT_STATUS_CALLBACK_STORAGE_CANDIDATES) continue;
+      ++found;
+      M68K_C_ASSERT_U32(expected, site->target_count);
+      M68K_C_ASSERT(!site->is_table_candidate);
+      M68K_C_ASSERT(strstr(site->detail, "not closed") != NULL);
+    }
+    M68K_C_ASSERT_INT(1, found);
+    char *json = NULL;
+    M68K_C_ASSERT_INT(0, source_analysis_to_json(&analysis, &json, m68k_diag_sink(NULL)));
+    M68K_C_ASSERT(strstr(json, "\"target_set_scope\":\"accepted_code_stores\"") != NULL);
+    M68K_C_ASSERT(strstr(json, "\"runtime_target_set_closed\":false") != NULL);
+    free(json);
+    /* Store candidates are code identities, not a caller-register contract. */
+    M68K_C_ASSERT(strstr(source, "\tmove.w #$20,$009C(a5)\n") != NULL);
+  }
   M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
-  m68k_facts_v2_free_text(source);
-  m68k_ir_source_analysis_destroy(&source_analysis);
-  m68k_object_destroy(&object);
+  m68k_facts_v2_free_text(source); m68k_ir_source_analysis_destroy(&analysis);
+  m68k_object_destroy(&object); m68k_source_model_free(&parsed);
   return 0;
 }
 
-static int test_facts_v2_callback_field_target_inherits_call_site_trace_state(void) {
-  M68kObject object;
-  M68kSection section;
-  M68kObjectAddResult added;
-  M68kAnalysisPolicy policy;
-  M68kFactsV2Profile profile;
-  M68kSourceAnalysisIR source_analysis;
-  char *source = NULL;
-  uint8_t bytes[52] = {
-    0x61u, 0x00u, 0x00u, 0x08u,
-    0x61u, 0x00u, 0x00u, 0x16u,
-    0x4eu, 0x75u,
-    0x41u, 0xfau, 0x00u, 0x1eu,
-    0x27u, 0x48u, 0x00u, 0x3eu,
-    0x41u, 0xfau, 0x00u, 0x1eu,
-    0x27u, 0x48u, 0x00u, 0x3eu,
-    0x4eu, 0x75u,
-    0x4bu, 0xf9u, 0x00u, 0xdfu, 0xf0u, 0x00u,
-    0x20u, 0x6bu, 0x00u, 0x3eu,
-    0x4eu, 0x90u,
-    0x4eu, 0x75u,
-    0x3bu, 0x7cu, 0x00u, 0x20u, 0x00u, 0x9cu,
-    0x4eu, 0x75u,
-    0x4eu, 0x75u
-  };
-  memset(&section, 0, sizeof(section));
-  memset(&source_analysis, 0, sizeof(source_analysis));
-  M68K_C_ASSERT_INT(0, m68k_object_create(&object));
-  object.platform_backend_kind = M68K_PLATFORM_BACKEND_AMIGA_HUNK;
-  section.kind = M68K_SECTION_CODE;
-  section.size = sizeof(bytes);
-  section.data_size = sizeof(bytes);
-  section.data = bytes;
-  added = m68k_object_add_section(&object, &section);
-  M68K_C_ASSERT(added.ok);
-  m68k_analysis_policy_init_default(&policy);
-  M68K_C_ASSERT_INT(0, m68k_facts_v2_render_asm_source_analysis_profile_alloc(&object, &policy, &source,
-    &profile, &source_analysis, 1U, m68k_diag_sink(NULL)));
-  M68K_C_ASSERT(source != NULL);
-  M68K_C_ASSERT(strstr(source, "loc_0_0000002A:\n\tmove.w #INTF_VERTB,intreq(a5)\n\trts\n") != NULL);
-  M68K_C_ASSERT(strstr(source, "\tmove.w #$20,$009C(a5)\n") == NULL);
-  M68K_C_ASSERT_U32(0U, profile.asm_source_refused);
-  M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
-  m68k_facts_v2_free_text(source);
-  m68k_ir_source_analysis_destroy(&source_analysis);
-  m68k_object_destroy(&object);
+static int test_facts_v2_callback_field_store_promotes_indirect_call_target(void) {
+  for (unsigned mapped = 0U; mapped < 2U; ++mapped)
+    for (unsigned mode = 0U; mode < 16U; ++mode)
+      M68K_C_ASSERT_INT(0, run_callback_storage_identity_case(mode, mapped));
   return 0;
+}
+
+static int test_facts_v2_callback_field_candidates_do_not_inherit_call_site_trace_state(void) {
+  return run_callback_storage_identity_case(5U, 1U);
 }
 
 static int test_facts_v2_relocated_indirect_call_promotes_cross_section_target(void) {
@@ -20985,24 +20975,31 @@ static int test_facts_v2_runtime_range_conflict_fails_instead_of_last_map(void) 
 
 static int test_facts_v2_source_control_ignores_only_rejected_copy_views(void) {
   unsigned mode, jump;
-  for (jump = 0U; jump < 2U; ++jump) for (mode = 0U; mode < 4U; ++mode) {
+  for (jump = 0U; jump < 2U; ++jump) for (mode = 0U; mode < 6U; ++mode) {
     AsmSourceFile parsed;
     M68kObject object;
     M68kAnalysisPolicy policy;
     M68kFactsV2Profile profile;
     M68kSourceAnalysisIR analysis;
-    char input[1024], *source = NULL;
+    char input[4096], callee_body[2048], *source = NULL;
     size_t n;
     uint32_t caller = UINT32_MAX, callee = UINT32_MAX;
     int edge = 0, rejected = 0, active_copy = 0;
+    if (mode >= 4U) {
+      size_t at = (size_t)snprintf(callee_body, sizeof(callee_body),
+        mode == 4U ? "\tbsr.w leaf\n" : "\ttst.w d0\n\tbne.w leaf\n");
+      for (unsigned i = 0U; i < 96U; ++i)
+        at += (size_t)snprintf(callee_body + at, sizeof(callee_body) - at, "\tnop\n");
+      snprintf(callee_body + at, sizeof(callee_body) - at, "\trts\nleaf:\n\trts\n");
+    } else snprintf(callee_body, sizeof(callee_body), "\tmoveq #7,d0\n\trts\n\tnop\n\tnop\n");
     snprintf(input, sizeof(input),
       "SECTION code,code\n\tORG $800\n"
       "\tlea %s(pc),a0\n\tmovea.l #$%x,a1\n\tmoveq #1,d0\n\tmove.l (a0)+,(a1)+\n"
       "caller:\n\t%s callee.l\n\trts\n"
-      "callee:\n\tmoveq #7,d0\n\trts\n\tnop\n\tnop\n"
+      "callee:\n%s"
       "payload:\n\tdc.l $11111111,$22222222\n",
       mode == 2U ? "callee" : "payload", mode == 2U ? 0x2000U : 0x800U,
-      jump ? "jmp" : "jsr");
+      jump ? "jmp" : "jsr", callee_body);
     M68K_C_ASSERT_INT(0, m68k_source_model_create(&parsed));
     memset(&object, 0, sizeof(object)); memset(&analysis, 0, sizeof(analysis));
     parsed.target_cpu = M68K_ASM_CPU_68000;
@@ -21054,8 +21051,8 @@ static int test_facts_v2_source_control_ignores_only_rejected_copy_views(void) {
     }
     if (mode == 1U || mode == 3U) M68K_C_ASSERT(rejected > 0);
     if (mode == 2U) M68K_C_ASSERT(active_copy > 0);
-    if (edge != (mode < 2U)) fprintf(stderr, "source control mode=%u jump=%u edges=%d\n", mode, jump, edge);
-    M68K_C_ASSERT_INT(mode < 2U, edge);
+    if (edge != ((mode < 2U || mode >= 4U))) fprintf(stderr, "source control mode=%u jump=%u edges=%d\n", mode, jump, edge);
+    M68K_C_ASSERT_INT((mode < 2U || mode >= 4U), edge);
     M68K_C_ASSERT_U32(0U, profile.asm_source_instruction_byte_mismatches);
     m68k_facts_v2_free_text(source); m68k_ir_source_analysis_destroy(&analysis);
     m68k_object_destroy(&object); m68k_source_model_free(&parsed);
@@ -40948,8 +40945,8 @@ int m68k_c_ir_tests(void) {
       test_facts_v2_traced_indirect_jump_invalidates_full_data_reg_after_word_write},
     {"facts_v2_callback_field_store_promotes_indirect_call_target",
       test_facts_v2_callback_field_store_promotes_indirect_call_target},
-    {"facts_v2_callback_field_target_inherits_call_site_trace_state",
-      test_facts_v2_callback_field_target_inherits_call_site_trace_state},
+    {"facts_v2_callback_field_candidates_do_not_inherit_call_site_trace_state",
+      test_facts_v2_callback_field_candidates_do_not_inherit_call_site_trace_state},
     {"facts_v2_relocated_indirect_call_promotes_cross_section_target",
       test_facts_v2_relocated_indirect_call_promotes_cross_section_target},
     {"facts_v2_traced_displacement_indirect_jump_promotes_runtime_copy_target",

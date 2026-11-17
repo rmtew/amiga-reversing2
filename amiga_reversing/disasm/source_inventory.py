@@ -10,6 +10,65 @@ import re
 GENERIC = re.compile(r'(?:abs|loc|sub|data|table|string|unknown)_\d+_[0-9A-Fa-f]+\Z')
 
 
+def control_reference_audit(analysis, *, section_index=0):
+    """Audit native source-bound control operands, without parsing assembly.
+
+    An indexed operand's symbolic base is not a destination. Missing numeric
+    bindings and dynamic target-set closure remain outside this audit's scope.
+    """
+    sections = {s['section_index']: s for s in analysis['sections']}
+    section = sections[section_index]
+    code_ranges = {}
+    for index, s in sections.items():
+        runs = sorted(s['accepted_code_runs'], key=lambda r: r['start_offset'])
+        code_ranges[index] = ([r['start_offset'] for r in runs], runs)
+
+    def is_code(index, offset):
+        if index not in code_ranges:
+            return False
+        starts, runs = code_ranges[index]
+        at = bisect_right(starts, offset) - 1
+        return at >= 0 and offset < runs[at]['end_offset']
+
+    indirect = {r['offset'] for r in section.get('recovered_indirect_sites', [])}
+    rows = {}
+    for r in section['rendered_symbol_accesses']:
+        if r['access_kind'] != 'branch_target' or r.get('comment_only') or not is_code(section_index, r['offset']):
+            continue
+        target_section, target = r.get('target_section_index'), r.get('target_offset')
+        if target_section is None or target is None:
+            continue
+        key = (r['offset'], r.get('operand_index'), target_section, target)
+        kind = 'indirect_expression_base' if r['offset'] in indirect else 'direct_control_reference'
+        status = ('expression_base_not_a_destination' if kind == 'indirect_expression_base' else
+                  'accepted_code' if is_code(target_section, target) else 'non_code_destination_requires_review')
+        rows[key] = dict(source_offset=r['offset'], operand_index=r.get('operand_index'),
+                         target_section_index=target_section, target_offset=target,
+                         kind=kind, status=status)
+    records = [rows[k] for k in sorted(rows, key=lambda k: (k[0], -1 if k[1] is None else k[1], k[2], k[3]))]
+    recovered = {}
+    for target_section, target_facts in sections.items():
+        for r in target_facts.get('code_start_refs', []):
+            if (r.get('source_section_index') != section_index or r.get('reason_name') != 'control_target' or
+                    r.get('source_offset') not in indirect or not is_code(section_index, r['source_offset'])):
+                continue
+            key = (r['source_offset'], target_section, r['offset'], r.get('evidence_kind', 'unknown'))
+            recovered[key] = dict(source_offset=r['source_offset'], target_section_index=target_section,
+                                  target_offset=r['offset'], evidence_kind=key[3],
+                                  status='accepted_code' if is_code(target_section, r['offset']) else
+                                  'non_code_destination_requires_review')
+    recovered_records = [recovered[k] for k in sorted(recovered)]
+    return dict(schema='native-control-reference-audit/v1', section_index=section_index,
+                scope='native source-bound control operands in accepted code; not execution or exhaustive dynamic targets',
+                counts=dict(Counter(r['status'] for r in records)), references=records,
+                recovered_target_references=recovered_records,
+                recovered_target_status_counts=dict(Counter(r['status'] for r in recovered_records)),
+                indirect_site_status_counts=dict(Counter(r.get('status', 'unknown') for r in section.get('recovered_indirect_sites', []))),
+                indirect_sites=[{k: r[k] for k in ('offset', 'status', 'target_count', 'target_set_scope',
+                                                 'runtime_target_set_closed', 'table_bounds_status') if k in r}
+                                for r in section.get('recovered_indirect_sites', [])])
+
+
 def source_inventory(analysis, *, section_index=0, entry_offset=0):
     section = next(s for s in analysis['sections'] if s['section_index'] == section_index)
     runs = sorted(section['accepted_code_runs'], key=lambda r:r['start_offset'])
@@ -141,4 +200,4 @@ def source_inventory(analysis, *, section_index=0, entry_offset=0):
         conditional_roots=sorted(blocks[i]['start_offset']for i in conditional_roots),
         disconnected_component_records=component_records,
         blocks_without_inbound=[blocks[i]['start_offset']for i in sorted(accepted)if i!=entry and not inbound[i]],
-        raw_candidates=signals)
+        raw_candidates=signals,control_reference_audit=control_reference_audit(analysis,section_index=section_index))

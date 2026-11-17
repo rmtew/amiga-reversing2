@@ -457,9 +457,9 @@ typedef struct M68kFactsV2StackSlot {
 typedef struct M68kFactsV2CallbackFieldTarget {
   size_t section_index;
   uint32_t store_offset;
-  uint8_t base_reg;
-  uint8_t reserved[3];
-  int32_t displacement;
+  uint32_t storage_offset;
+  uint8_t has_runtime_address;
+  uint32_t runtime_address;
   M68kFactsV2TraceValue target;
 } M68kFactsV2CallbackFieldTarget;
 
@@ -467,6 +467,7 @@ typedef struct M68kFactsV2CallbackFieldTargets {
   M68kFactsV2CallbackFieldTarget *items;
   size_t count;
   size_t capacity;
+  uint8_t **entry_boundaries;
 } M68kFactsV2CallbackFieldTargets;
 
 typedef struct M68kFactsV2TraceState {
@@ -7236,7 +7237,7 @@ static void recovered_indirect_site_apply_code_start_refs(M68kRecoveredIndirectS
   size_t index;
   uint32_t count = 0U;
   uint32_t first_target = 0U;
-  int all_traced_producers = 0;
+  int all_traced_producers = 0, has_callback_storage = 0;
   if (site == NULL || section_analysis == NULL) return;
   all_traced_producers = site->shape == M68K_RECOVERED_INDIRECT_SHAPE_IND;
   for (index = 0U; index < section_analysis->code_start_ref_count; ++index) {
@@ -7246,6 +7247,7 @@ static void recovered_indirect_site_apply_code_start_refs(M68kRecoveredIndirectS
         ref->reason != M68K_FACT_CODE_START_REASON_CONTROL_TARGET) {
       continue;
     }
+    if (ref->evidence_kind == M68K_CODE_ORIGIN_EVIDENCE_CALLBACK_FIELD_CONTROL_TARGET) has_callback_storage = 1;
     if (count == 0U) first_target = ref->offset;
     if (ref->evidence_kind != M68K_CODE_ORIGIN_EVIDENCE_TRACED_INDIRECT_CONTROL_TARGET)
       all_traced_producers = 0;
@@ -7256,6 +7258,11 @@ static void recovered_indirect_site_apply_code_start_refs(M68kRecoveredIndirectS
   site->target = first_target;
   site->has_target_count = 1U;
   site->target_count = count;
+  if (has_callback_storage) {
+    site->status = M68K_RECOVERED_INDIRECT_STATUS_CALLBACK_STORAGE_CANDIDATES;
+    site->detail = "storage-linked callback candidates; runtime writes and aliases are not closed";
+    return;
+  }
   /* A union of traced producer contexts is not itself a jump-table proof. */
   site->status = count > 1U ? (all_traced_producers ? M68K_RECOVERED_INDIRECT_STATUS_PER_CALLER :
     M68K_RECOVERED_INDIRECT_STATUS_JUMP_TABLE) :
@@ -7916,8 +7923,8 @@ static int callback_field_targets_append(Arena *arena, M68kFactsV2CallbackFieldT
   if (arena == NULL || targets == NULL || target == NULL) return -1;
   for (index = 0U; index < targets->count; ++index) {
     const M68kFactsV2CallbackFieldTarget *existing = &targets->items[index];
-    if (existing->section_index == target->section_index && existing->base_reg == target->base_reg &&
-        existing->displacement == target->displacement && existing->target.kind == target->target.kind &&
+    if (existing->section_index == target->section_index &&
+        existing->storage_offset == target->storage_offset && existing->target.kind == target->target.kind &&
         existing->target.section_index == target->target.section_index &&
         existing->target.value == target->target.value) {
       return 0;
@@ -7940,7 +7947,7 @@ static int callback_field_targets_append(Arena *arena, M68kFactsV2CallbackFieldT
 static int callback_field_target_resolves_to_decode(M68kDecodeIR *decode,
     const M68kRuntimeAddressSpace *runtime_addresses, uint8_t **accepted_start, uint8_t **accepted_bytes,
     uint8_t max_cpu, size_t section_index, const M68kDecodeSectionIR *section,
-    const M68kFactsV2TraceValue *target) {
+    const M68kFactsV2TraceValue *target, uint32_t *out_offset) {
   uint32_t target_offset = 0U;
   const M68kDecodeCandidate *target_candidate = NULL;
   if (decode == NULL || runtime_addresses == NULL || accepted_start == NULL || accepted_bytes == NULL ||
@@ -7956,7 +7963,7 @@ static int callback_field_target_resolves_to_decode(M68kDecodeIR *decode,
         target->value)) {
       return 0;
     }
-    if (!control_address_to_section_offset(runtime_addresses, section_index, section->size,
+    if (!record_absolute_pointer_source(runtime_addresses, section_index, section->size,
         target->value, &target_offset)) {
       return 0;
     }
@@ -7970,25 +7977,47 @@ static int callback_field_target_resolves_to_decode(M68kDecodeIR *decode,
       m68k_diag_sink(NULL)) != 0) {
     return -1;
   }
-  return target_candidate != NULL;
+  if (!target_candidate) return 0;
+  *out_offset = target_offset;
+  return 1;
 }
+
+/* Same register spelling is not object identity. Resolve the complete LONG
+ * storage slot, requiring unambiguous active views for numeric addresses. */
+static int callback_storage_offset(const M68kRuntimeAddressSpace *runtime,
+    size_t section_index, const M68kDecodeSectionIR *section,
+    const M68kDecodeCandidate *candidate, size_t operand_index,
+    const M68kFactsV2TraceState *state, uint32_t *out) {
+  uint8_t reg; int32_t displacement; uint32_t base;
+  const M68kFactsV2TraceValue *value;
+  int64_t slot;
+  if (!candidate_operand_base_field_slot(candidate, operand_index, &reg, &displacement)) return 0;
+  value = &state->a[reg];
+  if (value->kind == M68K_FACTS_V2_TRACE_SOURCE_OFFSET && value->section_index == section_index) base = value->value;
+  else if ((value->kind != M68K_FACTS_V2_TRACE_RUNTIME_ADDRESS && value->kind != M68K_FACTS_V2_TRACE_CONSTANT) ||
+      !record_absolute_pointer_source(runtime, section_index, section->size, value->value, &base)) return 0;
+  slot = (int64_t)base + displacement;
+  if (slot < 0 || (uint64_t)slot + 4U > section->size) return 0;
+  *out = (uint32_t)slot;
+  return 1;
+}
+
+static int trace_callback_site_linear_state(const M68kFactsV2RelocationLookup *,
+    const M68kRuntimeAddressSpace *, uint8_t **, uint8_t **, size_t,
+    const M68kDecodeSectionIR *, const M68kDecodeCandidate *, const uint8_t *,
+    Arena *, M68kFactsV2TraceState *);
 
 static int collect_callback_field_target_from_store(M68kDecodeIR *decode,
     const M68kFactsV2RelocationLookup *relocation_lookup, const M68kRuntimeAddressSpace *runtime_addresses,
     Arena *arena, M68kFactsV2CallbackFieldTargets *targets, uint8_t **accepted_start,
     uint8_t **accepted_bytes, uint8_t max_cpu, size_t section_index, const M68kDecodeSectionIR *section,
     const M68kDecodeCandidate *store_candidate) {
-  enum { BACKWARD_SLICE_LIMIT = 6 };
-  const M68kDecodeCandidate *previous[BACKWARD_SLICE_LIMIT];
-  const M68kDecodeCandidate *cursor_candidate;
   M68kFactsV2TraceState state;
   M68kFactsV2TraceValue stored_value;
   M68kFactsV2CallbackFieldTarget target;
-  uint32_t cursor;
+  uint32_t slot, store_offset, target_offset;
   uint8_t base_reg = 0U;
   int32_t displacement = 0;
-  size_t count = 0U;
-  size_t index;
   int resolve_result;
   if (decode == NULL || relocation_lookup == NULL || runtime_addresses == NULL || arena == NULL ||
       targets == NULL || accepted_start == NULL || accepted_bytes == NULL || section == NULL ||
@@ -7997,42 +8026,34 @@ static int collect_callback_field_target_from_store(M68kDecodeIR *decode,
       !candidate_operand_base_field_slot(store_candidate, 1U, &base_reg, &displacement)) {
     return 0;
   }
-  cursor = store_candidate->offset;
-  while (count < BACKWARD_SLICE_LIMIT) {
-    cursor_candidate = find_accepted_candidate_ending_at(section, accepted_start[section_index], cursor);
-    if (cursor_candidate == NULL) break;
-    previous[count++] = cursor_candidate;
-    cursor = cursor_candidate->offset;
-    if (cursor == 0U) break;
-  }
-  trace_state_init_unknown(&state);
-  for (index = count; index > 0U; --index) {
-    const M68kDecodeCandidate *candidate = previous[index - 1U];
-    M68kFactsV2TraceState next_state;
-    if (trace_state_after_candidate(section_index, section, candidate, &state, relocation_lookup, NULL,
-        runtime_addresses, accepted_start[section_index], accepted_bytes[section_index], &next_state, arena,
-        NULL) != 0)
-      return -1;
-    state = next_state;
-  }
+  store_offset = store_candidate->offset;
+  int traced = trace_callback_site_linear_state(relocation_lookup, runtime_addresses, accepted_start, accepted_bytes,
+      section_index, section, store_candidate, targets->entry_boundaries[section_index], arena, &state);
+  int slotted = callback_storage_offset(runtime_addresses, section_index, section, store_candidate, 1U, &state, &slot);
+  if (!traced || !slotted) return 0;
   if (!trace_value_from_candidate_source(section_index, section, store_candidate, 0U, &state, &stored_value))
     return 0;
   resolve_result = callback_field_target_resolves_to_decode(decode, runtime_addresses, accepted_start,
-    accepted_bytes, max_cpu, section_index, section, &stored_value);
+    accepted_bytes, max_cpu, section_index, section, &stored_value, &target_offset);
   if (resolve_result < 0) return -1;
   if (resolve_result == 0) {
     return 0;
   }
   memset(&target, 0, sizeof(target));
   target.section_index = section_index;
-  target.store_offset = store_candidate->offset;
-  target.base_reg = base_reg;
-  target.displacement = displacement;
+  target.store_offset = store_offset;
+  target.storage_offset = slot;
   target.target = stored_value;
+  target.has_runtime_address = stored_value.kind == M68K_FACTS_V2_TRACE_RUNTIME_ADDRESS ||
+    stored_value.kind == M68K_FACTS_V2_TRACE_CONSTANT;
+  target.runtime_address = stored_value.value;
+  target.target.kind = M68K_FACTS_V2_TRACE_SOURCE_OFFSET;
+  target.target.section_index = section_index;
+  target.target.value = target_offset;
   return callback_field_targets_append(arena, targets, &target);
 }
 
-static int collect_callback_field_targets_for_accepted(M68kDecodeIR *decode,
+static int collect_callback_field_targets_for_accepted(M68kDecodeIR *decode, const M68kFactIR *facts,
     const M68kFactsV2RelocationLookup *relocation_lookup, const M68kRuntimeAddressSpace *runtime_addresses,
     Arena *arena, uint8_t **accepted_start, uint8_t **accepted_bytes, uint8_t max_cpu,
     M68kFactsV2CallbackFieldTargets *out_targets) {
@@ -8042,6 +8063,20 @@ static int collect_callback_field_targets_for_accepted(M68kDecodeIR *decode,
     return -1;
   }
   memset(out_targets, 0, sizeof(*out_targets));
+  out_targets->entry_boundaries = arena_calloc(arena, decode->section_count ? decode->section_count : 1U,
+    sizeof(*out_targets->entry_boundaries));
+  if (!out_targets->entry_boundaries) return -1;
+  for (section_index = 0U; section_index < decode->section_count; ++section_index) {
+    uint32_t size = decode->sections[section_index].size;
+    out_targets->entry_boundaries[section_index] = arena_calloc(arena, size ? size : 1U, 1U);
+    if (!out_targets->entry_boundaries[section_index]) return -1;
+  }
+  for (size_t n = 0U; n < facts->fact_count; ++n) {
+    const M68kFact *f = &facts->facts[n];
+    if (f->kind == M68K_FACT_CODE_START && f->reason != M68K_FACT_CODE_START_REASON_FALLTHROUGH &&
+        f->section_index < decode->section_count && f->offset < decode->sections[f->section_index].size)
+      out_targets->entry_boundaries[f->section_index][f->offset] = 1U;
+  }
   for (section_index = 0U; section_index < decode->section_count; ++section_index) {
     const M68kDecodeSectionIR *section = &decode->sections[section_index];
     size_t candidate_index;
@@ -8074,7 +8109,7 @@ static int candidate_loads_callback_field_to_control_register(const M68kDecodeCa
 static int trace_callback_site_linear_state(const M68kFactsV2RelocationLookup *relocation_lookup,
     const M68kRuntimeAddressSpace *runtime_addresses, uint8_t **accepted_start, uint8_t **accepted_bytes,
     size_t section_index, const M68kDecodeSectionIR *section, const M68kDecodeCandidate *site_candidate,
-    Arena *arena, M68kFactsV2TraceState *out_state) {
+    const uint8_t *entry_boundaries, Arena *arena, M68kFactsV2TraceState *out_state) {
   enum { BACKWARD_SLICE_LIMIT = 48 };
   const M68kDecodeCandidate *previous[BACKWARD_SLICE_LIMIT];
   const M68kDecodeCandidate *cursor_candidate;
@@ -8089,13 +8124,13 @@ static int trace_callback_site_linear_state(const M68kFactsV2RelocationLookup *r
   }
   cursor = site_candidate->offset;
   while (count < BACKWARD_SLICE_LIMIT) {
+    M68kInstructionIR instruction;
+    const M68kSimFormMetadata *metadata;
+    if (entry_boundaries[cursor]) break;
     cursor_candidate = find_accepted_candidate_ending_at(section, accepted_start[section_index], cursor);
-    if (cursor_candidate == NULL) break;
+    if (!cursor_candidate || m68k_decode_candidate_to_instruction(cursor_candidate, &instruction) != 0 ||
+        !(metadata = m68k_sim_metadata_for_instruction(&instruction)) || metadata->flow_kind != M68K_SIM_FLOW_SEQUENTIAL) break;
     previous[count++] = cursor_candidate;
-    if (cursor_candidate->offset == 0U || !candidate_has_normal_fallthrough(cursor_candidate) ||
-        candidate_has_decoded_direct_control_target(cursor_candidate)) {
-      break;
-    }
     cursor = cursor_candidate->offset;
   }
   trace_state_init_unknown(out_state);
@@ -8119,12 +8154,12 @@ static int enqueue_callback_field_indirect_targets(M68kDecodeIR *decode, M68kFac
     const M68kDecodeCandidate *site_candidate) {
   const M68kDecodeSectionIR *section;
   const M68kDecodeCandidate *load_candidate;
-  M68kFactsV2TraceState site_state;
+  M68kFactsV2TraceState unknown_state, load_state;
+  uint32_t slot, cursor, site_offset;
   uint8_t control_reg = 0U;
   uint8_t base_reg = 0U;
   int32_t displacement = 0;
   size_t index;
-  size_t matched_count = 0U;
   if (decode == NULL || facts == NULL || queue == NULL || accepted_start == NULL || accepted_bytes == NULL ||
       profile == NULL || runtime_addresses == NULL || relocation_lookup == NULL || targets == NULL ||
       site_candidate == NULL || section_index >= decode->section_count ||
@@ -8132,32 +8167,36 @@ static int enqueue_callback_field_indirect_targets(M68kDecodeIR *decode, M68kFac
     return 0;
   }
   section = &decode->sections[section_index];
-  load_candidate = find_accepted_candidate_ending_at(section, accepted_start[section_index],
-    site_candidate->offset);
-  if (!candidate_loads_callback_field_to_control_register(load_candidate, control_reg, &base_reg,
-      &displacement)) {
-    return 0;
-  }
-  for (index = 0U; index < targets->count; ++index) {
-    const M68kFactsV2CallbackFieldTarget *target = &targets->items[index];
-    if (target->section_index == section_index && target->base_reg == base_reg &&
-        target->displacement == displacement) {
-      ++matched_count;
+  site_offset = cursor = site_candidate->offset;
+  load_candidate = NULL;
+  for (unsigned gap = 0U; gap < 48U && !targets->entry_boundaries[section_index][cursor]; ++gap) {
+    const M68kDecodeCandidate *c = find_accepted_candidate_ending_at(section, accepted_start[section_index], cursor);
+    M68kInstructionIR instruction; const M68kSimFormMetadata *metadata;
+    if (!c || m68k_decode_candidate_to_instruction(c, &instruction) != 0 ||
+        !(metadata = m68k_sim_metadata_for_instruction(&instruction)) || metadata->flow_kind != M68K_SIM_FLOW_SEQUENTIAL) break;
+    if (candidate_loads_callback_field_to_control_register(c, control_reg, &base_reg, &displacement)) {
+      load_candidate = c; break;
     }
+    if (record_writes_reg(c, 1U, control_reg)) break;
+    cursor = c->offset;
   }
-  if (matched_count < 2U) return 0;
-  (void)trace_callback_site_linear_state(relocation_lookup, runtime_addresses, accepted_start, accepted_bytes,
-    section_index, section, site_candidate, queue->arena, &site_state);
+  if (!load_candidate ||
+      !trace_callback_site_linear_state(relocation_lookup, runtime_addresses, accepted_start, accepted_bytes,
+        section_index, section, load_candidate, targets->entry_boundaries[section_index], queue->arena, &load_state) ||
+      !callback_storage_offset(runtime_addresses, section_index, section, load_candidate, 0U, &load_state, &slot)) return 0;
+  /* Store-linked candidates do not establish writer order, future stores or
+   * a callee ABI. Keep discovery separate from ordinary proven value flow. */
+  trace_state_init_unknown(&unknown_state);
   for (index = 0U; index < targets->count; ++index) {
     const M68kFactsV2CallbackFieldTarget *target = &targets->items[index];
-    if (target->section_index != section_index || target->base_reg != base_reg ||
-        target->displacement != displacement) {
+    if (target->section_index != section_index || target->storage_offset != slot) {
       continue;
     }
-    if (enqueue_same_section_control_trace_target(decode, facts, queue, accepted_start, accepted_bytes,
-        profile, max_cpu, section_index, site_candidate, &target->target,
-        M68K_FACT_CONFIDENCE_TOOL_INFERRED, runtime_addresses,
-        M68K_CODE_ORIGIN_EVIDENCE_CALLBACK_FIELD_CONTROL_TARGET, &site_state) != 0) {
+    if (enqueue_same_section_control_resolved_target_from_offset(decode, facts, queue, accepted_start, accepted_bytes,
+        profile, max_cpu, section_index, site_offset, target->target.value,
+        target->has_runtime_address, target->runtime_address, M68K_FACT_CONFIDENCE_TOOL_INFERRED,
+        M68K_FACT_CODE_START_REASON_CONTROL_TARGET,
+        M68K_CODE_ORIGIN_EVIDENCE_CALLBACK_FIELD_CONTROL_TARGET, &unknown_state) != 0) {
       return -1;
     }
   }
@@ -8181,7 +8220,7 @@ static int seed_callback_field_indirect_targets(M68kDecodeIR *decode, M68kFactIR
   }
   before_queue_cursor = (uint32_t)queue->count;
   mark = arena_mark(scratch_arena);
-  if (collect_callback_field_targets_for_accepted(decode, relocation_lookup, runtime_addresses,
+  if (collect_callback_field_targets_for_accepted(decode, facts, relocation_lookup, runtime_addresses,
       scratch_arena, accepted_start, accepted_bytes, max_cpu, &targets) != 0) {
     arena_rewind(scratch_arena, mark);
     return -1;
@@ -8972,7 +9011,11 @@ static const char *source_control_prefix(M68kDecodeIR *decode, const M68kAnalysi
       return "unsafe prefix encoding";
     if (candidate_overlaps_accepted_bytes(accepted_bytes[section_index], candidate, section->size))
       return "instruction overlap";
-    if (!candidate_has_normal_fallthrough(candidate)) return NULL;
+    /* A direct call or conditional branch ends a complete basic block too.
+     * Requiring the whole fallthrough function to fit this budget silently
+     * refuses long valid routines whose first instruction is already a call. */
+    if (candidate_has_decoded_direct_control_target(candidate) ||
+        !candidate_has_normal_fallthrough(candidate)) return NULL;
     offset += candidate->byte_count;
   }
   return "prefix proof budget exhausted";
