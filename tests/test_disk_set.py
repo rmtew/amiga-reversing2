@@ -539,3 +539,21 @@ def test_catalogue_members_resolve_one_owner_and_reject_wrong_identity(tmp_path)
     (target / "manifest.json").write_text(json.dumps(manifest))
     with pytest.raises(ValueError):
         game_catalog.load_family(project, "synthetic")
+
+
+def test_projects_report_broken_sibling_without_blocking_valid_owner(tmp_path):
+    from amiga_reversing.disasm.projects import get_project, initialize_project_metadata
+
+    project, target, _, _ = fixture(tmp_path)
+    broken = project / "targets/amiga_disk_missing_fixture"
+    broken.mkdir()
+    initialize_project_metadata(broken, origin={"kind": "synthetic"})
+    before = {p.name: p.read_bytes() for p in broken.iterdir()}
+    records = {r.id: r for r in list_projects(project)}
+    assert records[target.name].ready
+    assert not records[broken.name].ready
+    assert records[broken.name].discovery_error["type"] == "FileNotFoundError"
+    assert "Missing manifest.json" in records[broken.name].discovery_error["message"]
+    with pytest.raises(FileNotFoundError, match="Missing manifest.json"):
+        get_project(broken.name, project)
+    assert {p.name: p.read_bytes() for p in broken.iterdir()} == before

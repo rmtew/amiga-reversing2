@@ -3507,9 +3507,10 @@ async function renderHome() {
           const updatedAt = formatProjectTimestamp(project.updated_at, "Unknown");
           return `
           <div class="project-item">
-            <button class="project-open-button" data-project-id="${escapeHtml(project.id)}" type="button">
+            <button class="project-open-button" data-project-id="${escapeHtml(project.id)}" type="button" ${project.discovery_error ? "disabled" : ""}>
               <span class="project-name">${escapeHtml(project.name)} ${renderProjectBadges(project)}</span>
               <span class="project-meta">
+                ${project.discovery_error ? `<span class="error">${escapeHtml(project.discovery_error.message)}</span>` : ""}
                 <span class="project-meta-line" title="${escapeHtml(createdAt.title)}">Created ${escapeHtml(createdAt.text)}</span>
                 <span class="project-meta-line" title="${escapeHtml(updatedAt.title)}">Updated ${escapeHtml(updatedAt.text)}</span>
               </span>

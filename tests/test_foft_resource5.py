@@ -2,20 +2,32 @@
 
 import json
 import struct
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 
-from amiga_reversing.disasm.effective_metadata import effective_metadata_file
-from amiga_reversing.disasm.source_package_publish import load_published_source_package
-from amiga_reversing.disasm.target_metadata import load_target_metadata
 from amiga_reversing.tools.copperline_session import compile_scenario
 from amiga_reversing.tools.original_media_prefix import validate_prefix_target
+from tests.disk_set_fixture_helpers import member_metadata
 from tools.foft_disk import resource_plan
 from tools.import_foft_music_resource5 import BANK, instrument_spans
 
 ROOT = Path(__file__).resolve().parents[1]
-TARGET = ROOT / "targets/amiga_raw_foft_music_bank5_sps0613"
+TARGET = ROOT / "targets/amiga_raw_foft"
+
+
+@contextmanager
+def effective_metadata_file(_):
+    yield member_metadata("music-5")
+
+
+def load_target_metadata(_):
+    from amiga_reversing.disasm.target_metadata import TargetMetadata
+
+    return TargetMetadata.from_dict(json.loads(member_metadata("music-5").read_bytes()))
+
+
 PLAN = ROOT / "docs/validation/plans/foft-natural-music-resource5.json"
 
 
@@ -91,11 +103,13 @@ def test_resource5_has_its_own_voice_type_and_shared_relative_long_aliases():
     assert voice["size"] == 40
     assert {f["name"]: f["offset"] for f in voice["fields"]}["update_callback"] == 32
     link = next(f for f in voice["fields"] if f["offset"] == 36)
-    assert (link["value_kind"], link["pointer_struct"], link["pointer_address_domain"]) == (
-        "struct_pointer", "AudioInstrument", "runtime_only"
-    )
+    assert (
+        link["value_kind"],
+        link["pointer_struct"],
+        link["pointer_address_domain"],
+    ) == ("struct_pointer", "AudioInstrument", "runtime_only")
     assert not any(s["name"] == "Audio2" for s in payload["custom_structs"])
-    text = (TARGET / "source.s").read_text()
+    text = (TARGET / "music-5.s").read_text()
     assert "Bank5Voice_update_callback" in text
     assert "dc.l bank5Instruments-bank5InstrumentOffsets" in text
     assert "dc.l bank5Repeat2_7-bank5InstrumentOffsets" in text
@@ -116,7 +130,7 @@ def test_review_plan_is_inert_and_existing_prefix_guard_still_refuses_foft(tmp_p
         validate_prefix_target("foft", "amiga_raw_foft")
     assert (
         plan["inputs"]["resource"]["package_sha256"]
-        == load_published_source_package(TARGET)["sha256"]
+        == "9364f32f238f45f77a14eee16c6678353040bd6667a8081565617408acbe75c9"
     )
     assert plan["installed_bytes_contract"]["read_count"] == 8
 
@@ -128,7 +142,10 @@ def test_track_prefixes_do_not_own_stride_gaps_or_the_adjacent_instrument_map():
         s for s in payload["custom_structs"] if s["name"] == "Bank5PatternTrackPrefix"
     )
     assert definition["size"] == 71
-    assert next(f for f in definition["fields"] if f["offset"] == 14)["value_kind"] == "scalar"
+    assert (
+        next(f for f in definition["fields"] if f["offset"] == 14)["value_kind"]
+        == "scalar"
+    )
     assert max(f["offset"] + f["size"] for f in definition["fields"]) == 71
     roots = [0xEF6, 0xF3E, 0xF86, 0xFCE]
     layouts = [
@@ -160,19 +177,34 @@ def test_complete_voice_array_resolves_siblings_without_borrowing_track_gaps():
     with effective_metadata_file(TARGET) as path:
         payload = json.loads(Path(path).read_bytes())
     layout = next(
-        r for r in payload["data_block_layouts"]
+        r
+        for r in payload["data_block_layouts"]
         if r["layout_id"] == "foft-bank5-voices"
     )
     assert (layout["source_start"], layout["source_end"]) == (0x1F8, 0x298)
     voice = next(s for s in payload["custom_structs"] if s["name"] == "Bank5Voice")
-    occupied = [i for f in voice["fields"] for i in range(f["offset"], f["offset"] + f["size"])]
+    occupied = [
+        i for f in voice["fields"] for i in range(f["offset"], f["offset"] + f["size"])
+    ]
     assert sorted(occupied) == list(range(40))
-    element, = layout["elements"]
-    assert (element["array_count"], element["array_stride"], element["width"]) == (4, 40, 160)
-    text = (TARGET / "source.s").read_text()
+    (element,) = layout["elements"]
+    assert (element["array_count"], element["array_stride"], element["width"]) == (
+        4,
+        40,
+        160,
+    )
+    text = (TARGET / "music-5.s").read_text()
     for sibling in range(1, 4):
         multiplier = "" if sibling == 1 else f"{sibling}*"
         assert f"Bank5Voice_playback_phase+{multiplier}Bank5Voice_SIZEOF(a0)" in text
     # These separated partial records still have no packed-array declaration.
-    assert len([r for r in payload["data_block_layouts"]
-                if r["layout_id"].startswith("foft-bank5-track-prefix-")]) == 4
+    assert (
+        len(
+            [
+                r
+                for r in payload["data_block_layouts"]
+                if r["layout_id"].startswith("foft-bank5-track-prefix-")
+            ]
+        )
+        == 4
+    )

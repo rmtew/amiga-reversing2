@@ -958,8 +958,11 @@ def test_list_projects_requires_disk_manifest(tmp_path: Path) -> None:
         json.dumps(_project_metadata_payload())
     )
 
-    with pytest.raises(FileNotFoundError, match="Missing manifest.json for disk project: amiga_disk_broken_disk"):
-        list_projects(project_root=project_root)
+    record = list_projects(project_root=project_root)[0]
+    assert not record.ready
+    assert "Missing manifest.json for disk project" in record.discovery_error["message"]
+    with pytest.raises(FileNotFoundError, match="Missing manifest.json"):
+        get_project(disk_dir.name, project_root=project_root)
 
 
 def test_get_project_reads_disk_project(tmp_path: Path) -> None:
@@ -1460,8 +1463,11 @@ def test_list_projects_requires_project_metadata(tmp_path: Path) -> None:
     target_dir = tmp_path / "targets" / "demo"
     target_dir.mkdir(parents=True)
 
+    record = list_projects(project_root=tmp_path)[0]
+    assert not record.ready
+    assert "Missing .project.json" in record.discovery_error["message"]
     with pytest.raises(FileNotFoundError, match=r"Missing \.project\.json for project: demo"):
-        list_projects(project_root=tmp_path)
+        get_project("demo", project_root=tmp_path)
 
 
 def test_browser_state_remains_readable_during_publication(tmp_path, monkeypatch):

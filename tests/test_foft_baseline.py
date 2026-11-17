@@ -11,7 +11,9 @@ from amiga_reversing.disasm.source_package_publish import (
     PUBLISH_MANIFEST,
     load_published_source_package,
 )
-from amiga_reversing.disasm.target_metadata import load_target_metadata
+from tests.disk_set_fixture_helpers import (
+    original_main_metadata as load_target_metadata,
+)
 from tools import foft_baseline
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,13 +53,13 @@ def test_imported_scopes_have_named_global_owners_and_real_bare_locals():
         owner, local = l.name.split("\\.", 1)
         assert re.fullmatch("[A-Za-z_][A-Za-z_0-9]*", local)
         assert globals_by_name[owner] < l.addr and len(l.name.encode()) <= 63
-    text = (TARGET / "source.s").read_text()
+    text = (TARGET / "main.s").read_text()
     assert "DrawSelectedKeyboardMarker:\n" in text and "\n.loop_y:\n" in text
     assert "\tdbf.w d7,.loop_y" in text
 
 
 def test_rendered_references_use_the_materialized_load_view():
-    text = (TARGET / "source.s").read_text()
+    text = (TARGET / "main.s").read_text()
     assert "\tclr.w abs_0_0004E37C.l\n" in text
     assert "\tjsr BumpSounds80.l\n" in text
     assert "-2646.l" not in text
@@ -75,9 +77,9 @@ def test_import_is_provenance_bound_and_does_not_promote_generic_auto_names():
         assert r.review_status == "seeded"
         if getattr(r, "name", None):
             assert not re.fullmatch(r"(?:FUN|LAB|DAT|WORD_ARRAY)_[0-9a-fA-F]+", r.name)
-    source = json.loads((TARGET / "source_binary.json").read_text())
+    manifest = json.loads((TARGET / "manifest.json").read_text())
+    source = next(m["context"] for m in manifest["members"] if m["id"] == "main")
     assert source["load_address"] == source["entrypoint"] == 0x800
-    assert source["path"] == "targets/amiga_raw_foft/binary.bin"
 
 
 def test_changed_asset_is_refused_before_assembly(tmp_path, monkeypatch):
@@ -131,7 +133,9 @@ def test_saved_scalar_extent_mismatch_is_refused():
 
 
 def test_saved_pointer_declarations_do_not_assert_mapped_addresses():
-    metadata = json.loads((TARGET / "target_metadata.json").read_text())
+    metadata = json.loads(
+        (TARGET / "analysis/main.original-target_metadata.json").read_text()
+    )
     declarations = [
         r
         for r in metadata["seeded_entities"]
@@ -183,9 +187,12 @@ def test_collection_classification_is_not_an_authored_comment():
 
 
 def test_vetted_collections_preserve_complete_geometry_and_named_handlers():
-    from amiga_reversing.disasm.effective_metadata import effective_target_metadata
+    from amiga_reversing.disasm.target_metadata import TargetMetadata
+    from tests.disk_set_fixture_helpers import member_metadata
 
-    metadata = effective_target_metadata(TARGET)
+    metadata = TargetMetadata.from_dict(
+        json.loads(member_metadata("main").read_bytes())
+    )
     layouts = {item.layout_id: item for item in metadata.data_block_layouts}
     expected = {
         "region_codes": (0x1B28, 12, 2),
@@ -207,7 +214,7 @@ def test_vetted_collections_preserve_complete_geometry_and_named_handlers():
     assert [e.array_count for e in layouts["foft-edi_commands"].elements] == [11, 2]
     assert layouts["foft-scp_key_commands"].elements[0].array_count == 11
     assert layouts["foft-scp-instructions"].elements[0].array_count == 31
-    text = (TARGET / "source.s").read_text()
+    text = (TARGET / "main.s").read_text()
     assert "tableConvHandler:\n\tbra.w fConvHandleEnd\n" in text
     assert "\tdc.l fEditCommand\t; handler\n" in text
     assert "\tdc.l fShipIntimidator\n" in text

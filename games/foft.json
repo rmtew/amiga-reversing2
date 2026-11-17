@@ -37,10 +37,6 @@
     "da33fc1e068d73078094fc4cb6f72ab69a9c2f30f4094b8321033aedb6237b93": {
       "kind": "private_media",
       "format": "ipf"
-    },
-    "85e2684b03badc7308e7eaa059b7c717441808798f55b4642e1d8b1895914c9b": {
-      "kind": "existing_target",
-      "target": "amiga_raw_foft"
     }
   },
   "derivations": {
@@ -70,43 +66,36 @@
       "release": "amiga_sps0613",
       "artifact": "85e2684b03badc7308e7eaa059b7c717441808798f55b4642e1d8b1895914c9b",
       "context": {
-        "kind": "existing_target"
+        "kind": "disk_set_member",
+        "owner": "amiga_raw_foft",
+        "member": "main"
       }
     },
     "amiga_raw_foft_music_bank9_sps0613": {
       "release": "amiga_sps0613",
       "artifact": "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50",
       "context": {
-        "kind": "raw",
-        "address_model": "runtime_absolute",
-        "load_address": 360448,
-        "entrypoint": 360448,
-        "code_start_offset": 0,
-        "phase": "decoded_resource"
+        "kind": "disk_set_member",
+        "owner": "amiga_raw_foft",
+        "member": "music-9"
       }
     },
     "amiga_raw_foft_boot_loader_sps0613": {
       "release": "amiga_sps0613",
       "artifact": "b52575d366313c1648976925c368e7a990d30477e7a099301dcabb031a3939a1",
       "context": {
-        "kind": "raw",
-        "address_model": "runtime_absolute",
-        "load_address": 491520,
-        "entrypoint": 491520,
-        "code_start_offset": 0,
-        "phase": "pre_handoff"
+        "kind": "disk_set_member",
+        "owner": "amiga_raw_foft",
+        "member": "boot"
       }
     },
     "amiga_raw_foft_music_bank5_sps0613": {
       "release": "amiga_sps0613",
       "artifact": "3fa229a343d5fa6e050abc696911c36e55d5ee96cc7b2d852dbdd4404b299190",
       "context": {
-        "kind": "raw",
-        "address_model": "runtime_absolute",
-        "load_address": 360448,
-        "entrypoint": 360448,
-        "code_start_offset": 0,
-        "phase": "decoded_resource"
+        "kind": "disk_set_member",
+        "owner": "amiga_raw_foft",
+        "member": "music-5"
       }
     }
   },

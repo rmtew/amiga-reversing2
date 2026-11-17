@@ -94,6 +94,11 @@ targets/amiga_disk_search-for-the-king-the-1991-accolade-disk-1-of-5/targets/ami
 # imported/selected target source and stable target metadata are reviewable.
 !targets/**/
 targets/**/*
+# F.O.F.T. disk-set ownership and durable member analysis.
+!targets/amiga_raw_foft/manifest.json
+!targets/amiga_raw_foft/analysis/*.json
+!targets/amiga_raw_foft/analysis/*.jsonl
+!targets/amiga_raw_foft/recipes/*.json
 !targets/**/
 !targets/**/*.s
 !targets/**/.project.json

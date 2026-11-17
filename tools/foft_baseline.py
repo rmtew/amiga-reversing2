@@ -22,6 +22,12 @@ EXPECTED = "85e2684b03badc7308e7eaa059b7c717441808798f55b4642e1d8b1895914c9b"
 SIZE = 489472
 
 
+def require_legacy_binary_target():
+    manifest = TARGET / "manifest.json"
+    if manifest.exists() and json.loads(manifest.read_bytes()).get("kind") == "disk_set":
+        raise ValueError("Use disk-set Restore with member_id and private media bindings for input and regeneration operations")
+
+
 def verify(data, *, expected=EXPECTED, size=SIZE, load_address=0x800):
     actual = hashlib.sha256(data).hexdigest()
     if len(data) != size or actual != expected:
@@ -36,6 +42,7 @@ def verify(data, *, expected=EXPECTED, size=SIZE, load_address=0x800):
 
 
 def bind(path):
+    require_legacy_binary_target()
     data = path.read_bytes()
     result = verify(data)
     if (TARGET / "binary.bin").exists() and (
@@ -47,6 +54,7 @@ def bind(path):
 
 
 def render(check=False):
+    require_legacy_binary_target()
     from amiga_reversing.disasm.binary_source import resolve_target_binary_source
     from amiga_reversing.disasm.effective_metadata import effective_metadata_file
     from amiga_reversing.disasm.source_package import validate_source_package
@@ -151,6 +159,7 @@ def build(output, vasm=None, *, target=None, expected=EXPECTED, size=SIZE,
 
 
 def inventory():
+    require_legacy_binary_target()
     from amiga_reversing.disasm.binary_source import resolve_target_binary_source
     from amiga_reversing.disasm.c_backend import (
         analyze_project_source_with_render_evidence_from_c_backend,

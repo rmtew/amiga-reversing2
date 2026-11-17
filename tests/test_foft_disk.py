@@ -3,25 +3,41 @@
 import hashlib
 import json
 import struct
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 
 from amiga_reversing.disasm.source_package import validate_source_package
-from amiga_reversing.disasm.source_package_publish import load_published_source_package
+from amiga_reversing.disasm.source_package_publish import publish_source_package
+from tests.disk_set_fixture_helpers import member_metadata, member_package
 from tools import foft_baseline, foft_disk
 
 ROOT = Path(__file__).resolve().parents[1]
-TARGET = ROOT / "targets/amiga_raw_foft_music_bank9_sps0613"
+TARGET = "main"
+
+
+@contextmanager
+def member_metadata_file(member):
+    yield member_metadata(member)
+
+
 EXPECTED = "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50"
 
 
 @pytest.mark.parametrize(
     ("target", "expected", "size", "load", "asset_count", "asset_bytes"),
     [
-        (TARGET, EXPECTED, 50000, 0x58000, 10, 44046),
         (
-            ROOT / "targets/amiga_raw_foft_music_bank5_sps0613",
+            TARGET,
+            "85e2684b03badc7308e7eaa059b7c717441808798f55b4642e1d8b1895914c9b",
+            489472,
+            0x800,
+            32,
+            155695,
+        ),
+        (
+            "music-5",
             "3fa229a343d5fa6e050abc696911c36e55d5ee96cc7b2d852dbdd4404b299190",
             29578,
             0x58000,
@@ -29,7 +45,7 @@ EXPECTED = "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50"
             23366,
         ),
         (
-            ROOT / "targets/amiga_raw_foft_boot_loader_sps0613",
+            "boot",
             "b52575d366313c1648976925c368e7a990d30477e7a099301dcabb031a3939a1",
             4000,
             0x78000,
@@ -41,27 +57,17 @@ EXPECTED = "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50"
 def test_source_build_has_no_hidden_original_and_only_proven_assets(
     tmp_path, target, expected, size, load, asset_count, asset_bytes
 ):
-    package = load_published_source_package(target)
+    package = member_package(target)
     files = validate_source_package(package)
     assets = [f for f in package["manifest"]["files"] if f["kind"] == "asset"]
     assert len(assets) == asset_count and sum(f["size"] for f in assets) == asset_bytes
-    assert all(
-        f["path"].startswith(
-            ("assets/audioInstrument", "assets/bank5Sample", "assets/bank5Repeat")
-        )
-        for f in assets
-    )
+    assert all(f["path"].startswith(("assets/",)) for f in assets)
     assert not any(
         "binary.bin" in name or name.endswith((".ipf", ".rom")) for name in files
     )
     stage = tmp_path / "source-only"
     stage.mkdir()
-    for name, data in files.items():
-        path = stage / name
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
-    manifest = "source-package-manifest.json"
-    (stage / manifest).write_bytes((target / manifest).read_bytes())
+    publish_source_package(package, stage)
     vasm = ROOT / "tools/vasmm68k_mot.exe"
     if not vasm.is_file():
         pytest.skip("build the vasm oracle first")
@@ -77,6 +83,10 @@ def test_source_build_has_no_hidden_original_and_only_proven_assets(
     assert result["native"] == result["vasm"]
     assert result["native"]["sha256"] == expected
     assert result["native"]["end_exclusive"] == hex(load + size)
+    if target == "main":
+        assembled = (tmp_path / "assembled/bank9-native.bin").read_bytes()
+        assert hashlib.sha256(assembled[0x57800:0x63B50]).hexdigest() == EXPECTED
+
     if size == 29578:
         from amiga_reversing.disasm.binary_source import (
             BinarySourceKind,
@@ -86,7 +96,6 @@ def test_source_build_has_no_hidden_original_and_only_proven_assets(
         from amiga_reversing.disasm.c_backend import (
             analyze_project_source_with_c_backend,
         )
-        from amiga_reversing.disasm.effective_metadata import effective_metadata_file
 
         binary = tmp_path / "assembled/bank9-native.bin"
         source = RawBinarySource(
@@ -99,7 +108,7 @@ def test_source_build_has_no_hidden_original_and_only_proven_assets(
             display_path="fresh source-only bank5",
             analysis_cache_path=tmp_path / "private-analysis-cache",
         )
-        with effective_metadata_file(target) as metadata_path:
+        with member_metadata_file(target) as metadata_path:
             analysis = analyze_project_source_with_c_backend(
                 source, metadata_path=metadata_path, project_root=ROOT
             )
@@ -129,7 +138,8 @@ def test_source_build_has_no_hidden_original_and_only_proven_assets(
         section = analysis["sections"][0]
         assert any(r["start_offset"] == 0x460 for r in section["accepted_code_runs"])
         siblings = {
-            r["offset"] for r in section["recovered_platform_typed_accesses"]
+            r["offset"]
+            for r in section["recovered_platform_typed_accesses"]
             if r.get("root_struct_name") == "Bank5Voice"
             and r["offset"] in (0x390, 0x394, 0x398)
         }
@@ -147,7 +157,9 @@ def test_source_build_has_no_hidden_original_and_only_proven_assets(
             r for r in section["recovered_indirect_sites"] if r["offset"] == 0x3EA
         )
         assert callback["runtime_target_set_closed"] is False
-        volume = next(f for f in section["function_summaries"] if f["entry_offset"] == 0x1590)
+        volume = next(
+            f for f in section["function_summaries"] if f["entry_offset"] == 0x1590
+        )
         assert volume["effects"]["memory"]["state"] == "unknown"
         assert volume["effects"]["escapes"]["state"] == "unknown"
         assert {
@@ -160,8 +172,10 @@ def test_source_build_has_no_hidden_original_and_only_proven_assets(
             for r in section["recovered_platform_typed_accesses"]
         )
         assert {"repeat_offset", "repeat_length_words", "volume_delta"} <= {
-            r["field_name"] for r in section["recovered_platform_typed_accesses"]
-            if r["base_register"] == "A2" and r["owner_struct_name"] == "AudioInstrument"
+            r["field_name"]
+            for r in section["recovered_platform_typed_accesses"]
+            if r["base_register"] == "A2"
+            and r["owner_struct_name"] == "AudioInstrument"
         }
         assert any(
             r["offset"] == 0x12EE and r["field_name"] == "encoded_note_command"
@@ -184,7 +198,9 @@ def test_original_loader_records_prove_the_two_adjacent_main_program_transfers(
 ):
     from tools.foft_music_menu_probe import nominal_copy_chunks
 
-    target = ROOT / "targets/amiga_raw_foft_boot_loader_sps0613"
+    target = tmp_path / "boot-source"
+    target.mkdir()
+    publish_source_package(member_package("boot"), target)
     plan = json.loads(foft_disk.RECIPE.read_bytes())
     vasm = ROOT / "tools/vasmm68k_mot.exe"
     if not vasm.is_file():

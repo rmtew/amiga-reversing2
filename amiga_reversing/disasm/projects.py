@@ -105,6 +105,7 @@ class ProjectRecord:
     release_id: str | None = None
     artifact_id: str | None = None
     artifact_phase: str | None = None
+    discovery_error: dict[str, str] | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.kind, ProjectKind):
@@ -588,16 +589,28 @@ def list_projects(project_root: Path = PROJECT_ROOT) -> list[ProjectRecord]:
     for target_dir in targets_dir.iterdir():
         if not target_dir.is_dir() or target_dir.name.startswith("."):
             continue
-        if is_disk_project_id(target_dir.name) or is_disk_set(target_dir):
-            projects.append(_disk_project_record(target_dir, state))
-            continue
-        if _is_internal_target(target_dir, project_root):
-            continue
-        metadata = _load_project_metadata(target_dir)
-        if is_macos_project_origin(metadata.origin):
-            projects.append(_macos_project_record(target_dir.name, target_dir, state, metadata))
-            continue
-        projects.append(_binary_project_record(target_dir.name, target_dir, state, project_root, metadata))
+        try:
+            if is_disk_project_id(target_dir.name) or is_disk_set(target_dir):
+                projects.append(_disk_project_record(target_dir, state))
+                continue
+            if _is_internal_target(target_dir, project_root):
+                continue
+            metadata = _load_project_metadata(target_dir)
+            if is_macos_project_origin(metadata.origin):
+                projects.append(_macos_project_record(target_dir.name, target_dir, state, metadata))
+                continue
+            projects.append(_binary_project_record(target_dir.name, target_dir, state, project_root, metadata))
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            projects.append(ProjectRecord(
+                id=target_dir.name, name=target_dir.name,
+                kind=ProjectKind.DISK if is_disk_project_id(target_dir.name) else ProjectKind.BINARY,
+                target_dir=str(target_dir), output_path=None, binary_path=None,
+                ready=False, last_opened=state.recent_projects.get(target_dir.name),
+                manifest_path=None, target_count=None, source_path=None,
+                disk_type=None, parent_project_id=None, target_type=None,
+                created_at="", updated_at="",
+                discovery_error={"type": type(error).__name__, "message": str(error)},
+            ))
     projects.sort(key=lambda project: project.id)
     projects.sort(key=lambda project: project.last_opened or "", reverse=True)
     return projects
