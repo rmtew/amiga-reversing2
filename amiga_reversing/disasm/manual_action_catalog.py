@@ -1520,6 +1520,7 @@ def _data_block_element_ref_parameter_schema(defaults: Mapping[str, object] | No
                 "runtime_address": {"type": "integer", "minimum": 0, "maximum": 4294967295},
                 "signed": {"type": "boolean"},
                 "scale": {"type": "integer", "minimum": 1},
+                "entry_width": {"type": "integer", "enum": [2, 4]},
                 "base_locator": {"type": "object", "properties": {"hunk": {"type": "integer", "minimum": 0}, "offset": {"type": "integer", "minimum": 0}}, "required": ["hunk", "offset"]},
                 "base_evidence_id": {"type": "string"},
                 "source_evidence_id": {"type": "string"},
@@ -1609,7 +1610,8 @@ def _data_block_element_ref_remove_parameter_schema(defaults: Mapping[str, objec
                 "target_locator": {"type": "object"},
                 "base_locator": {"type": "object"},
                 "signed": {"type": "boolean"},
-                "scale": {"type": "integer", "enum": [1]},
+                "scale": {"type": "integer", "minimum": 1},
+                "entry_width": {"type": "integer", "enum": [2, 4]},
                 "source_value": {"type": "integer", "minimum": 0},
                 "confidence": {"type": "string", "enum": ["manual", "high", "medium", "low"]},
                 "xref_generation_mode": {"type": "string", "enum": ["bidirectional", "source_only", "none"]},
@@ -4697,8 +4699,10 @@ def _data_block_element_ref_payload(
         raise ValueError("interpret_manual_data_block_element_ref requires non-negative target_hunk")
     if target_offset is None or target_offset < 0:
         raise ValueError("interpret_manual_data_block_element_ref requires non-negative target_offset")
+    if "entry_width" in params and reference_kind != "base_displacement_range":
+        raise ValueError("entry_width applies only to base_displacement_range")
     if rows:
-        source_value = _data_block_ref_source_value(rows, 2 if reference_kind == "base_displacement_range" else width)
+        source_value = _data_block_ref_source_value(rows, cast(int, params.get("entry_width", 2)) if reference_kind == "base_displacement_range" else width)
     else:
         source_value = _optional_int(params.get("source_value"))
         if source_value is None or source_value < 0:
@@ -4749,6 +4753,8 @@ def _data_block_element_ref_payload(
         source_hunk = _int_field(rows[0], "section_index", default=0) if rows else None
         source_addr = _int_field(rows[0], "start_offset", fallback="addr") if rows else None
         if reference_kind == "base_displacement_range":
+            if "entry_width" in params:
+                ref["entry_width"] = params["entry_width"]
             validate_base_displacement_range(ref, source_hunk=source_hunk)
         else:
             validate_base_displacement_reference(ref, source_hunk=source_hunk, source_addr=source_addr)

@@ -8271,8 +8271,9 @@ static int append_metadata_manual_data_reference_local(const char *start, const 
     M68kAnalysisPolicy *policy) {
   M68kAnalysisManualDataReference ref;
   uint8_t is_signed = 0U;
-  uint32_t scale = 1U;
-  int present = 0;
+  uint32_t scale = 1U, entry_width = 2U;
+  int present = 0, entry_present = 0;
+  int64_t delta;
   char kind[32];
   uint16_t index;
   if (policy == NULL) return 0;
@@ -8302,18 +8303,22 @@ static int append_metadata_manual_data_reference_local(const char *start, const 
       !json_optional_string_field_local(start, end, "owner_layout_id", ref.owner_layout_id, sizeof(ref.owner_layout_id)) ||
       !json_optional_string_field_local(start, end, "xref_generation_mode", ref.xref_generation_mode,
         sizeof(ref.xref_generation_mode))) return 0;
+  if (!json_number_field_local(start, end, "entry_width", &entry_width, &entry_present)) return 0;
+  if (entry_width != 2U && entry_width != 4U) return 0;
+  ref.entry_width = (uint8_t)entry_width;
   ref.is_range = !strcmp(kind, "base_displacement_range");
   ref.raw_value_signed = is_signed;
   ref.value_scale = scale;
-  if ((!ref.is_range && (strcmp(kind, "base_displacement") || !is_signed || scale != 1U || ref.size != 2U)) ||
-      (ref.is_range && (!present || ref.size < 2U || ref.size > 131070U || (ref.size & 1U) || scale == 0U)) ||
-      ref.raw_value > UINT16_MAX || ref.offset > UINT32_MAX - ref.size ||
+  if ((!ref.is_range && (strcmp(kind, "base_displacement") || !is_signed || scale != 1U || ref.size != 2U || entry_width != 2U)) ||
+      (ref.is_range && (!present || ref.size < entry_width || ref.size / entry_width > 65535U || ref.size % entry_width || scale == 0U)) ||
+      !m68k_relative_data_displacement(ref.raw_value, ref.entry_width, is_signed, scale, &delta) ||
+      ref.offset > UINT32_MAX - ref.size ||
       ref.base_section_index != ref.target_section_index ||
       ref.base_section_index != ref.section_index ||
       ref.owner_kind[0] == '\0' || ref.owner_id[0] == '\0' || ref.owner_layout_id[0] == '\0' ||
       (strcmp(ref.xref_generation_mode, "bidirectional") && strcmp(ref.xref_generation_mode, "source_only") &&
        strcmp(ref.xref_generation_mode, "none")) ||
-      (int64_t)ref.base_offset + (is_signed ? (int16_t)ref.raw_value : (int64_t)ref.raw_value) * scale !=
+      (int64_t)ref.base_offset + delta !=
         (int64_t)ref.target_offset) return 0;
   for (index = 0U; index < policy->manual_data_reference_count; ++index) {
     const M68kAnalysisManualDataReference *existing = &policy->manual_data_references[index];
@@ -10037,6 +10042,7 @@ static int validate_effective_policy_against_object_local(M68kDiagList *diagnost
   }
   for (index = 0U; index < policy->manual_data_reference_count; ++index) {
     const M68kAnalysisManualDataReference *ref = &policy->manual_data_references[index];
+    uint8_t width = ref->entry_width ? ref->entry_width : 2U;
     if (!validate_policy_section_index_local(diagnostics, object, 1U, ref->section_index) ||
         !validate_policy_range_local(diagnostics, object, 1U, ref->section_index, ref->offset, ref->size) ||
         !validate_policy_section_index_local(diagnostics, object, 1U, ref->base_section_index) ||
@@ -10044,19 +10050,26 @@ static int validate_effective_policy_against_object_local(M68kDiagList *diagnost
           "manual data reference base is out of range") ||
         !validate_policy_offset_local(diagnostics, object, 1U, ref->target_section_index, ref->target_offset,
           "manual data reference target is out of range")) return 0;
-    if (object->sections[ref->section_index].data == NULL ||
+    if ((width != 2U && width != 4U) || ref->size < width || ref->size % width ||
+        object->sections[ref->section_index].data == NULL ||
         ref->offset > object->sections[ref->section_index].data_size ||
         ref->size > object->sections[ref->section_index].data_size - ref->offset ||
-        m68k_read_u16be(object->sections[ref->section_index].data + ref->offset) != ref->raw_value) {
+        (width == 2U ? m68k_read_u16be(object->sections[ref->section_index].data + ref->offset) :
+          m68k_read_u32be(object->sections[ref->section_index].data + ref->offset)) != ref->raw_value) {
       platform_file_add_error(diagnostics, "manual data reference encoding does not match source bytes");
       return 0;
     }
     {
       uint32_t cursor;
-      for (cursor = 0U; cursor < ref->size; cursor += 2U) {
-        uint32_t raw = m68k_read_u16be(object->sections[ref->section_index].data + ref->offset + cursor);
-        int64_t target = (int64_t)ref->base_offset +
-          (ref->raw_value_signed ? (int16_t)raw : (int64_t)raw) * ref->value_scale;
+      for (cursor = 0U; cursor < ref->size; cursor += width) {
+        uint32_t raw = width == 2U ? m68k_read_u16be(object->sections[ref->section_index].data + ref->offset + cursor) :
+          m68k_read_u32be(object->sections[ref->section_index].data + ref->offset + cursor);
+        int64_t delta, target;
+        if (!m68k_relative_data_displacement(raw, width, ref->raw_value_signed, ref->value_scale, &delta)) {
+          platform_file_add_error(diagnostics, "manual data reference range displacement is out of range");
+          return 0;
+        }
+        target = (int64_t)ref->base_offset + delta;
         if (target < 0 || target >= object->sections[ref->section_index].size) {
           platform_file_add_error(diagnostics, "manual data reference range target is out of range");
           return 0;

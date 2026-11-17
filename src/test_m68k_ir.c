@@ -14307,6 +14307,27 @@ static int test_manual_data_reference_identity_and_signed_encoding(void) {
   conflict.owner_id = "word:max";
   conflict.source_offset = 6U;
   M68K_C_ASSERT_INT(0, m68k_ir_section_analysis_append_data_reference(&section, &conflict));
+  /* LONG ranges retain all bits and reject partial storage overlap. */
+  conflict = ref;
+  conflict.reference_kind = M68K_DATA_REFERENCE_KIND_BASE_DISPLACEMENT_RANGE;
+  conflict.raw_value_width = 4U;
+  conflict.raw_value = 0xFFFFFFFCU;
+  conflict.value_scale = 1U;
+  conflict.owner_id = "long:negative";
+  conflict.source_offset = 10U;
+  M68K_C_ASSERT_INT(0, m68k_ir_section_analysis_append_data_reference(&section, &conflict));
+  conflict.source_offset = 12U;
+  conflict.owner_id = "long:partial-overlap";
+  M68K_C_ASSERT_INT(-1, m68k_ir_section_analysis_append_data_reference(&section, &conflict));
+  {
+    int64_t delta = 0;
+    M68K_C_ASSERT_INT(1, m68k_relative_data_displacement(0xFFFFFFFFU, 4U, 0U, 1U, &delta));
+    M68K_C_ASSERT_U32(UINT32_MAX, (uint32_t)delta);
+    M68K_C_ASSERT_INT(1, m68k_relative_data_displacement(0x80000000U, 4U, 1U, 1U, &delta));
+    M68K_C_ASSERT_INT(1, delta == -2147483648LL);
+    M68K_C_ASSERT_INT(0, m68k_relative_data_displacement(0xFFFFFFFFU, 4U, 0U, UINT32_MAX, &delta));
+    M68K_C_ASSERT_INT(0, m68k_relative_data_displacement(0x80000000U, 4U, 1U, UINT32_MAX, &delta));
+  }
   m68k_ir_section_analysis_destroy(&section);
   return 0;
 }

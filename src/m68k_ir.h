@@ -807,6 +807,7 @@ typedef struct M68kAnalysisManualDataReference {
   uint32_t raw_value;
   uint32_t value_scale;
   uint8_t is_range;
+  uint8_t entry_width;
   uint8_t raw_value_signed;
   uint32_t base_section_index;
   uint32_t base_offset;
@@ -2631,6 +2632,20 @@ typedef struct M68kDataReferenceIR {
   char *owner_layout_id;
   char *xref_generation_mode;
 } M68kDataReferenceIR;
+
+/* Source-coordinate differences cannot exceed uint32. Check before scaling,
+ * including unsigned LONGs, so hostile metadata cannot overflow int64. */
+static inline int m68k_relative_data_displacement(uint32_t raw, uint8_t width,
+    uint8_t is_signed, uint32_t scale, int64_t *out) {
+  int64_t value;
+  if ((width != 2U && width != 4U) || (width == 2U && raw > UINT16_MAX) || !scale) return 0;
+  value = (int64_t)raw;
+  if (is_signed && (raw & (width == 2U ? 0x8000U : 0x80000000U)))
+    value -= width == 2U ? 0x10000LL : 0x100000000LL;
+  if (value > (int64_t)(UINT32_MAX / scale) || -value > (int64_t)(UINT32_MAX / scale)) return 0;
+  *out = value * scale;
+  return 1;
+}
 
 typedef enum M68kImmediateTextTokenEvidenceFlag {
   M68K_IMMEDIATE_TEXT_TOKEN_EVIDENCE_ACCEPTED_INSTRUCTION = 1U << 0,

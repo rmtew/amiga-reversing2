@@ -376,6 +376,29 @@ def _rename_seeded_custom_field_references(entities, definitions, renamed_fields
     return result
 
 
+def _name_anonymous_data_owner(entities, seed):
+    """Bind an exact data-name action to one existing anonymous declaration.
+
+    Interior/ambiguous points remain labels. Never infer an extent or discard
+    a typed declaration's provenance just to supply its missing public name.
+    """
+    if (not str(seed.get("seed_id", "")).startswith("data-symbol:") or
+            seed.get("end") is not None):
+        return False, entities
+    addr, hunk = _manual_seed_int(seed, "addr"), _manual_seed_int(seed, "hunk")
+    name = _manual_seed_text(seed, "name")
+    if addr is None or hunk is None or name is None:
+        return False, entities
+    matches = [i for i, item in enumerate(entities)
+               if item.type == "data" and item.hunk == hunk and item.addr == addr
+               and item.end is not None and item.end > addr]
+    if len(matches) != 1 or entities[matches[0]].name:
+        return False, entities
+    result = list(entities)
+    result[matches[0]] = replace(result[matches[0]], name=name)
+    return True, result
+
+
 def _rename_manual_data_owner(entities, label):
     """A renamed data declaration retains its type instead of gaining code intent."""
     if (label.get("scope") is ManualLabelScope.LOCAL or
@@ -1944,6 +1967,7 @@ def _data_block_element_interpreted_data_reference(
     else:
         validate_base_displacement_reference(ref, source_hunk=layout.hunk)
     width = cast(int, ref["width"]) if is_range else 2
+    entry_width = cast(int, ref.get("entry_width", 2)) if is_range else 2
     offset = _manual_seed_int(ref, "offset")
     if offset is None:
         raise ValueError("base_displacement requires source offset")
@@ -1965,11 +1989,12 @@ def _data_block_element_interpreted_data_reference(
         # rejects invalid/overlapping declarations and invalid array strides.
         leaves = _data_block_bound_struct_entities(layout, owner, custom_structs)
         matches = [leaf for leaf in leaves if addr <= leaf.addr and leaf.end is not None and leaf.end <= end
-                   and leaf.end - leaf.addr == 2 and (leaf.addr - addr) % 2 == 0
-                   and leaf.unit == "word" and (leaf.field_type or "").upper() in {"WORD", "UWORD"}
+                   and leaf.end - leaf.addr == entry_width and (leaf.addr - addr) % entry_width == 0
+                   and leaf.unit == {2: "word", 4: "long"}[entry_width]
+                   and (leaf.field_type or "").upper() in ({"WORD", "UWORD"} if entry_width == 2 else {"LONG", "ULONG"})
                    and leaf.value_kind == "scalar" and leaf.field_name]
-        if len(matches) != width // 2 or len({leaf.addr for leaf in matches}) != width // 2:
-            raise ValueError("base_displacement requires an exact declared WORD leaf in its struct owner")
+        if len(matches) != width // entry_width or len({leaf.addr for leaf in matches}) != width // entry_width:
+            raise ValueError(f"base_displacement requires an exact declared {'WORD' if entry_width == 2 else 'LONG'} leaf in its struct owner")
     elif owner.kind in {DataBlockElementKind.STRUCT, DataBlockElementKind.PLATFORM_STRUCT} or (
         isinstance(owner.type_binding, dict)
         and owner.type_binding.get("binding_kind") in {"custom_struct", "platform_struct"}
@@ -1979,6 +2004,7 @@ def _data_block_element_interpreted_data_reference(
     return ManualDataReferenceMetadata(
         addr=addr, hunk=layout.hunk, size=width,
         source_value=cast(int, ref["source_value"]), reference_kind=str(ref["reference_kind"]),
+        entry_width=entry_width,
         signed=cast(bool, ref["signed"]), scale=cast(int, ref.get("scale", 1)),
         base_hunk=base["hunk"], base_offset=base["offset"],
         target_hunk=cast(int, ref["target_hunk"]), target_offset=cast(int, ref["target_offset"]),
@@ -2549,9 +2575,11 @@ def _apply_manual_seed_projection(
             if entrypoint is not None:
                 seeded_code_entrypoints.append(entrypoint)
         elif seed_kind is ManualSeedKind.DATA:
-            entity = _manual_seed_to_data_entity(seed)
-            if entity is not None:
-                seeded_entities.append(entity)
+            named_data, seeded_entities = _name_anonymous_data_owner(seeded_entities, seed)
+            if not named_data:
+                entity = _manual_seed_to_data_entity(seed)
+                if entity is not None:
+                    seeded_entities.append(entity)
     for label in labels:
         renamed_data, seeded_entities = _rename_manual_data_owner(seeded_entities, label)
         if renamed_data:

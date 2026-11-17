@@ -17,10 +17,13 @@ static const char *mr_image_relative_data_guard(const M68kSourceAnalysisIR *anal
           UINT32_MAX,M68K_RENDER_PLANNED_EXPRESSION_RELATIVE);
       if(!storage || !base || !target) return "cross_owner_relative_image_reference";
       uint32_t scale=ref->reference_kind==M68K_DATA_REFERENCE_KIND_BASE_DISPLACEMENT ? 1:ref->value_scale;
-      int64_t value=ref->raw_value_signed ? (int16_t)ref->raw_value:(int64_t)ref->raw_value;
-      if(ref->raw_value_width!=2 || r->size<2 || ref->source_offset>r->size-2 || ref->raw_value>UINT16_MAX || !scale ||
-          m68k_read_u16be(object->sections[0].data+ref->source_offset)!=ref->raw_value ||
-          (int64_t)ref->base_offset+value*scale!=ref->target_offset)
+      int64_t delta = 0;
+      uint32_t width = ref->raw_value_width;
+      if(!m68k_relative_data_displacement(ref->raw_value,width,ref->raw_value_signed,scale,&delta) ||
+          r->size<width || ref->source_offset>r->size-width ||
+          (width==2 ? m68k_read_u16be(object->sections[0].data+ref->source_offset) :
+            m68k_read_u32be(object->sections[0].data+ref->source_offset))!=ref->raw_value ||
+          (int64_t)ref->base_offset+delta!=ref->target_offset)
         return "invalid_relative_image_source_relation";
       checked[ref->source_offset]=1;
     }

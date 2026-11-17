@@ -1550,7 +1550,10 @@ def _validated_data_block_interpreted_ref(
     source_value = _manual_seed_int(ref, "source_value")
     if source_value is None or source_value < 0:
         raise ValueError("data_block_interpreted_ref requires non-negative source_value")
-    if (width > 4 and reference_kind != "base_displacement_range") or source_value >= (1 << (16 if reference_kind == "base_displacement_range" else width * 8)):
+    entry_width = ref.get("entry_width", 2) if reference_kind == "base_displacement_range" else width
+    if type(entry_width) is not int or entry_width not in {1, 2, 4}:
+        raise ValueError("data_block_interpreted_ref requires a valid encoded cell width")
+    if (width > 4 and reference_kind != "base_displacement_range") or source_value >= (1 << (entry_width * 8)):
         raise ValueError("data_block_interpreted_ref source_value does not fit width")
     if reference_kind in {"base_displacement", "base_displacement_range"}:
         validate_base_displacement_owner(ref, element, defer_struct_leaf=True)

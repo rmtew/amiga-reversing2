@@ -3063,6 +3063,7 @@ int m68k_ir_section_analysis_append_table_entry(M68kSectionAnalysisIR *section_a
 int m68k_ir_section_analysis_append_data_reference(M68kSectionAnalysisIR *section_analysis,
     const M68kDataReferenceIR *ref) {
   size_t index;
+  int64_t delta = 0;
   if (section_analysis == NULL || ref == NULL) return -1;
   if (section_analysis->arena == NULL) return -1;
   if (ref->source_kind == M68K_DATA_REFERENCE_SOURCE_UNKNOWN ||
@@ -3076,14 +3077,15 @@ int m68k_ir_section_analysis_append_data_reference(M68kSectionAnalysisIR *sectio
         strcmp(ref->xref_generation_mode, "none")) || (ref->reference_kind != M68K_DATA_REFERENCE_KIND_BASE_DISPLACEMENT &&
         ref->reference_kind != M68K_DATA_REFERENCE_KIND_BASE_DISPLACEMENT_RANGE) ||
        (ref->reference_kind == M68K_DATA_REFERENCE_KIND_BASE_DISPLACEMENT &&
-        (!ref->raw_value_signed || ref->value_scale > 1U)) ||
+        (!ref->raw_value_signed || ref->value_scale > 1U || ref->raw_value_width != 2U)) ||
        (ref->reference_kind == M68K_DATA_REFERENCE_KIND_BASE_DISPLACEMENT_RANGE && !ref->value_scale) ||
-       !ref->has_base || ref->raw_value_width != 2U || ref->raw_value > UINT16_MAX ||
-       ref->source_offset > UINT32_MAX - 2U ||
+       !ref->has_base ||
+       !m68k_relative_data_displacement(ref->raw_value, ref->raw_value_width, ref->raw_value_signed,
+         ref->value_scale ? ref->value_scale : 1U, &delta) ||
+       ref->source_offset > UINT32_MAX - ref->raw_value_width ||
        ref->base_section_index != ref->target_section_index ||
        ref->base_section_index != section_analysis->section_index ||
-       (int64_t)ref->base_offset + (ref->raw_value_signed ? (int16_t)ref->raw_value : (int64_t)ref->raw_value) *
-         (ref->value_scale ? ref->value_scale : 1U) != (int64_t)ref->target_offset)) return -1;
+       (int64_t)ref->base_offset + delta != (int64_t)ref->target_offset)) return -1;
   for (index = 0U; index < section_analysis->data_reference_count; ++index) {
     M68kDataReferenceIR *existing = &section_analysis->data_references[index];
     if (ref->source_kind == M68K_DATA_REFERENCE_SOURCE_MANUAL &&
@@ -3103,7 +3105,7 @@ int m68k_ir_section_analysis_append_data_reference(M68kSectionAnalysisIR *sectio
       return 0;
     }
     if (ref->source_kind == M68K_DATA_REFERENCE_SOURCE_MANUAL &&
-        existing->source_kind == ref->source_kind && existing->source_offset < ref->source_offset + 2U &&
+        existing->source_kind == ref->source_kind && existing->source_offset < ref->source_offset + ref->raw_value_width &&
         ref->source_offset < existing->source_offset + existing->raw_value_width) return -1;
     if (ref->source_kind != M68K_DATA_REFERENCE_SOURCE_MANUAL && existing->source_kind == ref->source_kind &&
         existing->source_offset == ref->source_offset &&

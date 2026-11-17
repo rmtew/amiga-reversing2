@@ -45,14 +45,15 @@ def test_range_catalog_rejects_ambiguous_or_invalid_encoding(updates):
         target_catalog_manual_payload("target.data_block.element.interpret_ref", parameters=_params(**updates))
 
 
-def _fixture(tmp_path, values, signed=False, scale=1, first_override=None):
+def _fixture(tmp_path, values, signed=False, scale=1, first_override=None, entry_width=2, typed=False, encoded_values=None):
     _requires_c_backend_dlls()
-    start, width = 6, 2 * len(values)
+    start, width = 6, entry_width * len(values)
     owner_start = start + width
     base = owner_start + (18 if signed else 0)
-    decoded = [v - 65536 if signed and v >= 32768 else v for v in values]
+    bits = entry_width * 8
+    decoded = [v - (1 << bits) if signed and v >= 1 << (bits - 1) else v for v in values]
     extent = max(2, max(decoded) * scale + base - owner_start + 2)
-    original = bytes.fromhex("60024e714e75") + b"".join(v.to_bytes(2, "big") for v in values) + bytes(extent)
+    original = bytes.fromhex("60024e714e75") + b"".join(v.to_bytes(entry_width, "big") for v in (values if encoded_values is None else encoded_values)) + bytes(extent)
     path = tmp_path / "ranges.bin"
     path.write_bytes(original)
     source = RawBinarySource(kind=BinarySourceKind.RAW_BINARY, path=path,
@@ -61,14 +62,18 @@ def _fixture(tmp_path, values, signed=False, scale=1, first_override=None):
     write_target_metadata(tmp_path, TargetMetadata(target_type="program", entry_register_seeds=()))
     specs = [
         ("target.data_block.layout.create", {"layout_id": "offsets", "hunk": 0,
-            "source_start": start, "source_end": start+width, "name": "offset_words", "default_unit": "word"}),
+            "source_start": start, "source_end": start+width, "name": "offset_words", "default_unit": "word" if entry_width == 2 else "long"}),
         ("target.data_block.element.set", {"layout_id": "offsets", "offset": 0, "width": width,
-            "kind": "array", "array_count": len(values), "array_stride": 2}),
+            "kind": "array", "array_count": len(values), "array_stride": entry_width}),
         ("target.data_block.layout.create", {"layout_id": "pixels", "hunk": 0,
             "source_start": owner_start, "source_end": len(original), "name": "pixel_bank", "default_unit": "byte"}),
         ("target.data_block.element.set", {"layout_id": "pixels", "offset": 0, "width": extent,
             "kind": "array", "array_count": extent, "array_stride": 1}),
     ]
+    if typed:
+        specs.insert(0, ("target.custom_struct.add", {"name": "RelativeCell", "size": entry_width,
+            "fields": [{"name": "offset", "type": "LONG" if entry_width == 4 else "WORD", "offset": 0, "size": entry_width}]}))
+        specs[2][1].update(kind="struct", binding_kind="custom_struct", type_id="RelativeCell")
     if scale != 1:
         specs.append(("target.code_label.add", {"hunk": 0, "addr": base+decoded[-1]*scale, "name": "last_record"}))
     actions = []
@@ -83,10 +88,10 @@ def _fixture(tmp_path, values, signed=False, scale=1, first_override=None):
         actions.append((ManualActionKind(kind), payload))
     append_manual_actions(tmp_path, actions=actions, binary_source=source)
     raw = values[0] if first_override is None else first_override
-    first = raw - 65536 if signed and raw >= 32768 else raw
+    first = raw - (1 << bits) if signed and raw >= 1 << (bits - 1) else raw
     kind, payload = target_catalog_manual_payload("target.data_block.element.interpret_ref", parameters=_params(
         layout_id=layout_ids["offsets"], width=width, signed=signed, scale=scale, base_locator={"hunk": 0, "offset": base},
-        source_value=raw, target_offset=base+first*scale))
+        source_value=raw, target_offset=base+first*scale, **({"entry_width": 4} if entry_width == 4 else {})))
     return source, original, (ManualActionKind(kind), payload), base
 
 
@@ -189,8 +194,9 @@ def test_range_requires_complete_declared_word_leaves(tmp_path, fields):
 
 
 @pytest.mark.c_backend
-def test_range_duplicate_overlap_and_removal_preserve_storage(tmp_path):
-    source, _, action, _ = _fixture(tmp_path, [0, 1, 2])
+@pytest.mark.parametrize("entry_width", [2, 4])
+def test_range_duplicate_overlap_and_removal_preserve_storage(tmp_path, entry_width):
+    source, _, action, _ = _fixture(tmp_path, [0, 1, 2], entry_width=entry_width)
     append_manual_actions(tmp_path, actions=[action, action], binary_source=source)
     ref = action[1]["data_block_interpreted_ref"]
     metadata = json.loads(effective_metadata_text(tmp_path))

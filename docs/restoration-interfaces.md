@@ -228,7 +228,10 @@ the existing required data-seed fact; ordinary `target.seed.remove`/undo apply.
 It does not establish pointer targets or semantic truth, and partial units refuse.
 Use a data-block layout separately for structure and interpreted references.
 
-`target.data.name` takes only source `hunk`, `addr` and `name`. It adds a
+`target.data.name` takes only source `hunk`, `addr` and `name`. If exactly one
+bounded anonymous data declaration starts there, it receives the name in place,
+preserving every non-name fact and its saved provenance. Already named, ambiguous
+or interior points retain the existing point-label behavior. It adds a
 name without declaring a type or extent. Inferred data-row renames use this same
 extentless identity: a rendered slice is not an ownership range. Renaming an
 explicit seeded entity still retains that entity's declared bounds.
@@ -742,17 +745,19 @@ whole append. Normal undo/redo applies to the single bulk action. This is useful
 for propagating a reviewed owner identity without recreating every typed element.
 
 `target.data_block.element.interpret_ref` accepts `base_displacement_range` for
-a packed range of 1..65535 WORDs within one existing element. Here `width` is
-the entire byte span; explicit `signed`, positive uint32 `scale`, and
-`base_locator` define `target = base + decoded_word * scale` in the same source
-section. `source_value` and `target_offset` pin the first WORD and its target.
-The native reader decodes every remaining WORD from the identity-bound binary,
+a packed range of 1..65535 WORDs or LONGs within one existing element. Here
+`width` is the entire byte span and `entry_width` is 2 or 4 bytes; omitted
+`entry_width` retains the historical WORD default. Explicit `signed`, positive
+uint32 `scale`, and `base_locator` define `target = base + decoded_cell * scale`
+in the same source section. `source_value` and `target_offset` pin the first
+cell and its target. The native reader decodes every remaining cell from the
+identity-bound binary,
 checks every target before admission, and publishes each raw value, signedness,
 scale, source position and precise base/target coordinates. A declaration uses
 one policy slot; it does not expand the scalar-reference policy capacity.
 
-Ranges require aligned WORD-array storage or complete declared scalar WORD
-leaves of a resolved type; padding, mixed-width fields and overlapping reference
+Ranges require matching-width scalar/array storage or complete declared scalar
+WORD/LONG leaves of a resolved type; padding, mixed-width fields and overlapping reference
 owners refuse admission. Existing fields, type bindings and resource owners
 remain intact. Native queries expose both expression roles and honor the usual
 xref mode. Symbolic rendering uses bounded source owners with explicit addends,
@@ -760,7 +765,7 @@ so interior references do not manufacture resource boundaries. A scaled form
 uses an exact same-section label difference divided by a literal stride; the
 native assembler rejects relocatable, cross-section and inexact label divisions.
 When base and target share one owner without an independently named record, an
-index retains its original numeric WORD instead of emitting a cancelling
+index retains its original numeric cell instead of emitting a cancelling
 `owner-owner` expression; both coordinates and the scale remain available in
 native references.
 Missing compatible owners, address mappings or arithmetic capacity retain numeric
@@ -1677,3 +1682,13 @@ ancestry, preserving the leaf's type, extent, source owner and provenance. A
 foreign type, missing field or shadowed/ambiguous field name does not acquire a
 guessed identity. This keeps a renamed schema and its original bound data leaves
 consistent instead of silently losing static-data field inference.
+
+
+LONG relative ranges retain `dc.l` storage and expose four-byte reference widths
+through native queries. Encoded unsigned bits and signed decoding remain distinct.
+Native policy validation, analysis, source-image guards and rendering use checked
+scaling before source-coordinate addition; target wrap and multiplication overflow
+refuse admission. A split or incompatible source owner can retain numeric data;
+rendering never combines cells across an interior label, code or relocation.
+The existing signed single-WORD `base_displacement` form is unchanged;
+`entry_width` belongs to the packed-range form only.

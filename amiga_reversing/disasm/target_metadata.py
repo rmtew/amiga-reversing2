@@ -1544,7 +1544,8 @@ def validate_base_displacement_reference(ref: Mapping[str, object], *, source_hu
     base_hunk, base_offset = base.get("hunk"), base.get("offset")
     target_hunk, target_offset = ref.get("target_hunk"), ref.get("target_offset")
     scale = ref.get("scale", 1)
-    if not integer(width) or width != 2 or ref.get("signed") is not True or not integer(scale) or scale != 1:
+    if (not integer(ref.get("entry_width", 2)) or ref.get("entry_width", 2) != 2 or
+            not integer(width) or width != 2 or ref.get("signed") is not True or not integer(scale) or scale != 1):
         raise ValueError("base_displacement supports only signed 16-bit width 2 and scale 1")
     if not integer(source_value) or not 0 <= source_value <= 0xFFFF:
         raise ValueError("base_displacement source_value must be unsigned encoded 16-bit bits")
@@ -1567,17 +1568,21 @@ def validate_base_displacement_reference(ref: Mapping[str, object], *, source_hu
 
 
 def validate_base_displacement_range(ref: Mapping[str, object], *, source_hunk: int | None = None) -> None:
-    """A packed WORD range with one explicit source-coordinate base and scale.
+    """A packed WORD/LONG range with an explicit base, signedness and scale.
 
-    source_value/target_offset describe the first WORD only. The native reader
-    decodes every WORD from the pinned input, retaining the original raw bits.
+    width is the byte span; entry_width defaults to 2 for historical actions.
+    source_value/target_offset describe the first cell. Native analysis reads
+    every encoded cell independently from the pinned input.
     """
     width = ref.get("width", ref.get("size"))
+    entry_width = ref.get("entry_width", 2)
     scale = ref.get("scale")
     base = ref.get("base_locator")
     integer = lambda value: isinstance(value, int) and not isinstance(value, bool)
-    if not integer(width) or not 2 <= width <= 131070 or width % 2:
-        raise ValueError("base_displacement_range requires a packed range of 1..65535 WORDs")
+    if not integer(entry_width) or entry_width not in {2, 4}:
+        raise ValueError("base_displacement_range entry_width must be 2 or 4")
+    if not integer(width) or not entry_width <= width <= 65535 * entry_width or width % entry_width:
+        raise ValueError("base_displacement_range requires a packed range of 1..65535 WORDs or LONGs")
     if not isinstance(ref.get("signed"), bool) or not integer(scale) or not 1 <= scale <= 0xFFFFFFFF:
         raise ValueError("base_displacement_range requires explicit signedness and positive uint32 scale")
     if not isinstance(base, Mapping):
@@ -1588,11 +1593,12 @@ def validate_base_displacement_range(ref: Mapping[str, object], *, source_hunk: 
         raise ValueError("base_displacement_range requires uint32 base and first target locators")
     if bh != th or (source_hunk is not None and bh != source_hunk):
         raise ValueError("base_displacement_range requires source, base and targets in the same section")
-    if not integer(raw) or not 0 <= raw <= 0xFFFF:
-        raise ValueError("base_displacement_range source_value must retain first encoded WORD bits")
-    decoded = raw - 0x10000 if ref["signed"] and raw >= 0x8000 else raw
+    bits = 8 * entry_width
+    if not integer(raw) or not 0 <= raw < 1 << bits:
+        raise ValueError("base_displacement_range source_value must retain first encoded cell bits")
+    decoded = raw - (1 << bits) if ref["signed"] and raw >= 1 << (bits - 1) else raw
     if bo + decoded * scale != to:
-        raise ValueError("base_displacement_range first target must equal base plus decoded WORD times scale")
+        raise ValueError("base_displacement_range first target must equal base plus decoded cell times scale")
     if "runtime_address" in ref:
         raise ValueError("base_displacement_range does not accept runtime_address")
 
@@ -1610,9 +1616,10 @@ def validate_base_displacement_owner(
     if any(not isinstance(value, int) or isinstance(value, bool) for value in (offset, owner_offset, width)):
         raise ValueError("base_displacement requires integer owner/source spans")
     offset, owner_offset, width = cast(int, offset), cast(int, owner_offset), cast(int, width)
-    scalar_word = element.get("kind") == "scalar" and width == 2 and offset == owner_offset
-    array_word = (element.get("kind") == "array" and element.get("array_stride") == 2
-                  and (offset - owner_offset) % 2 == 0 and width % 2 == 0)
+    entry_width = ref.get("entry_width", 2) if ref.get("reference_kind") == "base_displacement_range" else 2
+    scalar_word = element.get("kind") == "scalar" and width == entry_width and offset == owner_offset
+    array_word = (element.get("kind") == "array" and element.get("array_stride") == entry_width
+                  and (offset - owner_offset) % entry_width == 0 and width % entry_width == 0)
     binding = element.get("type_binding")
     deferred_struct = (
         defer_struct_leaf and element.get("kind") in {"struct", "platform_struct", "array"}
@@ -1622,7 +1629,7 @@ def validate_base_displacement_owner(
     )
     span = ref.get("width", 2) if ref.get("reference_kind") == "base_displacement_range" else 2
     if not (scalar_word or array_word or deferred_struct) or offset < owner_offset or offset + span > owner_offset + width:
-        raise ValueError("base_displacement requires a scalar word or aligned word-array entry")
+        raise ValueError("base_displacement requires a scalar word or aligned word-array entry" if entry_width == 2 else "base_displacement requires a scalar long or aligned long-array entry")
 
 
 @dataclass(frozen=True, slots=True)
@@ -1646,6 +1653,7 @@ class ManualDataReferenceMetadata:
     review_status: TargetMetadataReviewStatus
     citation: str
     scale: int = 1
+    entry_width: int = 2
 
     def __post_init__(self) -> None:
         _assert_target_metadata_review_fields(self.seed_origin, self.review_status)
@@ -1682,6 +1690,7 @@ class ManualDataReferenceMetadata:
             review_status=_target_metadata_review_status(payload["review_status"]),
             citation=cast(str, payload["citation"]),
             scale=cast(int, payload.get("scale", 1)),
+            entry_width=cast(int, payload.get("entry_width", 2)),
         )
 
 

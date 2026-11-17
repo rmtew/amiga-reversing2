@@ -289,3 +289,23 @@ def test_field_rename_follows_unique_declaring_owner_and_refuses_shadowed_names(
     assert _rename_seeded_custom_field_references(
         [inherited], [base, shadow], {("Voice", 0): "dma_mask"}
     ) == [inherited]
+
+
+def test_source_data_name_binds_only_a_unique_exact_anonymous_owner():
+    from amiga_reversing.disasm.effective_metadata import _name_anonymous_data_owner
+
+    original = replace(entity(), name=None, source_owner_start=None, source_owner_size=None)
+    seed = {"seed_id": "data-symbol:h0:0000000A", "hunk": 0, "addr": 10, "name": "voice_data"}
+    changed, named = _name_anonymous_data_owner([original], seed)
+    assert changed and named == [replace(original, name="voice_data")]
+    assert original.name is None
+    for existing, update in [
+        ([entity()], seed),
+        ([original], dict(seed, addr=11)),
+        ([original], dict(seed, hunk=1)),
+        ([original], dict(seed, end=12)),
+        ([original], dict(seed, seed_id="generic-seed")),
+        ([original, replace(original, end=14)], seed),
+        ([replace(original, end=None)], seed),
+    ]:
+        assert _name_anonymous_data_owner(existing, update) == (False, existing)

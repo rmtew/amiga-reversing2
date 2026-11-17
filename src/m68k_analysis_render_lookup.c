@@ -19045,19 +19045,22 @@ static int append_manual_data_references_for_section(const M68kRenderLookup *loo
     uint32_t cursor;
     uint32_t scale = manual->is_range ? manual->value_scale : 1U;
     uint8_t is_signed = manual->is_range ? manual->raw_value_signed : 1U;
+    uint8_t width = manual->is_range && manual->entry_width ? manual->entry_width : 2U;
     if (manual->section_index != section->section_index) continue;
     if (manual->section_index >= decode->section_count) return -1;
     source = &decode->sections[manual->section_index];
-    if (source->data == NULL || manual->size < 2U || (manual->size & 1U) || manual->offset > source->size ||
+    if (source->data == NULL || (width != 2U && width != 4U) || manual->size < width || manual->size % width || manual->offset > source->size ||
         manual->size > source->size - manual->offset ||
-        m68k_read_u16be(source->data + manual->offset) != manual->raw_value ||
+        (width == 2U ? m68k_read_u16be(source->data + manual->offset) : m68k_read_u32be(source->data + manual->offset)) != manual->raw_value ||
         manual->base_section_index != manual->section_index ||
         manual->target_section_index != manual->section_index ||
         manual->base_offset >= source->size) return -1;
-    for (cursor = 0U; cursor < manual->size; cursor += 2U) {
-      uint32_t raw = m68k_read_u16be(source->data + manual->offset + cursor);
-      int64_t target = (int64_t)manual->base_offset +
-        (is_signed ? (int16_t)raw : (int64_t)raw) * scale;
+    for (cursor = 0U; cursor < manual->size; cursor += width) {
+      uint32_t raw = width == 2U ? m68k_read_u16be(source->data + manual->offset + cursor) :
+        m68k_read_u32be(source->data + manual->offset + cursor);
+      int64_t delta, target;
+      if (!m68k_relative_data_displacement(raw, width, is_signed, scale, &delta)) return -1;
+      target = (int64_t)manual->base_offset + delta;
       if (target < 0 || target >= source->size) return -1;
       memset(&ref, 0, sizeof(ref));
       ref.source_kind = M68K_DATA_REFERENCE_SOURCE_MANUAL;
@@ -19066,7 +19069,7 @@ static int append_manual_data_references_for_section(const M68kRenderLookup *loo
         M68K_DATA_REFERENCE_KIND_BASE_DISPLACEMENT;
       ref.raw_value = raw;
       ref.value_scale = scale;
-      ref.raw_value_width = 2U;
+      ref.raw_value_width = width;
       ref.raw_value_signed = is_signed;
       ref.has_base = 1U;
       ref.base_section_index = manual->base_section_index;
