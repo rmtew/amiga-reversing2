@@ -204,7 +204,7 @@ def test_real_dll_runtime_reference_renders_encoded_bytes_and_source_owned_xref(
         rendered = c_backend.render_project_source_with_c_backend(source, metadata_path=metadata_path, project_root=PROJECT_ROOT)
     symbol = f"dblk_ref_h0_{target:08X}_runtime_{encoded:08X}"
     equates = [line.split() for line in rendered.splitlines() if line.split()[:1] == [symbol]]
-    assert equates == [[symbol, "EQU", f"${encoded:X}"]]
+    assert not equates  # This source view now uses a real source anchor.
     rebuilt, _ = c_backend.assemble_platform_source_text_with_c_backend("amiga-raw", rendered, project_root=PROJECT_ROOT)
     assert rebuilt == original
 
@@ -283,6 +283,8 @@ def test_named_fixed_runtime_pointer_uses_only_matching_original_view(
     directive = next(line.strip() for line in rendered.splitlines() if "dc.l " in line)
     if label and load == 0x4000:
         assert directive.split(";")[0].strip() == "dc.l " + label
+    elif label is None and load == 0x4000:
+        assert directive.split(";")[0].strip() == "dc.l abs_0_00004006"
     else:
         assert "dblk_ref_h0_" in directive
         if label:
@@ -295,3 +297,85 @@ def test_named_fixed_runtime_pointer_uses_only_matching_original_view(
     subprocess.run([str(PROJECT_ROOT / "ext/vasm/vasmm68k_mot"), "-quiet", "-Fbin",
         "-m68000", "-no-opt", "-o", str(output), str(asm)], capture_output=True, check=True)
     assert output.read_bytes() == original
+
+
+@pytest.mark.c_backend
+@pytest.mark.parametrize("case", ["shared_interior", "unmapped", "reverse_alias", "multiple_runtime_views", "code_interior", "wrong_target"])
+def test_source_bound_runtime_pointers_create_automatic_anchors(tmp_path, case):
+    """Source identity, not a manually supplied name, owns the declaration."""
+    from tests.test_c_backend import _requires_c_backend_dlls
+    _requires_c_backend_dlls()
+    base = 0x4000
+    targets = [20, 20, 23, 26]
+    if case == "code_interior":
+        targets = [1] * 4
+    values = [base + target for target in targets]
+    original = bytes.fromhex("6010") + b"".join(v.to_bytes(4, "big") for v in values) + bytes.fromhex("4e75") + b"abcdef\0\0"
+    path = tmp_path / "source.bin"
+    path.write_bytes(original)
+    source = RawBinarySource(kind=BinarySourceKind.RAW_BINARY, path=path,
+        address_model=RawAddressModel.RUNTIME_ABSOLUTE if case in {"shared_interior", "code_interior", "wrong_target"} else RawAddressModel.LOCAL_OFFSET,
+        load_address=base if case in {"shared_interior", "code_interior", "wrong_target"} else 0,
+        entrypoint=base if case in {"shared_interior", "code_interior", "wrong_target"} else 0,
+        code_start_offset=0, display_path=str(path), analysis_cache_path=tmp_path / "analysis")
+    views = [{"source_start": 0, "source_end": len(original), "base_addr": base}]
+    if case == "unmapped":
+        views[0]["source_end"] = 20
+    elif case == "reverse_alias":
+        views.append({"source_start": 20, "source_end": 28, "base_addr": base + 19})
+    elif case == "multiple_runtime_views":
+        views.append({"source_start": 0, "source_end": len(original), "base_addr": 0x5000})
+    write_target_metadata(tmp_path, TargetMetadata(target_type="program", entry_register_seeds=()))
+    payload = json.loads((tmp_path / "target_metadata.json").read_bytes())
+    for i, view in enumerate(views):
+        view.update(name=f"view-{i}", seed_origin="manual_analysis", review_status="seeded",
+                    citation="Independent source identity/encoding fixture")
+    payload["execution_views"] = [] if case in {"shared_interior", "code_interior", "wrong_target"} else views
+    (tmp_path / "target_metadata.json").write_text(json.dumps(payload))
+    _write_actions(tmp_path, _ref(values[0], 23 if case == "wrong_target" else targets[0]))
+    log = tmp_path / MANUAL_ACTION_LOG_FILE_NAME
+    records = [json.loads(line) for line in log.read_text().splitlines()]
+    records[1]["data_block_layout"]["source_end"] = 18
+    for index in range(1, 4):
+        element = {"layout_id": "pointers", "offset": index * 4, "width": 4, "kind": "scalar"}
+        ref = _ref(values[index], targets[index])
+        ref.update(offset=index * 4, data_block_ref_id=f"pointer-{index}")
+        for kind, key, value in [("set_manual_data_block_element", "data_block_element", element),
+                                 ("interpret_manual_data_block_element_ref", "data_block_interpreted_ref", ref)]:
+            sequence = len(records)
+            records.append({"record": "manual_action", "action_id": f"a{sequence}",
+                "sequence": sequence, "created_at": "2026-11-17T00:00:00+00:00", "kind": kind, key: value})
+    log.write_text("\n".join(json.dumps(record) for record in records) + "\n")
+    with effective_metadata_file(tmp_path) as metadata:
+        if case == "reverse_alias":
+            with pytest.raises(RuntimeError, match="fact seeding"):
+                c_backend.build_listing_artifact_profile_from_binary_source(source, metadata_path=metadata, project_root=PROJECT_ROOT)
+            return
+        _, _, artifact = c_backend.build_listing_artifact_profile_from_binary_source(
+            source, metadata_path=metadata, project_root=PROJECT_ROOT)
+        try:
+            rows = [artifact.row_for_source_identity(section_index=0, offset=2 + 4*i, kind="data") for i in range(4)]
+            if case == "shared_interior":
+                for target in {20, 23, 26}:
+                    assert artifact.row_for_source_identity(section_index=0, offset=target, kind="label") is not None
+                assert all("dblk_ref" not in row["text"] for row in rows)
+                assert rows[0]["operand_text"] == rows[1]["operand_text"]
+            elif case == "wrong_target":
+                assert "dblk_ref" in rows[0]["text"]
+                assert "dblk_ref" not in rows[1]["text"]
+            else:
+                assert all("dblk_ref" in row["text"] for row in rows), [row["text"] for row in rows]
+        finally:
+            artifact.close()
+        rendered = c_backend.render_project_source_with_c_backend(source, metadata_path=metadata, project_root=PROJECT_ROOT)
+    rebuilt, _ = c_backend.assemble_platform_source_text_with_c_backend("amiga-raw", rendered, project_root=PROJECT_ROOT)
+    assert rebuilt == original
+    if case == "shared_interior":
+        assert "dblk_ref" not in rendered
+        import subprocess
+        assembly = tmp_path / "rebuilt.s"
+        assembly.write_text(rendered)
+        output = tmp_path / "rebuilt.bin"
+        result = subprocess.run([str(PROJECT_ROOT / "tools/vasmm68k_mot.exe"), "-Fbin", "-m68000", "-quiet", "-o", str(output), str(assembly)], capture_output=True)
+        assert result.returncode == 0, result.stderr
+        assert output.read_bytes() == original

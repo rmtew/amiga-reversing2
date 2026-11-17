@@ -1014,7 +1014,15 @@ def execute_owner(root, body, *, project_root):
         operation = body.get("operation")
         if (
             operation
-            in {"build", "verify", "interpret", "interpret_batch", "rollback", "review"}
+            in {
+                "build",
+                "verify",
+                "interpret",
+                "interpret_batch",
+                "regenerate",
+                "rollback",
+                "review",
+            }
             or body.get("expected_revision") is not None
         ) and body.get("expected_revision") != owner.revision:
             raise ValueError(
@@ -1052,6 +1060,7 @@ def execute_owner(root, body, *, project_root):
                 edit_member_batch,
                 history_member,
                 inspect_member,
+                regenerate_member,
                 review_member,
                 rollback_member,
             )
@@ -1062,6 +1071,7 @@ def execute_owner(root, body, *, project_root):
             return {
                 "interpret": edit_member,
                 "interpret_batch": edit_member_batch,
+                "regenerate": regenerate_member,
                 "inspect": inspect_member,
                 "history": history_member,
                 "rollback": rollback_member,

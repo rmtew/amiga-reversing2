@@ -174,11 +174,18 @@ def test_mcp_stdio_initialize_list_and_operation_parity(operation_server,kind):
             initialized = await session.initialize()
             assert initialized.server_info.name == "Amiga source restoration"
             tools = (await session.list_tools()).tools
-            assert len(tools) == 17
+            assert len(tools) == 18
             by_name = {tool.name: tool for tool in tools}
             assert not by_name["restoration_build"].annotations.read_only_hint
             assert set(by_name["restoration_build"].input_schema["required"]) == {"project", "expected_revision", "output", "media_paths"}
             assert {"member_id", "media_paths"} <= set(by_name["restoration_query"].input_schema["properties"])
+            regenerated = await session.call_tool("restoration_regenerate", {
+                "project": "demo", "member_id": "main", "expected_revision": "current",
+                "media_paths": {"disc": "private-input"}})
+            assert not regenerated.is_error
+            assert requests[-1]["operation"] == "regenerate"
+            assert requests[-1]["member_id"] == "main"
+            assert not by_name["restoration_regenerate"].annotations.read_only_hint
             assert "end_offset" in by_name["restoration_inspect"].input_schema["properties"]
             selected = await session.call_tool("restoration_inspect", {
                 "project": "demo", "expected_revision": "current", "source_offset": 4,

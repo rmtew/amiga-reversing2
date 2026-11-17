@@ -875,6 +875,26 @@ ambiguous, cross-member and displacement interpretations remain unsupported by
 this scoped path; they are not inferred from numeric resemblance. Layout and
 scalar actions retain the existing Manual Action representations and validators.
 
+An interpreted runtime LONG reference with an explicit source locator can render
+as a source label without an authored name. The native render plan requires a
+unique materialized mapping in both directions, agreement with the stored bytes
+and emitted source address, and a target outside instruction or relocation
+interiors. It then creates the required point declaration through the ordinary
+source plan and records the reference. Shared targets reuse the same anchor;
+interior data points retain their exact coordinates. This does not infer a data
+owner, type, code entry or semantic name. Unmapped or ambiguous views and
+different source placements retain their runtime expression. Redundant generated
+EQU declarations disappear only when no selected expression still uses them.
+
+Disk-set `regenerate` refreshes all source-bearing analysis members using their
+existing metadata and journals. Select a member and supply `expected_revision`
+and private `media_paths`, as for an edit; no dummy annotation is necessary.
+The transaction verifies journal continuity, exact native/vasm member builds and
+complete media-placement coverage before publishing the new source package.
+It preserves annotation and journal bytes. CLI `regenerate` and MCP
+`restoration_regenerate` expose the same owner operation; sealed members retain
+their existing source package.
+
 Disk-set members support the same `interpret_batch` operation for these scoped
 catalog actions, plus `comment.edit` and `label.rename`. Put `member_id`, `media_paths`
 and `expected_revision` on the outer request only; entries cannot override them.
@@ -1093,7 +1113,7 @@ Launch the adapter through an MCP host's stdio configuration:
 
 The project server must already run. The adapter opens no listener and only
 connects to a local HTTP origin. Its domain tools mirror state, export, query,
-inspect, interpret, interpret_batch, verify, probe, review, review_batch, history and rollback. Read operations
+inspect, interpret, interpret_batch, regenerate, verify, probe, review, review_batch, history and rollback. Read operations
 are annotated read-only; mutations require explicit revisions. HTTP domain
 refusals surface as MCP tool errors, without automatic retries.
 

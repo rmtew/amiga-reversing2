@@ -192,6 +192,13 @@ def create_server(client: RestorationClient):
                     **({"member_id": member_id, "media_paths": media_paths} if member_id is not None else {}))
 
     @server.tool(annotations=write, structured_output=True)
+    def restoration_regenerate(project: str, member_id: str, expected_revision: str,
+                               media_paths: dict[str, str]) -> dict[str, object]:
+        """Refresh disk-set sources after renderer changes; preserve annotations/history."""
+        return call(project, "regenerate", member_id=member_id,
+                    expected_revision=expected_revision, media_paths=media_paths)
+
+    @server.tool(annotations=write, structured_output=True)
     def restoration_verify(project: str, expected_revision: str, output: str | None = None,
                            media_paths: dict[str, str] | None = None,
                            member_id: str | None = None) -> dict[str, object]:

@@ -20,6 +20,7 @@ from amiga_reversing.disasm.source_package import _json as package_manifest_byte
 
 MEMBER_OPERATIONS = (
     "inspect",
+    "regenerate",
     "interpret",
     "interpret_batch",
     "history",
@@ -517,12 +518,12 @@ def _member_packages(owner, changed, source):
                 for r in records
             ],
         }
-        if name == changed:
+        if name == changed or (changed == "*" and member["analysis"] is not None):
             from amiga_reversing.disasm.disk_set import file_at
 
             text, profile, native = (
                 listing_artifact_source_projection_with_c_backend_profile(
-                    source,
+                    source[name] if changed == "*" else source,
                     metadata_path=file_at(
                         owner.root, member["analysis"]["metadata"]["path"]
                     ),
@@ -975,7 +976,15 @@ def review_member(owner, member, body):
     return _apply_member_change(owner, member, body, append)
 
 
-def _apply_member_change(owner, member, body, append):
+def regenerate_member(owner, member, body):
+    """Refresh derived source after a renderer change, preserving every journal."""
+    verify_journal_snapshots(owner, body.get("media_paths", {}))
+    return _apply_member_change(
+        owner, member, body, lambda root, source: {}, regenerate_all=True
+    )
+
+
+def _apply_member_change(owner, member, body, append, *, regenerate_all=False):
     from amiga_reversing.disasm.disk_set import DiskSet, compose_source_package, file_at
     from amiga_reversing.disasm.effective_metadata import effective_metadata_text
     from amiga_reversing.disasm.source_package import validate_source_package
@@ -1028,8 +1037,19 @@ def _apply_member_change(owner, member, body, append):
         for ref in a["state"].values():
             path = file_at(root, ref["path"])
             ref["sha256"] = digest(path.read_bytes()) if path.exists() else None
+        render_subject = analysis_member
+        render_source = source
+        if regenerate_all:
+            render_subject = "*"
+            render_source = {
+                name: candidate._analysis_input(name, values)[0]
+                for name, member_record in candidate.members.items()
+                if member_record["source"] is not None
+                and member_record["analysis"] is not None
+            }
         package = compose_source_package(
-            candidate.manifest, _member_packages(candidate, analysis_member, source)
+            candidate.manifest,
+            _member_packages(candidate, render_subject, render_source),
         )
         publish_source_package(package, root)
         candidate.manifest["package_sha256"] = package["sha256"]

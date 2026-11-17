@@ -1111,6 +1111,28 @@ static int render_asm_declare_target_equates(M68kRenderIRPreview *preview, const
   for (index = 0U; index < policy->target_equate_count && index < M68K_ANALYSIS_TARGET_EQUATE_LIMIT; ++index) {
     const M68kAnalysisTargetEquate *equate = &policy->target_equates[index];
     if (equate->name[0] == '\0') continue;
+    if (plan && strcmp(equate->group, "data_block_runtime_reference_points") == 0) {
+      int found = 0, needed = 0;
+      for (uint16_t j = 0U; j < policy->manual_representation_count; ++j) {
+        const M68kAnalysisManualRepresentation *r = &policy->manual_representations[j];
+        const M68kRenderPlannedExpression *e;
+        if (r->target_equate_index != index + 1U) continue;
+        found = 1;
+        e = m68k_render_plan_find_expression(plan, r->has_section_index ? r->section_index : 0U,
+          r->offset, UINT32_MAX, M68K_RENDER_PLANNED_EXPRESSION_DATA_POINTER);
+        if (!e) e = m68k_render_plan_find_expression(plan, r->has_section_index ? r->section_index : 0U,
+          r->offset, UINT32_MAX, M68K_RENDER_PLANNED_EXPRESSION_TABLE_ENTRY);
+        if (r->has_operand_index || !e || !e->has_target || !e->requires_declaration ||
+            e->outcome != M68K_RENDER_PLANNED_EXPRESSION_SYMBOLIC) needed = 1;
+      }
+      for (size_t j = 0U; j < plan->expression_count; ++j)
+        if (strstr(plan->expressions[j].expression, equate->name)) needed = 1;
+      for (uint16_t j = 0U; j < policy->target_equate_count; ++j)
+        if (j != index && strstr(policy->target_equates[j].value_expr, equate->name)) needed = 1;
+      /* Retain metadata's fallback for other views, but do not clutter this
+       * source view with a generated EQU whose every use became an anchor. */
+      if (found && !needed) continue;
+    }
     if(preview->memory_layout_enabled && equate->address_domain) {
       int same=0;
       for(size_t i=0;i<policy->memory_region_count;i++) {
@@ -3038,8 +3060,13 @@ static int render_asm_manual_symbol_representation(M68kRenderIRPreview *preview,
       &preview->asm_source_plan, (uint32_t)section_index, offset, UINT32_MAX,
       M68K_RENDER_PLANNED_EXPRESSION_DATA_POINTER);
     if (expression != NULL && expression->outcome == M68K_RENDER_PLANNED_EXPRESSION_SYMBOLIC &&
-        strcmp(expression->reason, "named_runtime_reference") == 0)
+        strcmp(expression->reason, "source_bound_runtime_reference") == 0) {
       symbol_name = expression->expression;
+      if (record_planned_expression_target_access(preview, section_index, expression, 0) != 0) {
+        preview->asm_source_allocation_failed = 1U;
+        return 0;
+      }
+    }
   }
   if (symbol_name == NULL || !asm_symbol_name_is_safe_local(symbol_name)) return 0;
   render_asm_dc_symbol_expr(preview, size, symbol_name, comment);
@@ -3140,6 +3167,11 @@ static void render_asm_dc_l_values(M68kRenderIRPreview *preview, const uint8_t *
   if (cursor < size) render_asm_dc_b(preview, data, offset + cursor, size - cursor, cursor == 0U ? comment : NULL);
 }
 
+static int lookup_runtime_unique_source_point(const M68kRenderLookup *lookup, uint32_t address,
+    size_t *out_section_index, uint32_t *out_source_offset);
+static int resolve_source_bound_runtime_data_reference(const M68kRenderLookup *lookup,
+    const M68kDecodeSectionIR *section, uint32_t offset, const M68kDecodeIR *decode,
+    uint8_t **accepted_start, M68kRenderPlannedExpression *expression);
 static int structured_data_item_is_pointer_table(const M68kAnalysisStructuredDataItem *item);
 static int structured_data_item_is_absolute_long_lookup_table(const M68kAnalysisStructuredDataItem *item);
 static int lookup_any_runtime_address_source_offset(const M68kRenderLookup *lookup, size_t section_index,
@@ -3543,6 +3575,12 @@ static uint8_t resolve_rendered_data_pointer_expression(const M68kRenderLookup *
   if (value == 0U) {
     out_expression->outcome = M68K_RENDER_PLANNED_EXPRESSION_NUMERIC;
     snprintf(out_expression->reason, sizeof(out_expression->reason), "null_pointer");
+    return out_expression->outcome;
+  }
+  if (resolve_source_bound_runtime_data_reference(lookup, section, offset, decode, accepted_start, out_expression)) {
+    out_expression->kind = (structured_data_item_is_pointer_table(item) ||
+        structured_data_item_is_absolute_long_lookup_table(item)) ?
+      M68K_RENDER_PLANNED_EXPRESSION_TABLE_ENTRY : M68K_RENDER_PLANNED_EXPRESSION_DATA_POINTER;
     return out_expression->outcome;
   }
   if (item != NULL && item->pointer_address_domain == M68K_ANALYSIS_POINTER_DOMAIN_RUNTIME_ONLY)
@@ -5750,12 +5788,14 @@ static int plan_rendered_copper_equate_expressions(M68kRenderIRPreview *preview,
   return 0;
 }
 
-static int resolve_named_runtime_data_reference(const M68kRenderLookup *lookup,
-    const M68kDecodeSectionIR *section, uint32_t offset, M68kRenderPlannedExpression *expression) {
+static int resolve_source_bound_runtime_data_reference(const M68kRenderLookup *lookup,
+    const M68kDecodeSectionIR *section, uint32_t offset, const M68kDecodeIR *decode,
+    uint8_t **accepted_start, M68kRenderPlannedExpression *expression) {
   const M68kAnalysisManualRepresentation *representation;
   const M68kAnalysisTargetEquate *equate;
   const M68kAnalysisManualRuntimeAddressRef *selected = NULL;
-  uint32_t value, runtime = 0U;
+  uint32_t value, runtime = 0U, source_offset = 0U, logical = 0U;
+  size_t source_section = 0U;
   uint16_t index;
   char name[96];
   if (lookup == NULL || lookup->policy == NULL || section == NULL || section->data == NULL ||
@@ -5782,18 +5822,29 @@ static int resolve_named_runtime_data_reference(const M68kRenderLookup *lookup,
   }
   if (selected == NULL || selected->target_section_index >= lookup->section_count ||
       selected->target_offset >= lookup->label_extents[selected->target_section_index] ||
-      !lookup_has_renderable_label(lookup, selected->target_section_index, selected->target_offset) ||
+      !lookup_runtime_unique_source_point(lookup, value, &source_section, &source_offset) ||
+      source_section != selected->target_section_index || source_offset != selected->target_offset ||
+      !lookup_source_logical_address(lookup, source_section, source_offset, &logical) || logical != value ||
       !lookup_source_should_render_runtime_label(lookup, selected->target_section_index,
-        selected->target_offset, &runtime) || runtime != value ||
-      format_rendered_asm_label_with_generation(lookup, name, sizeof(name), selected->target_section_index,
-        selected->target_offset) != 0U || name[0] == '\0') return 0;
-  /* Presentation only: the existing explicit runtime encoding is retained.
-   * Placement profiles, differing views and generated labels keep the EQU. */
+        selected->target_offset, &runtime) || runtime != value) return 0;
+  if (!decode || !accepted_start || source_section >= decode->section_count ||
+      lookup_offset_is_inside_relocation_payload(lookup, source_section, source_offset)) return 0;
+  const M68kDecodeSectionIR *target = &decode->sections[source_section];
+  for (size_t i = 0U; i < target->candidate_count; ++i) {
+    const M68kDecodeCandidate *candidate = &target->candidates[i];
+    if (accepted_start[source_section] && accepted_start[source_section][candidate->offset] &&
+        source_offset > candidate->offset && source_offset - candidate->offset < candidate->byte_count) return 0;
+  }
+  (void)format_rendered_asm_label_with_generation(lookup, name, sizeof(name), source_section, source_offset);
+  if (name[0] == '\0') return 0;
+  /* A selected source expression owns a declaration obligation. Do not mark
+   * lookup labels from semantic references before the render plan selects them. */
   memset(expression, 0, sizeof(*expression));
   expression->source_section_index = (uint32_t)section->section_index;
   expression->source_offset = offset;
   expression->operand_index = UINT32_MAX;
   expression->kind = M68K_RENDER_PLANNED_EXPRESSION_DATA_POINTER;
+  expression->requires_declaration = 1U;
   expression->pointer_width = 4U;
   expression->pointer_address_domain = M68K_ANALYSIS_POINTER_DOMAIN_RUNTIME_ONLY;
   expression->logical_address = value;
@@ -5803,7 +5854,7 @@ static int resolve_named_runtime_data_reference(const M68kRenderLookup *lookup,
   expression->outcome = M68K_RENDER_PLANNED_EXPRESSION_SYMBOLIC;
   snprintf(expression->expression, sizeof(expression->expression), "%s", name);
   snprintf(expression->target_symbol, sizeof(expression->target_symbol), "%s", name);
-  snprintf(expression->reason, sizeof(expression->reason), "named_runtime_reference");
+  snprintf(expression->reason, sizeof(expression->reason), "source_bound_runtime_reference");
   return 1;
 }
 
@@ -5874,7 +5925,7 @@ static int plan_rendered_structured_pointer_expressions(M68kRenderLookup *lookup
                   lookup_relocation_at(lookup, section->section_index, at) != NULL ||
                   (byte != 0U && lookup_has_renderable_label(lookup, section->section_index, at))) blocked = 1;
             }
-            if (!blocked && resolve_named_runtime_data_reference(lookup, section, ref->offset, &expression) &&
+            if (!blocked && resolve_source_bound_runtime_data_reference(lookup, section, ref->offset, decode, accepted_start, &expression) &&
                 m68k_render_plan_append_expression(plan, &expression) != 0) return -1;
           }
         }
@@ -8451,6 +8502,32 @@ int lookup_source_unique_runtime_span(const M68kRenderLookup *lookup, size_t sec
   }
   if (found && out_runtime_address) *out_runtime_address = chosen;
   return found;
+}
+
+/* An address anchor needs a unique materialized source point in both
+ * directions. Equal bytes in different sections/views are not one identity. */
+static int lookup_runtime_unique_source_point(const M68kRenderLookup *lookup, uint32_t address,
+    size_t *out_section_index, uint32_t *out_source_offset) {
+  size_t chosen_section = 0U;
+  uint32_t chosen_offset = 0U, roundtrip = 0U;
+  int found = 0;
+  if (!lookup || !lookup->object || !out_section_index || !out_source_offset) return 0;
+  for (size_t i = 0U; i < lookup->runtime_address_range_count; ++i) {
+    const M68kFact *range = lookup->runtime_address_ranges[i].fact;
+    uint32_t delta, source;
+    if (!range || !range->has_runtime_address || !runtime_range_is_materialized(lookup, range) ||
+        address < range->runtime_address || range->section_index >= lookup->object->section_count) continue;
+    delta = address - range->runtime_address;
+    if (delta >= range->size || range->offset > UINT32_MAX - delta) continue;
+    source = range->offset + delta;
+    if (source >= lookup->object->sections[range->section_index].size) continue;
+    if (found && (chosen_section != range->section_index || chosen_offset != source)) return 0;
+    chosen_section = range->section_index; chosen_offset = source; found = 1;
+  }
+  if (!found || !lookup_source_unique_runtime_span(lookup, chosen_section, chosen_offset, 1U, &roundtrip) ||
+      roundtrip != address) return 0;
+  *out_section_index = chosen_section; *out_source_offset = chosen_offset;
+  return 1;
 }
 
 int lookup_source_runtime_address(const M68kRenderLookup *lookup, size_t section_index,

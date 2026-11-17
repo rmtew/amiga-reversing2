@@ -694,3 +694,27 @@ def test_legacy_row_range_does_not_silently_ignore_member_span():
                 "source_span": {"section_index": 0, "start_offset": 2, "end_offset": 4},
             },
         )
+
+
+def test_regenerate_refreshes_all_owned_sources_without_annotations(
+    tmp_path, monkeypatch
+):
+    from amiga_reversing.disasm import disk_set_state
+
+    _, target, _, call = editable(tmp_path, monkeypatch)
+    state = call("state")
+    before = {p.name: p.read_bytes() for p in (target / "analysis").iterdir()}
+    original = disk_set_state._member_packages
+    visits = []
+
+    def render(owner, changed, sources):
+        visits.append((changed, set(sources)))
+        return original(owner, changed, sources)
+
+    monkeypatch.setattr(disk_set_state, "_member_packages", render)
+    result = call("regenerate", expected_revision=state["revision"])
+    assert visits == [("*", {"main", "overlay"})]
+    assert result["verification"]["media_exact"]
+    assert {p.name: p.read_bytes() for p in (target / "analysis").iterdir()} == before
+    with pytest.raises(ValueError, match="stale_revision"):
+        call("regenerate", expected_revision="old")
