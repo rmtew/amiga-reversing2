@@ -294,13 +294,19 @@ def _scoped_manual_label_name(label, metadata, labels):
             raise ValueError('duplicate local name under the same owner')
     names = set()
     if metadata is not None:
-        for item in (*metadata.seeded_code_labels, *metadata.seeded_code_entrypoints):
-            if item.hunk == hunk and item.addr == owner and '\\' not in item.name:
-                names.add(item.name)
-        runtime = {view.base_addr + owner - view.source_start for view in metadata.execution_views
-                   if view.source_start <= owner < view.source_end}
-        if hunk == 0 and len(runtime) == 1:
-            names.update(item.name for item in metadata.absolute_code_labels if item.addr in runtime and '\\' not in item.name)
+        # An explicit source label owns local identity. Entry seeds and runtime
+        # aliases establish code/address roots, and may retain older spellings;
+        # they do not introduce competing source-local owners after a snapshot.
+        # Multiple explicit source labels still remain ambiguous.
+        names = {item.name for item in metadata.seeded_code_labels
+                 if item.hunk == hunk and item.addr == owner and '\\' not in item.name}
+        if not names:
+            names.update(item.name for item in metadata.seeded_code_entrypoints
+                         if item.hunk == hunk and item.addr == owner and '\\' not in item.name)
+            runtime = {view.base_addr + owner - view.source_start for view in metadata.execution_views
+                       if view.source_start <= owner < view.source_end}
+            if hunk == 0 and len(runtime) == 1:
+                names.update(item.name for item in metadata.absolute_code_labels if item.addr in runtime and '\\' not in item.name)
     # The latest authored source-global declaration replaces the owner's old name.
     authored = [r for r in labels if r.get('scope') is not ManualLabelScope.LOCAL
                 and r.get('address_domain', 'source') != 'runtime'

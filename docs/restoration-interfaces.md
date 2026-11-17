@@ -1371,3 +1371,10 @@ Unsupported, ambiguous, conflicting or manually represented operands retain thei
 existing/numeric spelling; names never establish hardware or code identity. See
 `docs/validation/starglider2-platform-symbol-projection-2026-11-17.md` for scope,
 coverage, provenance and native wrapper limitations.
+
+Source-local owner lookup prefers a unique explicit source-global declaration at
+its source coordinate. Entry-seed descriptions and runtime aliases supply the
+existing fallback only when no source-global declaration exists; they do not
+become competing scope owners after a saved annotation snapshot. Multiple explicit
+source globals still refuse ambiguous ownership. Lexical rendering remains a
+separate decision. See `docs/validation/starglider2-scope-owner-snapshot-2026-11-17.md`.

@@ -182,3 +182,41 @@ def test_rendering_uses_actual_lexical_scope_and_retains_canonical_references(tm
         assert '.done'not in names
         assemble_both(tmp_path,text,raw)
     finally:artifact.close()
+
+
+def test_saved_source_owner_label_is_independent_of_entry_seed_spelling(tmp_path):
+    from amiga_reversing.disasm.target_metadata import SeededCodeEntrypointMetadata,TargetMetadataSeedOrigin,TargetMetadataReviewStatus
+    from tools.regenerate_starglider2_retail_source import require_saved_annotations
+    raw=bytes.fromhex('4e7560024e714e75');binary=tmp_path/'input.bin';binary.write_bytes(raw)
+    (tmp_path/'source_binary.json').write_text(json.dumps(dict(kind='raw_binary',path=str(binary),address_model='local_offset',load_address=0,entrypoint=0,code_start_offset=0)))
+    from amiga_reversing.disasm.binary_source import resolve_target_binary_source
+    source=resolve_target_binary_source(tmp_path)
+    seed=SeededCodeEntrypointMetadata(addr=2,hunk=0,name='original_entry_name',seed_origin=TargetMetadataSeedOrigin.MANUAL_ANALYSIS,review_status=TargetMetadataReviewStatus.VALIDATED,citation='fixture independent entry')
+    write_target_metadata(tmp_path,TargetMetadata(target_type='program',entry_register_seeds=(),seeded_code_entrypoints=(seed,)))
+    actions=[]
+    for params in [dict(hunk=0,addr=2,name='display_continuation'),dict(hunk=0,addr=6,name='.done',scope='local',owner_offset=2)]:
+        kind,payload=target_catalog_manual_payload('target.code_label.add',params);actions.append((ManualActionKind(kind),payload))
+    append_manual_actions(tmp_path,binary_source=source,actions=actions)
+    before=effective_target_metadata(tmp_path,binary_source=source)
+    assert {r.addr:r.name for r in before.seeded_code_labels}[6]=='display_continuation\\.done'
+    history=(tmp_path/'manual_actions.jsonl').read_bytes()
+    write_target_metadata(tmp_path,before)
+    after=effective_target_metadata(tmp_path,binary_source=source)
+    assert after.seeded_code_labels==before.seeded_code_labels
+    assert after.seeded_code_entrypoints==before.seeded_code_entrypoints==(seed,)
+    assert (tmp_path/'manual_actions.jsonl').read_bytes()==history
+    require_saved_annotations(tmp_path)
+    with effective_metadata_file(tmp_path)as path:
+        artifact=c_backend.build_listing_artifact_profile_from_binary_source(source,metadata_path=path)[2]
+    try:assemble_both(tmp_path,artifact.inline_source_text_with_profile()[0],raw)
+    finally:artifact.close()
+
+
+def test_two_explicit_source_owners_remain_ambiguous_despite_entry_seed():
+    from amiga_reversing.disasm.effective_metadata import _manual_label_to_code_label
+    from amiga_reversing.disasm.manual_actions import ManualLabelScope
+    from amiga_reversing.disasm.target_metadata import SeededCodeLabelMetadata,SeededCodeEntrypointMetadata,TargetMetadataSeedOrigin,TargetMetadataReviewStatus
+    common=dict(addr=0,hunk=0,seed_origin=TargetMetadataSeedOrigin.MANUAL_ANALYSIS,review_status=TargetMetadataReviewStatus.VALIDATED,citation='fixture')
+    metadata=TargetMetadata(target_type='program',entry_register_seeds=(),seeded_code_labels=(SeededCodeLabelMetadata(name='first',**common),SeededCodeLabelMetadata(name='other',**common)),seeded_code_entrypoints=(SeededCodeEntrypointMetadata(name='first',**common),))
+    with pytest.raises(ValueError,match='unique named global owner'):
+        _manual_label_to_code_label(dict(addr=4,hunk=0,name='.done',scope=ManualLabelScope.LOCAL,owner_offset=0),metadata,[])
