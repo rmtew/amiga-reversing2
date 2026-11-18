@@ -21,6 +21,7 @@ def editable(
     owner_scope=False,
     opaque_prefix=False,
     pointer_rows=False,
+    legacy_prefix=False,
 ):
     from amiga_reversing.disasm import restoration, server
 
@@ -116,6 +117,12 @@ def editable(
                 "citation": "Synthetic alternate entry into the same normal text bytes",
             }
         )
+    if legacy_prefix:
+        assert string
+        metadata.setdefault("seeded_entities", []).append({
+            "hunk": 0, "addr": 5, "end": 12, "type": "data", "subtype": "string", "unit": "byte",
+            "encoding": "ascii", "source_id": "fixture-import", "source_locator": "legacy-prefix",
+            "seed_origin": "manual_analysis", "review_status": "seeded", "citation": "Preliminary imported string"})
     if pointer_rows:
         metadata.setdefault("seeded_entities", []).append({
             "hunk": 0, "addr": 32, "end": 40, "type": "data", "unit": "long", "name": "existingRecord",
@@ -1083,3 +1090,25 @@ def test_scoped_pointer_table_declaration_roundtrips_and_undo_keeps_shape_and_hi
     assert redone["verification"]["media_exact"]
     assert (target / "main.s").read_text() == text
     assert (target / "analysis/main.manual_actions.jsonl").read_bytes().startswith(before)
+
+
+def test_prefix_native_precedence_keeps_authoritative_snapshot_guard_and_journals(tmp_path, monkeypatch):
+    _, target, _, call = editable(tmp_path, monkeypatch, string=True, legacy_prefix=True)
+    prefix = call("inspect", source_offset=4, end_offset=6, row_kind="data")
+    call("interpret", **data_request(prefix, "range.data_block.layout.create", {"default_unit": "word"}))
+    prefix = call("inspect", source_offset=4, end_offset=6, row_kind="data")
+    call("interpret", **data_request(prefix, "range.data_block.element.set", {"kind": "scalar", "width": 2}))
+    text = call("inspect", source_offset=6, end_offset=12, row_kind="data")
+    saved = call("interpret", **data_request(text, "range.seed.data.string", {}))
+    owner = DiskSet.load(target, project_root=target.parent.parent)
+    snapshot = target / owner.members["main"]["analysis"]["metadata"]["path"]
+    facts = json.loads(snapshot.read_bytes())
+    assert any(e["addr"] == 5 and e["end"] == 12 and e["source_id"] == "fixture-import"
+               for e in facts["seeded_entities"])
+    assert '\tdc.w $3F68\n\tdc.b "Hello",$00' in (target / "main.s").read_text()
+    journals = {p: p.read_bytes() for p in (target / "analysis").glob("*.jsonl")}
+    snapshot_before = snapshot.read_bytes()
+    regenerated = call("regenerate", expected_revision=saved["revision"])
+    assert regenerated["verification"]["media_exact"] and regenerated["verification"]["all_placement_coverage"]
+    assert snapshot.read_bytes() == snapshot_before
+    assert all(p.read_bytes() == value for p, value in journals.items())

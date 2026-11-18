@@ -101,71 +101,7 @@ def _effective_metadata_with_manual_projection(
     metadata = _apply_manual_seed_projection(target_dir, metadata, projection=projection)
     if include_decision_journal:
         metadata = _apply_decision_journal_projection(target_dir, metadata)
-    if metadata is not None:
-        metadata = replace(metadata, seeded_entities=_declared_prefix_text_precedence(metadata.seeded_entities))
     return metadata, projection
-
-
-def _declared_prefix_text_precedence(
-    entities: tuple[SeededEntityMetadata, ...],
-) -> tuple[SeededEntityMetadata, ...]:
-    """Project corroborated manual boundaries over anonymous legacy byte guesses.
-
-    Original metadata and MAL records remain untouched. Both the exact scalar
-    width and immediately following text anchor must be explicit; no coordinate
-    values, filenames or target-specific addresses participate in this rule.
-    """
-    def manual(entity: SeededEntityMetadata) -> bool:
-        return entity.citation.startswith("manual_action_log:")
-
-    texts: dict[tuple[int, int], set[int]] = {}
-    for entity in entities:
-        if (manual(entity) and entity.source_id == "manual_action_log" and entity.type == "data"
-                and entity.subtype == "string" and entity.encoding == "ascii" and entity.unit == "byte"
-                and entity.end is not None and entity.end > entity.addr):
-            texts.setdefault((entity.hunk, entity.addr), set()).add(entity.end)
-    windows: dict[tuple[int, int], set[tuple[int, int, int]]] = {}
-    for field in entities:
-        width = {"word": 2, "long": 4}.get(field.unit)
-        if (not manual(field) or field.source_id not in {None, "manual_action_log"}
-                or field.type != "data" or field.subtype is not None or width is None
-                or field.end != field.addr + width or _data_block_unit_for_address(field.addr, width) != field.unit
-                or field.value_kind not in {None, "scalar"}
-                or any((field.comment, field.encoding, field.struct_name, field.field_name, field.field_type, field.c_type,
-                        field.pointer_struct, field.value_domain, field.pointer_address_domain,
-                        field.pointer_symbol_group))
-                or field.source_owner_start is not None or field.source_owner_size is not None):
-            continue
-        for end in texts.get((field.hunk, field.end), ()):
-            for start in range(field.addr + 1, field.end):
-                windows.setdefault((field.hunk, start), set()).add((field.addr, field.end, end))
-    result = []
-    for entity in entities:
-        weak = (entity.type == "data" and entity.unit == "byte" and entity.subtype in {"string", "opaque_data"}
-                and entity.end is not None and entity.review_status == TargetMetadataReviewStatus.SEEDED
-                and not manual(entity) and entity.source_id != "manual_action_log"
-                and not any((entity.name, entity.comment, entity.struct_name, entity.field_name, entity.field_type,
-                             entity.c_type, entity.pointer_struct, entity.value_kind, entity.value_domain,
-                             entity.pointer_address_domain, entity.pointer_symbol_group, entity.owner_action_id,
-                             entity.source_evidence_id, entity.parent_evidence_ids))
-                and entity.source_owner_start is None and entity.source_owner_size is None)
-        matches = windows.get((entity.hunk, entity.addr), set()) if weak else set()
-        # Multiple distinct widths or text ends are an unresolved conflict.
-        if len(matches) != 1:
-            result.append(entity)
-            continue
-        _, _, end = next(iter(matches))
-        if entity.subtype == "string" and entity.encoding == "ascii" and entity.end == end:
-            continue  # Fully covered by the confirmed scalar + text union.
-        if entity.subtype == "opaque_data" and entity.end >= end:
-            if entity.end > end:
-                result.append(replace(entity, addr=end))  # Preserve every uncovered byte and its provenance.
-            continue
-        result.append(entity)
-    if tuple(result) == entities:
-        return entities
-    return tuple(sorted(result, key=lambda entity: _seeded_entity_projection_sort_key(
-        _seeded_entity_projection_key(entity))))
 
 
 def _manual_seed_int(seed: Mapping[str, object], field_name: str) -> int | None:

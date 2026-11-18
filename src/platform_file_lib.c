@@ -7897,6 +7897,110 @@ static void copy_data_role_preview_local(char *dest, size_t capacity, const char
   else dest[used] = '\0';
 }
 
+/* Provenance is inspected conservatively: an unrecognized/escaped prefix
+ * never grants precedence, and long optional annotations remain loadable. */
+static int metadata_field_empty_local(const char *start, const char *end, const char *key) {
+  const char *value = json_find_key_local(start, end, key);
+  if (!value) return 1;
+  value = json_skip_ws_local(value, end);
+  if (end - value >= 4 && !memcmp(value, "null", 4)) return 1;
+  if (end - value >= 2 && value[0] == '"' && value[1] == '"') return 1;
+  return value < end && *value == '[' && json_skip_ws_local(value + 1, end) < end &&
+    *json_skip_ws_local(value + 1, end) == ']';
+}
+
+static int metadata_field_equals_local(const char *start, const char *end, const char *key, const char *text) {
+  char value[64] = "";
+  return json_optional_string_field_local(start, end, key, value, sizeof(value)) && !strcmp(value, text);
+}
+
+static int metadata_manual_citation_local(const char *start, const char *end) {
+  const char *value = json_find_key_local(start, end, "citation");
+  const char prefix[] = "manual_action_log:";
+  if (!value) return 0;
+  value = json_skip_ws_local(value, end);
+  return end - value > (ptrdiff_t)sizeof(prefix) && *value == '"' &&
+    !memcmp(value + 1, prefix, sizeof(prefix) - 1U);
+}
+
+typedef struct MetadataPrefixWindowLocal {
+  uint32_t section, offset, field_start, text_start, text_end;
+  int ambiguous;
+} MetadataPrefixWindowLocal;
+
+static int metadata_prefix_key_compare_local(const void *left, const void *right) {
+  const MetadataPrefixWindowLocal *a = left, *b = right;
+  if (a->section != b->section) return a->section < b->section ? -1 : 1;
+  return a->offset < b->offset ? -1 : a->offset > b->offset;
+}
+
+static size_t metadata_prefix_lower_bound_local(const MetadataPrefixWindowLocal *rows, size_t count,
+    uint32_t section, uint32_t offset) {
+  size_t lo = 0U, hi = count;
+  MetadataPrefixWindowLocal key = {.section = section, .offset = offset};
+  while (lo < hi) {
+    size_t mid = lo + (hi - lo) / 2U;
+    if (metadata_prefix_key_compare_local(&rows[mid], &key) < 0) lo = mid + 1U;
+    else hi = mid;
+  }
+  return lo;
+}
+
+static int metadata_project_prefix_precedence_local(M68kAnalysisPolicy *policy) {
+  size_t count = policy->structured_data_item_count, text_count = 0U, window_count = 0U;
+  MetadataPrefixWindowLocal *texts, *windows;
+  if (!count) return 1;
+  if (count > SIZE_MAX / (3U * sizeof(*windows))) return 0;
+  texts = calloc(count, sizeof(*texts));
+  windows = calloc(count * 3U, sizeof(*windows));
+  if (!texts || !windows) { free(texts); free(windows); return 0; }
+  for (size_t i = 0U; i < count; ++i) {
+    const M68kAnalysisStructuredDataItem *item = &policy->structured_data_items[i];
+    if (item->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_TEXT) continue;
+    texts[text_count++] = (MetadataPrefixWindowLocal){.section = item->section_index,
+      .offset = item->offset, .text_end = item->offset + item->size};
+  }
+  qsort(texts, text_count, sizeof(*texts), metadata_prefix_key_compare_local);
+  for (size_t i = 0U; i < count; ++i) {
+    const M68kAnalysisStructuredDataItem *field = &policy->structured_data_items[i];
+    if (field->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_SCALAR) continue;
+    uint32_t boundary = field->offset + field->size;
+    size_t found = metadata_prefix_lower_bound_local(texts, text_count, field->section_index, boundary);
+    if (found == text_count || texts[found].section != field->section_index || texts[found].offset != boundary) continue;
+    uint32_t end = texts[found].text_end;
+    int ambiguous = 0;
+    for (size_t j = found + 1U; j < text_count && texts[j].section == field->section_index && texts[j].offset == boundary; ++j)
+      if (texts[j].text_end != end) ambiguous = 1;
+    for (uint32_t byte = 1U; byte < field->size; ++byte)
+      windows[window_count++] = (MetadataPrefixWindowLocal){.section = field->section_index,
+        .offset = field->offset + byte, .field_start = field->offset,
+        .text_start = boundary, .text_end = end, .ambiguous = ambiguous};
+  }
+  qsort(windows, window_count, sizeof(*windows), metadata_prefix_key_compare_local);
+  for (size_t i = 0U; i < count; ++i) {
+    M68kAnalysisStructuredDataItem *item = &policy->structured_data_items[i];
+    if (item->metadata_precedence != M68K_METADATA_PRECEDENCE_LEGACY_STRING &&
+        item->metadata_precedence != M68K_METADATA_PRECEDENCE_LEGACY_OPAQUE) continue;
+    size_t found = metadata_prefix_lower_bound_local(windows, window_count, item->section_index, item->offset);
+    if (found == window_count || windows[found].section != item->section_index || windows[found].offset != item->offset) continue;
+    const MetadataPrefixWindowLocal *window = &windows[found];
+    int ambiguous = window->ambiguous;
+    for (size_t j = found + 1U; j < window_count && windows[j].section == item->section_index && windows[j].offset == item->offset; ++j)
+      if (windows[j].ambiguous || windows[j].field_start != window->field_start ||
+          windows[j].text_start != window->text_start || windows[j].text_end != window->text_end) ambiguous = 1;
+    if (ambiguous) continue;
+    uint32_t old_end = item->offset + item->size;
+    if (item->metadata_precedence == M68K_METADATA_PRECEDENCE_LEGACY_STRING && old_end == window->text_end)
+      item->size = 0U; /* Inactive native representation; authoritative input fact is retained. */
+    else if (item->metadata_precedence == M68K_METADATA_PRECEDENCE_LEGACY_OPAQUE && old_end >= window->text_end) {
+      item->offset = window->text_end;
+      item->size = old_end - window->text_end; /* Keep every uncovered byte. */
+    }
+  }
+  free(texts); free(windows);
+  return 1;
+}
+
 static int append_metadata_seeded_entity_local(const char *object_start, const char *object_end,
     M68kAnalysisPolicy *policy) {
   uint32_t addr = 0U;
@@ -7997,6 +8101,29 @@ static int append_metadata_seeded_entity_local(const char *object_start, const c
     policy->structured_data_items[item_index].has_source_owner_span = 1U;
     policy->structured_data_items[item_index].source_owner_start = source_owner_start;
     policy->structured_data_items[item_index].source_owner_size = source_owner_size;
+  }
+  M68kAnalysisStructuredDataItem *precedence_item = &policy->structured_data_items[item_index];
+  int manual_citation = metadata_manual_citation_local(object_start, object_end);
+  int manual_source = metadata_field_equals_local(object_start, object_end, "source_id", "manual_action_log");
+  int source_empty = metadata_field_empty_local(object_start, object_end, "source_id");
+  int plain = !comment[0] && !struct_name[0] && !field_name[0] && !field_type[0] && !c_type[0] &&
+    !pointer_struct[0] && !value_domain[0] && !pointer_domain[0] && !pointer_group[0] && !has_source_owner_start;
+  if (manual_citation && (manual_source || source_empty) && plain && !subtype[0] && !encoding[0] &&
+      (!value_kind[0] || !strcmp(value_kind, "scalar")) && !(addr & 1U) &&
+      ((!strcmp(unit, "word") && end - addr == 2U) || (!strcmp(unit, "long") && end - addr == 4U)))
+    precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_DECLARED_SCALAR;
+  else if (manual_citation && manual_source && !strcmp(subtype, "string") &&
+      !strcmp(encoding, "ascii") && !strcmp(unit, "byte"))
+    precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_DECLARED_TEXT;
+  else if (!manual_citation && !manual_source && plain && !name[0] && !value_kind[0] && !strcmp(unit, "byte") &&
+      metadata_field_equals_local(object_start, object_end, "review_status", "seeded") &&
+      metadata_field_empty_local(object_start, object_end, "owner_action_id") &&
+      metadata_field_empty_local(object_start, object_end, "source_evidence_id") &&
+      metadata_field_empty_local(object_start, object_end, "parent_evidence_ids")) {
+    if (!strcmp(subtype, "string") && !strcmp(encoding, "ascii"))
+      precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_LEGACY_STRING;
+    else if (!strcmp(subtype, "opaque_data"))
+      precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_LEGACY_OPAQUE;
   }
   if (name[0] != '\0' && !((field_name[0] && !has_source_owner_start) ?
       policy_add_named_label_local(policy, has_hunk ? hunk : 0U, addr, name) :
@@ -9487,6 +9614,10 @@ static int append_metadata_generic_policy_text_local(const char *text, M68kAnaly
       return -1;
     }
     cursor = object_end;
+  }
+  if (!metadata_project_prefix_precedence_local(policy)) {
+    platform_file_add_error(diagnostics.list, "failed allocating native scalar/text precedence projection");
+    return -1;
   }
   cursor = json_find_array_local(text, "target_equates", &array_end);
   while (cursor != NULL && cursor < array_end) {

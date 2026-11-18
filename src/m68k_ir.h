@@ -462,6 +462,14 @@ typedef enum M68kAnalysisStructuredDataTextField {
   M68K_ANALYSIS_STRUCTURED_DATA_TEXT_COMMENT = 10
 } M68kAnalysisStructuredDataTextField;
 
+typedef enum M68kMetadataPrecedence {
+  M68K_METADATA_PRECEDENCE_NONE = 0,
+  M68K_METADATA_PRECEDENCE_DECLARED_SCALAR = 1,
+  M68K_METADATA_PRECEDENCE_DECLARED_TEXT = 2,
+  M68K_METADATA_PRECEDENCE_LEGACY_STRING = 3,
+  M68K_METADATA_PRECEDENCE_LEGACY_OPAQUE = 4
+} M68kMetadataPrecedence;
+
 typedef struct M68kAnalysisStructuredDataItem {
   uint8_t has_section_index;
   uint8_t kind;
@@ -473,7 +481,9 @@ typedef struct M68kAnalysisStructuredDataItem {
   uint32_t target_section;
   uint32_t target_offset;
   uint8_t has_constant_value;
-  uint8_t reserved[3];
+  /* Native representation provenance in a previously reserved byte. */
+  uint8_t metadata_precedence;
+  uint8_t reserved[2];
   int32_t constant_value;
   uint8_t has_consumer;
   uint8_t source_pattern_id;

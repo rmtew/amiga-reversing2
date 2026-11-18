@@ -89,14 +89,17 @@ def fixture(tmp_path: Path, *, legacy_role="string", mode="proved"):
 
 @pytest.mark.parametrize("legacy_role", ["string", "opaque_data"])
 def test_declared_boundaries_keep_original_evidence_and_opaque_tail(tmp_path, legacy_role):
-    _, raw, legacy = fixture(tmp_path, legacy_role=legacy_role)
+    source, raw, legacy = fixture(tmp_path, legacy_role=legacy_role)
     metadata_bytes = (tmp_path / "target_metadata.json").read_bytes()
     journal_bytes = (tmp_path / MANUAL_ACTION_LOG_FILE_NAME).read_bytes()
     metadata = effective_target_metadata(tmp_path)
-    assert not any(e.addr == 5 and e.end == legacy["end"] for e in metadata.seeded_entities)
+    assert any(e.addr == 5 and e.end == legacy["end"] for e in metadata.seeded_entities)
+    with effective_metadata_file(tmp_path) as path:
+        native = c_backend.effective_policy_project_source_with_c_backend(source, metadata_path=path)
+    items = native["analysis_policy"]["structured_data_items"]
+    assert not any(e["offset"] == 5 and e["size"] == legacy["end"] - 5 for e in items)
     if legacy_role == "opaque_data":
-        tail, = [e for e in metadata.seeded_entities if e.source_locator == "legacy-guess"]
-        assert (tail.addr, tail.end, tail.subtype, tail.citation) == (15, 16, "opaque_data", legacy["citation"])
+        assert any(e["offset"] == 15 and e["size"] == 1 for e in items)
     ordinary, = [e for e in metadata.seeded_entities if e.source_locator == "ordinary-string"]
     assert (ordinary.addr, ordinary.end, ordinary.encoding) == (18, 27, "ascii")
     assert effective_target_metadata(tmp_path) == metadata
@@ -109,10 +112,16 @@ def test_declared_boundaries_keep_original_evidence_and_opaque_tail(tmp_path, le
                                   "validated", "other_section", "imported_scalar_only", "imported_text_only",
                                   "typed_padding", "ambiguous_field"])
 def test_missing_corroboration_or_independent_annotation_preserves_legacy(tmp_path, mode):
-    _, _, legacy = fixture(tmp_path, mode=mode)
+    source, _, legacy = fixture(tmp_path, mode=mode)
     metadata = effective_target_metadata(tmp_path)
     assert any(e.addr == legacy["addr"] and e.end == legacy["end"]
                and e.source_locator == "legacy-guess" for e in metadata.seeded_entities)
+    if mode == "other_section":
+        return
+    with effective_metadata_file(tmp_path) as path:
+        native = c_backend.effective_policy_project_source_with_c_backend(source, metadata_path=path)
+    assert any(e["offset"] == legacy["addr"] and e["size"] == legacy["end"] - legacy["addr"]
+               for e in native["analysis_policy"]["structured_data_items"])
 
 
 @pytest.mark.c_backend
@@ -131,8 +140,12 @@ def test_native_coordinate_word_and_text_render_exactly(tmp_path, legacy_role):
 
 
 def test_undo_and_redo_restore_precedence_without_erasing_legacy_evidence(tmp_path):
-    fixture(tmp_path)
+    source, _, _ = fixture(tmp_path)
     initial = effective_target_metadata(tmp_path)
+    def policy():
+        with effective_metadata_file(tmp_path) as metadata:
+            return c_backend.effective_policy_project_source_with_c_backend(source, metadata_path=metadata)["analysis_policy"]["structured_data_items"]
+    initial_policy = policy()
     path = tmp_path / MANUAL_ACTION_LOG_FILE_NAME
     prefix = path.read_bytes()
     rows = [json.loads(line) for line in path.read_text().splitlines()]
@@ -140,8 +153,10 @@ def test_undo_and_redo_restore_precedence_without_erasing_legacy_evidence(tmp_pa
                  "created_at": "2026-11-18T00:00:00+00:00", "kind": "undo_action", "undoes_action_id": "a4"})
     path.write_text("\n".join(json.dumps(row) for row in rows)+"\n")
     assert any(e.source_locator == "legacy-guess" for e in effective_target_metadata(tmp_path).seeded_entities)
+    assert any(e["offset"] == 5 and e["size"] == 10 for e in policy())
     rows.append({"record": "manual_action", "action_id": "redo-text", "sequence": 6,
                  "created_at": "2026-11-18T00:00:00+00:00", "kind": "redo_action", "redoes_action_id": "a4"})
     path.write_text("\n".join(json.dumps(row) for row in rows)+"\n")
     assert effective_target_metadata(tmp_path) == initial
+    assert policy() == initial_policy
     assert path.read_bytes().startswith(prefix)
