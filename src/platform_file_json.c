@@ -9725,6 +9725,17 @@ static int listing_plan_subline_is_directive(const M68kRenderPlanRow *row, uint3
   return (row->directive_line_mask & (1U << subline)) != 0U;
 }
 
+/* Only an explicit subline range (or the legacy single-line range) owns
+ * bytes. Authored comments inside a grouped DATA row must not inherit them. */
+static int listing_plan_subline_source_range(const M68kRenderPlanRow *row, uint32_t subline,
+    uint32_t *offset, uint32_t *size) {
+  if (m68k_render_plan_row_source_line_range(row, subline, offset, size)) return 1;
+  if (!row || row->line_count != 1U || !row->has_source_range) return 0;
+  *offset = row->source_offset;
+  *size = row->source_size;
+  return 1;
+}
+
 static int listing_plan_subline_is_label(const M68kRenderPlanRow *row, uint32_t subline,
     uint32_t *out_source_offset, uint8_t *out_has_runtime_address, uint32_t *out_runtime_address) {
   if (out_source_offset != NULL) *out_source_offset = 0U;
@@ -9737,6 +9748,18 @@ static int listing_plan_subline_is_label(const M68kRenderPlanRow *row, uint32_t 
     if (out_runtime_address != NULL) *out_runtime_address = row->label_line_runtime_addresses[subline];
   }
   return 1;
+}
+
+/* Preferred navigation and strict identity lookup share subline ownership;
+ * neither may turn a presentation comment into a containing byte row. */
+static int listing_plan_subline_contains_source_offset(const M68kRenderPlanRow *row,
+    uint32_t subline, uint32_t offset) {
+  uint32_t line_offset = 0U, line_size = 0U, label_offset = 0U;
+  if (listing_plan_subline_is_directive(row, subline)) return 0;
+  if (listing_plan_subline_is_label(row, subline, &label_offset, NULL, NULL))
+    return label_offset == offset;
+  return listing_plan_subline_source_range(row, subline, &line_offset, &line_size) &&
+    line_size && offset >= line_offset && (uint64_t)offset < (uint64_t)line_offset + line_size;
 }
 
 static void listing_navigation_row_code(char *out, size_t out_size, uint8_t row_kind_id, const char *stripped,
@@ -10077,13 +10100,8 @@ static int append_full_listing_render_plan_line(const M68kRenderPlanRow *row, ui
   m68k_ir_statement_init(&plan_stmt);
   if (context == NULL) return -1;
   context->current_native_direct_feature_flags = 0U;
-  line_has_source_range = m68k_render_plan_row_source_line_range(row, subline, &line_source_offset,
+  line_has_source_range = listing_plan_subline_source_range(row, subline, &line_source_offset,
     &line_source_size);
-  if (!line_has_source_range && row != NULL && row->has_source_range && row->line_count == 1U) {
-    line_has_source_range = 1U;
-    line_source_offset = row->source_offset;
-    line_source_size = row->source_size;
-  }
   context->current_plan_row = row;
   context->current_subline = subline;
   split_listing_line(line_start, line_length, stripped, sizeof(stripped), opcode, sizeof(opcode), operand,
@@ -10091,6 +10109,8 @@ static int append_full_listing_render_plan_line(const M68kRenderPlanRow *row, ui
   row_kind_id = listing_row_kind_id_for_plan_row(row);
   if (is_plan_directive_subline) row_kind_id = LISTING_ROW_KIND_DIRECTIVE;
   else if (is_plan_label_subline) row_kind_id = LISTING_ROW_KIND_LABEL;
+  else if (!line_has_source_range && !stripped[0])
+    row_kind_id = comment[0] ? LISTING_ROW_KIND_COMMENT : LISTING_ROW_KIND_BLANK;
   is_section_directive = row != NULL && row->kind == M68K_RENDER_PLAN_ROW_SECTION;
   section_index = listing_section_index_for_plan_row(row);
   if (is_section_directive) {
@@ -10103,7 +10123,8 @@ static int append_full_listing_render_plan_line(const M68kRenderPlanRow *row, ui
     plan_stmt.offset = label_source_offset;
     stmt = &plan_stmt;
     if (section_index >= 0) context->active_section_index = section_index;
-  } else if (!is_plan_directive_subline && row != NULL && (row->has_statement || row->has_source_range)) {
+  } else if (!is_plan_directive_subline && row_kind_id != LISTING_ROW_KIND_COMMENT &&
+      row_kind_id != LISTING_ROW_KIND_BLANK && row != NULL && (row->has_statement || row->has_source_range)) {
     /* DATA plan rows carry their own span/cache after grouped rows split.
      * The original statement may cover the entire array and start earlier. */
     if (row->has_statement_metadata && row->statement_kind == M68K_STATEMENT_DATA &&
@@ -12244,6 +12265,7 @@ int source_file_listing_source_offset_row_from_render_plan_with_index(const M68k
   for (index = 0U; index < row_index->row_count; ++index) {
     const PlatformListingRowIndexEntry *entry = &row_index->entries[index];
     if (entry->has_plan_row && (size_t)entry->plan_row_index == plan_row_index) {
+      if (!listing_plan_subline_contains_source_offset(plan_row, entry->subline, offset)) continue;
       *out_row = index;
       *out_found = 1;
       return 0;
@@ -12280,10 +12302,11 @@ int source_file_listing_source_identity_row_from_render_plan_with_index(const M6
     if (listing_plan_subline_is_directive(row, entry->subline)) continue;
     if (listing_plan_subline_is_label(row, entry->subline, &source_offset, NULL, NULL)) {
       row_kind = LISTING_ROW_KIND_LABEL;
-    } else if (!m68k_render_plan_row_source_line_range(row, entry->subline, &source_offset, &source_size)) {
-      if (!row->has_source_range && row_kind != LISTING_ROW_KIND_LABEL) continue;
+    } else if (!listing_plan_subline_source_range(row, entry->subline, &source_offset, &source_size)) {
+      if (row_kind != LISTING_ROW_KIND_LABEL || row->line_count != 1U) continue;
       source_offset = row->source_offset;
     }
+    if (row_kind != LISTING_ROW_KIND_LABEL && !source_size) continue;
     if (source_offset != offset || strcmp(listing_row_kind_name(row_kind), kind)) continue;
     if (*out_found) {
       *out_found = 0;
@@ -12316,6 +12339,11 @@ int source_file_listing_runtime_address_row_from_render_plan_with_index(const M6
   for (index = 0U; index < row_index->row_count; ++index) {
     const PlatformListingRowIndexEntry *entry = &row_index->entries[index];
     if (entry->has_plan_row && (size_t)entry->plan_row_index == plan_row_index) {
+      if (plan_row->has_source_range) {
+        uint64_t source_offset = (uint64_t)plan_row->source_offset + address - plan_row->runtime_address;
+        if (source_offset > UINT32_MAX ||
+            !listing_plan_subline_contains_source_offset(plan_row, entry->subline, (uint32_t)source_offset)) continue;
+      }
       *out_row = index;
       *out_found = 1;
       return 0;

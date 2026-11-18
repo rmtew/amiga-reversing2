@@ -1,5 +1,6 @@
 #include "m68k_c_unit_test.h"
 #include "m68k_render_plan.h"
+#include "platform_file_internal.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -605,8 +606,54 @@ static int test_render_plan_runtime_aliases_are_unique_and_move_with_plan(void) 
   return 0;
 }
 
+/* Source comments cannot impersonate bytes, but two real byte rows must
+ * still fail closed rather than selecting one by order. */
+static int test_canonical_identity_excludes_comments_and_rejects_duplicate_bytes(void) {
+  M68kRenderPlan plan;
+  M68kRenderPlanRow *row;
+  PlatformListingRowIndexEntry entries[3] = {
+    {.has_plan_row = 1U, .plan_row_index = 0U, .subline = 0U},
+    {.has_plan_row = 1U, .plan_row_index = 0U, .subline = 1U},
+    {.has_plan_row = 1U, .plan_row_index = 1U, .subline = 0U}
+  };
+  PlatformListingRowIndex index = {.entries = entries, .row_count = 2U};
+  size_t found_row = 0U;
+  int found = 0;
+  m68k_render_plan_init(&plan);
+  M68K_C_ASSERT_INT(0, m68k_render_plan_append_text_row(&plan, M68K_RENDER_PLAN_ROW_DATA, 1U,
+    "    ; annotation\n\tdc.b $01\n", &row));
+  m68k_render_plan_row_set_source_range(row, 0U, 6U, 1U);
+  m68k_render_plan_row_set_runtime_range(row, 0x8006U, 1U);
+  row->source_line_mask = 2U;
+  row->source_line_offsets[1] = 6U;
+  row->source_line_sizes[1] = 1U;
+  M68K_C_ASSERT_INT(0, source_file_listing_source_identity_row_from_render_plan_with_index(
+    &plan, &index, 0U, 6U, "data", &found_row, &found, m68k_diag_sink(NULL)));
+  M68K_C_ASSERT_INT(1, found);
+  M68K_C_ASSERT_U32(1U, (uint32_t)found_row);
+  M68K_C_ASSERT_INT(0, source_file_listing_source_offset_row_from_render_plan_with_index(
+    &plan, &index, 0U, 6U, &found_row, &found, m68k_diag_sink(NULL)));
+  M68K_C_ASSERT_INT(1, found);
+  M68K_C_ASSERT_U32(1U, (uint32_t)found_row);
+  M68K_C_ASSERT_INT(0, source_file_listing_runtime_address_row_from_render_plan_with_index(
+    &plan, &index, 0x8006U, &found_row, &found, m68k_diag_sink(NULL)));
+  M68K_C_ASSERT_INT(1, found);
+  M68K_C_ASSERT_U32(1U, (uint32_t)found_row);
+  M68K_C_ASSERT_INT(0, m68k_render_plan_append_text_row(&plan, M68K_RENDER_PLAN_ROW_DATA, 3U,
+    "\tdc.b $01\n", &row));
+  m68k_render_plan_row_set_source_range(row, 0U, 6U, 1U);
+  index.row_count = 3U;
+  M68K_C_ASSERT_INT(-1, source_file_listing_source_identity_row_from_render_plan_with_index(
+    &plan, &index, 0U, 6U, "data", &found_row, &found, m68k_diag_sink(NULL)));
+  M68K_C_ASSERT_INT(0, found);
+  m68k_render_plan_destroy(&plan);
+  return 0;
+}
+
 int m68k_c_render_plan_tests(void) {
   static const M68kCTestCase cases[] = {
+    {"canonical_identity_excludes_comments_and_rejects_duplicate_bytes",
+      test_canonical_identity_excludes_comments_and_rejects_duplicate_bytes},
     {"line_counts_and_order", test_render_plan_line_counts_and_order},
     {"line_and_address_lookup", test_render_plan_line_and_address_lookup},
     {"row_builder_commits_fragmented_row", test_render_plan_row_builder_commits_fragmented_row},
