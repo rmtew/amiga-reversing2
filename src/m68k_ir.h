@@ -80,7 +80,6 @@ typedef struct M68kRenderPolicy {
 #if M68K_ANALYSIS_TARGET_EQUATE_LIMIT > UINT16_MAX
 #error Target equate limit must fit its uint16_t counter
 #endif
-#define M68K_ANALYSIS_MANUAL_RUNTIME_ADDRESS_REF_LIMIT 128U
 #define M68K_ANALYSIS_MANUAL_DATA_REFERENCE_LIMIT 512U
 #if M68K_ANALYSIS_MANUAL_DATA_REFERENCE_LIMIT > UINT16_MAX
 #error Manual data reference limit must fit its uint16_t counter
@@ -912,7 +911,8 @@ typedef struct M68kAnalysisPolicy {
   uint16_t rsset_use_site_binding_count;
   uint16_t manual_representation_count;
   uint16_t target_equate_count;
-  uint16_t manual_runtime_address_ref_count;
+  size_t manual_runtime_address_ref_count;
+  size_t manual_runtime_address_ref_capacity;
   uint16_t manual_data_reference_count;
   uint16_t abstract_region_count;
   uint16_t memory_region_count;
@@ -931,6 +931,7 @@ typedef struct M68kAnalysisPolicy {
   uint8_t manual_representations_owner;
   uint8_t rsset_layout_regions_owner;
   uint8_t register_seeds_owner;
+  uint8_t manual_runtime_address_refs_owner;
   uint32_t entry_offset;
   char source_context_kind[M68K_ANALYSIS_SOURCE_CONTEXT_TEXT_SIZE];
   char source_context_disk_id[M68K_ANALYSIS_SOURCE_CONTEXT_TEXT_SIZE];
@@ -958,7 +959,8 @@ typedef struct M68kAnalysisPolicy {
   M68kAnalysisManualRepresentation manual_representations_inline[4];
   M68kAnalysisManualRepresentation *manual_representations;
   M68kAnalysisTargetEquate target_equates[M68K_ANALYSIS_TARGET_EQUATE_LIMIT];
-  M68kAnalysisManualRuntimeAddressRef manual_runtime_address_refs[M68K_ANALYSIS_MANUAL_RUNTIME_ADDRESS_REF_LIMIT];
+  M68kAnalysisManualRuntimeAddressRef manual_runtime_address_refs_inline[4];
+  M68kAnalysisManualRuntimeAddressRef *manual_runtime_address_refs;
   M68kAnalysisManualDataReference manual_data_references[M68K_ANALYSIS_MANUAL_DATA_REFERENCE_LIMIT];
   M68kAnalysisAbstractRegion abstract_regions[M68K_ANALYSIS_ABSTRACT_REGION_LIMIT];
   M68kMemoryRegionIR memory_regions[M68K_ANALYSIS_MEMORY_REGION_LIMIT];
@@ -3129,6 +3131,8 @@ void m68k_analysis_policy_init_default(M68kAnalysisPolicy *policy);
 int m68k_analysis_policy_resolve_pointer_address(const M68kAnalysisPolicy *policy, uint32_t value,
   uint32_t *out_section, uint32_t *out_offset);
 void m68k_analysis_policy_destroy(M68kAnalysisPolicy *policy);
+int m68k_analysis_policy_manual_runtime_address_refs_valid(const M68kAnalysisPolicy *policy);
+int m68k_analysis_policy_reserve_manual_runtime_address_refs(M68kAnalysisPolicy *policy, size_t required_count);
 int m68k_analysis_policy_copy(M68kAnalysisPolicy *dest, const M68kAnalysisPolicy *src);
 int m68k_analysis_policy_register_seeds_valid(const M68kAnalysisPolicy *policy);
 int m68k_analysis_policy_reserve_register_seeds(M68kAnalysisPolicy *policy, size_t required_count);

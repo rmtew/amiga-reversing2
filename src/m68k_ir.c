@@ -1609,6 +1609,8 @@ void m68k_analysis_policy_init_default(M68kAnalysisPolicy *policy) {
 
   memset(policy, 0, sizeof(*policy));
   policy->max_cpu = M68K_ASM_CPU_68060;
+  policy->manual_runtime_address_refs = policy->manual_runtime_address_refs_inline;
+  policy->manual_runtime_address_ref_capacity = 4U;
   policy->register_seeds = policy->register_seeds_inline;
   policy->register_seed_capacity = M68K_ANALYSIS_REGISTER_SEED_INLINE_CAPACITY;
   policy->structured_data_items = policy->structured_data_items_inline;
@@ -1626,6 +1628,11 @@ void m68k_analysis_policy_init_default(M68kAnalysisPolicy *policy) {
 void m68k_analysis_policy_destroy(M68kAnalysisPolicy *policy) {
   if (policy == NULL) return;
   policy->storage_capacity_status = M68K_ANALYSIS_STORAGE_CAPACITY_NONE;
+  if (policy->manual_runtime_address_refs_owner) free(policy->manual_runtime_address_refs);
+  policy->manual_runtime_address_refs = policy->manual_runtime_address_refs_inline;
+  policy->manual_runtime_address_ref_count = 0U;
+  policy->manual_runtime_address_ref_capacity = 4U;
+  policy->manual_runtime_address_refs_owner = 0U;
   if (policy->register_seeds_owner && policy->register_seeds) free(policy->register_seeds);
   policy->register_seeds = policy->register_seeds_inline;
   policy->register_seed_count = 0U;
@@ -2064,6 +2071,42 @@ int m68k_analysis_policy_reserve_manual_representations(M68kAnalysisPolicy *poli
   return 0;
 }
 
+/* Runtime references carry source and owner identity, not a bounded machine
+ * resource. Grow their storage independently of any title's table size. */
+int m68k_analysis_policy_manual_runtime_address_refs_valid(const M68kAnalysisPolicy *policy) {
+  if (!policy || policy->manual_runtime_address_ref_capacity >
+      SIZE_MAX / sizeof(M68kAnalysisManualRuntimeAddressRef) ||
+      policy->manual_runtime_address_ref_count > policy->manual_runtime_address_ref_capacity) return 0;
+  if (!policy->manual_runtime_address_refs)
+    return !policy->manual_runtime_address_ref_capacity && !policy->manual_runtime_address_refs_owner;
+  if (policy->manual_runtime_address_refs == policy->manual_runtime_address_refs_inline)
+    return policy->manual_runtime_address_ref_capacity <= 4U && !policy->manual_runtime_address_refs_owner;
+  return 1;
+}
+
+int m68k_analysis_policy_reserve_manual_runtime_address_refs(M68kAnalysisPolicy *policy, size_t required_count) {
+  M68kAnalysisManualRuntimeAddressRef *grown;
+  size_t capacity, maximum = SIZE_MAX / sizeof(*grown);
+  if (!m68k_analysis_policy_manual_runtime_address_refs_valid(policy) || required_count > maximum) return -1;
+  if (!policy->manual_runtime_address_refs && required_count <= 4U) {
+    policy->manual_runtime_address_refs = policy->manual_runtime_address_refs_inline;
+    policy->manual_runtime_address_ref_capacity = 4U;
+  }
+  if (required_count <= policy->manual_runtime_address_ref_capacity) return 0;
+  capacity = policy->manual_runtime_address_ref_capacity;
+  if (capacity < 4U) capacity = 4U;
+  while (capacity < required_count) capacity = capacity <= maximum / 2U ? capacity * 2U : maximum;
+  grown = calloc(capacity, sizeof(*grown));
+  if (!grown) return -1;
+  if (policy->manual_runtime_address_ref_count)
+    memcpy(grown, policy->manual_runtime_address_refs, policy->manual_runtime_address_ref_count * sizeof(*grown));
+  if (policy->manual_runtime_address_refs_owner) free(policy->manual_runtime_address_refs);
+  policy->manual_runtime_address_refs = grown;
+  policy->manual_runtime_address_ref_capacity = capacity;
+  policy->manual_runtime_address_refs_owner = 1U;
+  return 0;
+}
+
 int m68k_analysis_policy_copy(M68kAnalysisPolicy *dest, const M68kAnalysisPolicy *src) {
   uint16_t custom_struct_count;
   uint16_t structured_data_item_count;
@@ -2071,6 +2114,7 @@ int m68k_analysis_policy_copy(M68kAnalysisPolicy *dest, const M68kAnalysisPolicy
   uint16_t manual_representation_count;
   uint16_t rsset_layout_region_count;
   uint16_t index;
+  M68kAnalysisManualRuntimeAddressRef *runtime_refs = NULL;
   M68kAnalysisRegisterSeed *register_seeds = NULL;
   M68kAnalysisCustomStruct *custom_structs = NULL;
   M68kAnalysisStructuredDataItem *structured_data_items = NULL;
@@ -2079,7 +2123,8 @@ int m68k_analysis_policy_copy(M68kAnalysisPolicy *dest, const M68kAnalysisPolicy
   M68kAnalysisManualRepresentation *manual_representations = NULL;
   M68kAnalysisRssetLayoutRegion *rsset_layout_regions = NULL;
   if (dest == NULL || src == NULL) return -1;
-  if (!m68k_analysis_policy_register_seeds_valid(src) ||
+  if (!m68k_analysis_policy_manual_runtime_address_refs_valid(src) ||
+      !m68k_analysis_policy_register_seeds_valid(src) ||
       !m68k_analysis_policy_structured_data_items_valid(src) ||
       !m68k_analysis_policy_named_labels_valid(src) ||
       !m68k_analysis_policy_entry_comments_valid(src) ||
@@ -2139,7 +2184,24 @@ int m68k_analysis_policy_copy(M68kAnalysisPolicy *dest, const M68kAnalysisPolicy
     memcpy(manual_representations, src->manual_representations,
       (size_t)manual_representation_count * sizeof(*manual_representations));
   }
+  if (src->manual_runtime_address_ref_count > 4U) {
+    runtime_refs = calloc(src->manual_runtime_address_ref_count, sizeof(*runtime_refs));
+    if (!runtime_refs) goto oom;
+    memcpy(runtime_refs, src->manual_runtime_address_refs,
+      src->manual_runtime_address_ref_count * sizeof(*runtime_refs));
+  }
   *dest = *src;
+  dest->manual_runtime_address_refs = dest->manual_runtime_address_refs_inline;
+  dest->manual_runtime_address_ref_capacity = 4U;
+  dest->manual_runtime_address_refs_owner = 0U;
+  if (src->manual_runtime_address_ref_count > 4U) {
+    dest->manual_runtime_address_refs = runtime_refs;
+    dest->manual_runtime_address_ref_capacity = src->manual_runtime_address_ref_count;
+    dest->manual_runtime_address_refs_owner = 1U;
+  } else if (src->manual_runtime_address_ref_count) {
+    memcpy(dest->manual_runtime_address_refs_inline, src->manual_runtime_address_refs,
+      src->manual_runtime_address_ref_count * sizeof(dest->manual_runtime_address_refs_inline[0]));
+  }
   dest->register_seeds = dest->register_seeds_inline;
   dest->register_seed_capacity = M68K_ANALYSIS_REGISTER_SEED_INLINE_CAPACITY;
   dest->register_seeds_owner = 0U;
@@ -2215,6 +2277,7 @@ int m68k_analysis_policy_copy(M68kAnalysisPolicy *dest, const M68kAnalysisPolicy
   }
   return 0;
 oom:
+  free(runtime_refs);
   free(register_seeds);
   free(custom_structs);
   free(structured_data_items);

@@ -15880,9 +15880,8 @@ static int append_render_lookup_runtime_address_refs_for_section(const M68kRende
     if (m68k_ir_section_analysis_append_runtime_address_ref(section_analysis, &entry->ref) != 0) return -1;
   }
   if (lookup->policy != NULL) {
-    uint16_t ref_index;
-    for (ref_index = 0U; ref_index < lookup->policy->manual_runtime_address_ref_count &&
-         ref_index < M68K_ANALYSIS_MANUAL_RUNTIME_ADDRESS_REF_LIMIT; ++ref_index) {
+    size_t ref_index;
+    for (ref_index = 0U; ref_index < lookup->policy->manual_runtime_address_ref_count; ++ref_index) {
       const M68kAnalysisManualRuntimeAddressRef *manual_ref = &lookup->policy->manual_runtime_address_refs[ref_index];
       M68kRuntimeAddressRefIR ref;
       if (!manual_ref->has_section_index || manual_ref->section_index != section_analysis->section_index) continue;

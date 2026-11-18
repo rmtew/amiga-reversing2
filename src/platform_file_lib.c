@@ -3629,20 +3629,20 @@ static int policy_add_manual_runtime_address_ref_local(M68kAnalysisPolicy *polic
     uint32_t runtime_address, uint8_t confidence, const char *owner_kind, const char *owner_id,
     const char *owner_layout_id, uint32_t owner_element_offset, const char *xref_generation_mode) {
   M68kAnalysisManualRuntimeAddressRef *slot;
-  uint16_t index;
-  if (policy == NULL || size == 0U || owner_kind == NULL || owner_kind[0] == '\0' ||
+  size_t index;
+  if (!m68k_analysis_policy_manual_runtime_address_refs_valid(policy) || size == 0U || owner_kind == NULL || owner_kind[0] == '\0' ||
       owner_id == NULL || owner_id[0] == '\0' || owner_layout_id == NULL || owner_layout_id[0] == '\0' ||
       xref_generation_mode == NULL || xref_generation_mode[0] == '\0')
     return 0;
-  for (index = 0U; index < policy->manual_runtime_address_ref_count &&
-       index < M68K_ANALYSIS_MANUAL_RUNTIME_ADDRESS_REF_LIMIT; ++index) {
+  for (index = 0U; index < policy->manual_runtime_address_ref_count; ++index) {
     const M68kAnalysisManualRuntimeAddressRef *existing = &policy->manual_runtime_address_refs[index];
     if (existing->section_index == section_index && existing->offset == offset &&
         existing->target_section_index == target_section_index && existing->target_offset == target_offset &&
         strcmp(existing->owner_id, owner_id) == 0)
       return 1;
   }
-  if (policy->manual_runtime_address_ref_count >= M68K_ANALYSIS_MANUAL_RUNTIME_ADDRESS_REF_LIMIT) return 0;
+  if (m68k_analysis_policy_reserve_manual_runtime_address_refs(policy,
+      policy->manual_runtime_address_ref_count + 1U) != 0) return 0;
   slot = &policy->manual_runtime_address_refs[policy->manual_runtime_address_ref_count++];
   memset(slot, 0, sizeof(*slot));
   slot->has_section_index = 1U;
@@ -9908,8 +9908,8 @@ static int validate_policy_range_local(M68kDiagList *diagnostics, const M68kObje
 
 static int validate_effective_policy_against_object_local(M68kDiagList *diagnostics, const M68kObject *object,
     const M68kAnalysisPolicy *policy) {
-  uint16_t index;
-  if (object == NULL || policy == NULL) return 0;
+  size_t index;
+  if (object == NULL || !m68k_analysis_policy_manual_runtime_address_refs_valid(policy)) return 0;
   if (platform_file_add_policy_capacity_error_local(policy, diagnostics)) return 0;
   if (policy->has_entry_offset &&
       !validate_policy_offset_local(diagnostics, object, 0U, 0U, policy->entry_offset,
@@ -10077,8 +10077,7 @@ static int validate_effective_policy_against_object_local(M68kDiagList *diagnost
       }
     }
   }
-  for (index = 0U; index < policy->manual_runtime_address_ref_count &&
-       index < M68K_ANALYSIS_MANUAL_RUNTIME_ADDRESS_REF_LIMIT; ++index) {
+  for (index = 0U; index < policy->manual_runtime_address_ref_count; ++index) {
     const M68kAnalysisManualRuntimeAddressRef *ref = &policy->manual_runtime_address_refs[index];
     if (!validate_policy_section_index_local(diagnostics, object, ref->has_section_index, ref->section_index))
       return 0;

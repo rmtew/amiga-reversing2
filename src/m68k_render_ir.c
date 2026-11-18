@@ -3588,9 +3588,8 @@ static uint8_t resolve_rendered_data_pointer_expression(const M68kRenderLookup *
   /* Interior references use the bounded-owner projection. Preserve the
    * existing scalar pointer/domain path for exact-width owners. */
   if (lookup->policy != NULL && item != NULL && item->size > 4U) {
-    uint16_t index;
-    for (index = 0U; index < lookup->policy->manual_runtime_address_ref_count &&
-        index < M68K_ANALYSIS_MANUAL_RUNTIME_ADDRESS_REF_LIMIT; ++index) {
+    size_t index;
+    for (index = 0U; index < lookup->policy->manual_runtime_address_ref_count; ++index) {
       const M68kAnalysisManualRuntimeAddressRef *ref = &lookup->policy->manual_runtime_address_refs[index];
       uint32_t logical = 0U;
       if (!ref->has_section_index || ref->section_index != section->section_index || ref->offset != offset ||
@@ -5796,7 +5795,7 @@ static int resolve_source_bound_runtime_data_reference(const M68kRenderLookup *l
   const M68kAnalysisManualRuntimeAddressRef *selected = NULL;
   uint32_t value, runtime = 0U, source_offset = 0U, logical = 0U;
   size_t source_section = 0U;
-  uint16_t index;
+  size_t index;
   char name[96];
   if (lookup == NULL || lookup->policy == NULL || section == NULL || section->data == NULL ||
       lookup->policy->selected_memory_layout_id[0] != '\0' || offset > section->size ||
@@ -5810,8 +5809,7 @@ static int resolve_source_bound_runtime_data_reference(const M68kRenderLookup *l
   if (!equate->address_domain || strcmp(equate->group, "data_block_runtime_reference_points") != 0) return 0;
   value = m68k_read_u32be(section->data + offset);
   if (value == 0U || value != (uint32_t)equate->value) return 0;
-  for (index = 0U; index < lookup->policy->manual_runtime_address_ref_count &&
-      index < M68K_ANALYSIS_MANUAL_RUNTIME_ADDRESS_REF_LIMIT; ++index) {
+  for (index = 0U; index < lookup->policy->manual_runtime_address_ref_count; ++index) {
     const M68kAnalysisManualRuntimeAddressRef *ref = &lookup->policy->manual_runtime_address_refs[index];
     if (!ref->has_section_index || ref->section_index != section->section_index || ref->offset != offset ||
         ref->size != 4U || !ref->has_target || !ref->has_runtime_address || ref->runtime_address != value ||
@@ -5907,9 +5905,8 @@ static int plan_rendered_structured_pointer_expressions(M68kRenderLookup *lookup
         if (lookup->policy != NULL && !structured_data_item_is_pointer_table(item) &&
             !structured_data_item_is_absolute_long_lookup_table(item) &&
             (item->kind == M68K_ANALYSIS_STRUCTURED_DATA_BYTES || item->kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS)) {
-          uint16_t ref_index;
-          for (ref_index = 0U; ref_index < lookup->policy->manual_runtime_address_ref_count &&
-              ref_index < M68K_ANALYSIS_MANUAL_RUNTIME_ADDRESS_REF_LIMIT; ++ref_index) {
+          size_t ref_index;
+          for (ref_index = 0U; ref_index < lookup->policy->manual_runtime_address_ref_count; ++ref_index) {
             const M68kAnalysisManualRuntimeAddressRef *ref = &lookup->policy->manual_runtime_address_refs[ref_index];
             M68kRenderPlannedExpression expression;
             uint32_t byte;

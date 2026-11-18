@@ -4,6 +4,77 @@
 
 #include <string.h>
 
+static int test_runtime_refs_dynamic_growth_copy_and_overflow(void) {
+  M68kAnalysisPolicy source = {0}, copy = {0};
+  M68kAnalysisManualRuntimeAddressRef *saved;
+  M68K_C_ASSERT_INT(0, m68k_analysis_policy_reserve_manual_runtime_address_refs(&source, 4U));
+  M68K_C_ASSERT(source.manual_runtime_address_refs == source.manual_runtime_address_refs_inline);
+  source.manual_runtime_address_ref_count = 4U;
+  source.manual_runtime_address_refs[3].offset = 12U;
+  M68K_C_ASSERT_INT(0, m68k_analysis_policy_copy(&copy, &source));
+  M68K_C_ASSERT(copy.manual_runtime_address_refs == copy.manual_runtime_address_refs_inline);
+  source.manual_runtime_address_refs[3].offset = 99U;
+  M68K_C_ASSERT_U32(12U, copy.manual_runtime_address_refs[3].offset);
+  m68k_analysis_policy_destroy(&copy);
+  for (size_t count = 5U; count <= 257U; ++count) {
+    M68K_C_ASSERT_INT(0, m68k_analysis_policy_reserve_manual_runtime_address_refs(&source, count));
+    source.manual_runtime_address_refs[count-1U].offset = (uint32_t)count * 4U;
+    source.manual_runtime_address_ref_count = count;
+  }
+  M68K_C_ASSERT_U32(99U, source.manual_runtime_address_refs[3].offset);
+  M68K_C_ASSERT_INT(0, m68k_analysis_policy_copy(&copy, &source));
+  M68K_C_ASSERT(copy.manual_runtime_address_refs != source.manual_runtime_address_refs);
+  M68K_C_ASSERT_INT(0, m68k_analysis_policy_copy(&source, &source));
+  m68k_analysis_policy_destroy(&source);
+  M68K_C_ASSERT_U32(257U, copy.manual_runtime_address_ref_count);
+  M68K_C_ASSERT_U32(1028U, copy.manual_runtime_address_refs[256].offset);
+  saved = copy.manual_runtime_address_refs;
+  M68K_C_ASSERT_INT(-1, m68k_analysis_policy_reserve_manual_runtime_address_refs(&copy, SIZE_MAX));
+  M68K_C_ASSERT(copy.manual_runtime_address_refs == saved);
+  M68K_C_ASSERT_U32(257U, copy.manual_runtime_address_ref_count);
+  /* Counts are not narrowed to uint16_t anywhere in the storage contract. */
+  M68K_C_ASSERT_INT(0, m68k_analysis_policy_reserve_manual_runtime_address_refs(&copy, 65537U));
+  copy.manual_runtime_address_ref_count = 65537U;
+  copy.manual_runtime_address_refs[65536U].offset = 0x123456U;
+  M68K_C_ASSERT_INT(0, m68k_analysis_policy_copy(&source, &copy));
+  m68k_analysis_policy_destroy(&copy);
+  M68K_C_ASSERT(source.manual_runtime_address_ref_count == 65537U);
+  M68K_C_ASSERT_U32(0x123456U, source.manual_runtime_address_refs[65536U].offset);
+  m68k_analysis_policy_destroy(&source);
+  m68k_analysis_policy_destroy(&source);
+  M68K_C_ASSERT(source.manual_runtime_address_refs == source.manual_runtime_address_refs_inline);
+  M68K_C_ASSERT_U32(0U, source.manual_runtime_address_ref_count);
+  return 0;
+}
+
+static int test_runtime_refs_invalid_and_borrowed_storage(void) {
+  M68kAnalysisPolicy source = {0}, copy = {0};
+  M68kAnalysisManualRuntimeAddressRef borrowed[5] = {{0}};
+  m68k_analysis_policy_init_default(&source);
+  source.manual_runtime_address_ref_count = 5U; /* Cannot claim five inline entries. */
+  copy.max_cpu = 42U;
+  M68K_C_ASSERT_INT(-1, m68k_analysis_policy_copy(&copy, &source));
+  M68K_C_ASSERT_U32(42U, copy.max_cpu);
+  M68K_C_ASSERT_INT(-1, m68k_analysis_policy_reserve_manual_runtime_address_refs(&source, 6U));
+  source.manual_runtime_address_ref_count = 0U;
+  source.manual_runtime_address_ref_capacity = SIZE_MAX;
+  M68K_C_ASSERT_INT(-1, m68k_analysis_policy_copy(&copy, &source));
+  m68k_analysis_policy_destroy(&source);
+  borrowed[4].offset = 20U;
+  source.manual_runtime_address_refs = borrowed;
+  source.manual_runtime_address_ref_capacity = 5U;
+  source.manual_runtime_address_ref_count = 5U;
+  M68K_C_ASSERT_INT(0, m68k_analysis_policy_copy(&copy, &source));
+  M68K_C_ASSERT(copy.manual_runtime_address_refs != borrowed);
+  M68K_C_ASSERT_INT(0, m68k_analysis_policy_reserve_manual_runtime_address_refs(&source, 129U));
+  borrowed[4].offset = 99U;
+  M68K_C_ASSERT_U32(20U, source.manual_runtime_address_refs[4].offset);
+  M68K_C_ASSERT_U32(20U, copy.manual_runtime_address_refs[4].offset);
+  m68k_analysis_policy_destroy(&source);
+  m68k_analysis_policy_destroy(&copy);
+  return 0;
+}
+
 static int test_register_seeds_growth_copy_and_count_bound(void) {
   M68kAnalysisPolicy source = {0}, copy = {0};
   M68kAnalysisRegisterSeed *saved;
@@ -373,6 +444,8 @@ static int test_comments_grow_clone_and_representable_boundary(void) {
 
 int m68k_c_policy_storage_tests(void) {
   static const M68kCTestCase cases[] = {
+    {"runtime_refs_dynamic_growth_copy_and_overflow", test_runtime_refs_dynamic_growth_copy_and_overflow},
+    {"runtime_refs_invalid_and_borrowed_storage", test_runtime_refs_invalid_and_borrowed_storage},
     {"comments_grow_clone_and_representable_boundary", test_comments_grow_clone_and_representable_boundary},
     {"register_seeds_growth_copy_and_count_bound", test_register_seeds_growth_copy_and_count_bound},
     {"rsset_regions_inline_growth_clone_and_identity_bound", test_rsset_regions_inline_growth_clone_and_identity_bound},
