@@ -7976,6 +7976,67 @@ static void metadata_project_compatible_scalar_precedence_local(M68kAnalysisPoli
   }
 }
 
+/* Opaque imported classifications have no scalar contract to contradict an
+ * authored scalar extent. Subtract that extent only in the native projection;
+ * retain every uncovered fragment and the unchanged authoritative input fact.
+ * Labels/comments are projected independently. Named, commented, validated or
+ * evidence-owned items are never tagged LEGACY_OPAQUE by the parser. */
+static int metadata_project_scalar_opaque_precedence_local(M68kAnalysisPolicy *policy) {
+  size_t count = policy->structured_data_item_count;
+  MetadataPrefixWindowLocal *spans;
+  if (!count) return 1;
+  if (count > SIZE_MAX / sizeof(*spans)) return 0;
+  spans = calloc(count, sizeof(*spans));
+  if (!spans) return 0;
+  for (size_t i = 0U; i < count; ++i) {
+    M68kAnalysisStructuredDataItem original = policy->structured_data_items[i];
+    size_t span_count = 0U;
+    uint64_t end = (uint64_t)original.offset + original.size;
+    if (original.metadata_precedence != M68K_METADATA_PRECEDENCE_LEGACY_OPAQUE ||
+        !original.size || end > UINT32_MAX) continue;
+    for (size_t j = 0U; j < count; ++j) {
+      const M68kAnalysisStructuredDataItem *owner = &policy->structured_data_items[j];
+      uint64_t owner_end = (uint64_t)owner->offset + owner->size;
+      if ((owner->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_SCALAR &&
+           owner->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_SCALAR_SEQUENCE) ||
+          owner->has_section_index != original.has_section_index ||
+          owner->section_index != original.section_index || !owner->size || owner_end > UINT32_MAX ||
+          owner->offset >= end || original.offset >= owner_end) continue;
+      spans[span_count++] = (MetadataPrefixWindowLocal){.offset = owner->offset > original.offset ?
+        owner->offset : original.offset, .text_end = (uint32_t)(owner_end < end ? owner_end : end)};
+    }
+    if (!span_count) continue;
+    qsort(spans, span_count, sizeof(*spans), metadata_prefix_key_compare_local);
+    uint32_t cursor = original.offset;
+    int retained = 0;
+    /* Sorted union subtraction also handles adjacent/overlapping declarations
+     * without deciding conflicts between the declarations themselves. */
+    for (size_t j = 0U; j <= span_count; ++j) {
+      uint32_t start = j == span_count ? (uint32_t)end : spans[j].offset;
+      if (start > cursor) {
+        M68kAnalysisStructuredDataItem fragment = original;
+        fragment.offset = cursor;
+        fragment.size = start - cursor;
+        if (!retained) {
+          policy->structured_data_items[i] = fragment;
+          retained = 1;
+        } else {
+          size_t index = policy->structured_data_item_count;
+          if (m68k_analysis_policy_reserve_structured_data_items(policy, index + 1U) != 0) {
+            free(spans); return 0;
+          }
+          policy->structured_data_items[index] = fragment;
+          policy->structured_data_item_count++;
+        }
+      }
+      if (j < span_count && spans[j].text_end > cursor) cursor = spans[j].text_end;
+    }
+    if (!retained) policy->structured_data_items[i].size = 0U;
+  }
+  free(spans);
+  return 1;
+}
+
 static int metadata_project_prefix_precedence_local(M68kAnalysisPolicy *policy) {
   size_t count = policy->structured_data_item_count, text_count = 0U, window_count = 0U;
   MetadataPrefixWindowLocal *texts, *windows;
@@ -9650,8 +9711,9 @@ static int append_metadata_generic_policy_text_local(const char *text, M68kAnaly
     cursor = object_end;
   }
   metadata_project_compatible_scalar_precedence_local(policy);
-  if (!metadata_project_prefix_precedence_local(policy)) {
-    platform_file_add_error(diagnostics.list, "failed allocating native scalar/text precedence projection");
+  if (!metadata_project_prefix_precedence_local(policy) ||
+      !metadata_project_scalar_opaque_precedence_local(policy)) {
+    platform_file_add_error(diagnostics.list, "failed allocating native data precedence projection");
     return -1;
   }
   cursor = json_find_array_local(text, "target_equates", &array_end);

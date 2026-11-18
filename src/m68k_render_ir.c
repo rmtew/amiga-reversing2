@@ -9180,8 +9180,12 @@ int lookup_has_renderable_label(const M68kRenderLookup *lookup, size_t section_i
       return !lookup_offset_is_inside_relocation_payload(lookup, section_index, offset);
     }
     /* Authored source declarations inside a literal leaf remain boundaries.
+     * Weak opaque remainders can be <= 4 bytes after precedence subtraction;
+     * their explicit interior labels must not disappear with the smaller span.
      * Automatically expanded field names still follow their existing policy. */
-    if (lookup->policy != NULL && covering_item->size > 4U &&
+    if (lookup->policy != NULL &&
+        (covering_item->size > 4U ||
+         covering_item->metadata_precedence == M68K_METADATA_PRECEDENCE_LEGACY_OPAQUE) &&
         (covering_item->kind == M68K_ANALYSIS_STRUCTURED_DATA_BYTES ||
          covering_item->kind == M68K_ANALYSIS_STRUCTURED_DATA_WORDS ||
          covering_item->kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS)) {
