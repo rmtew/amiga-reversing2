@@ -7946,34 +7946,73 @@ static size_t metadata_prefix_lower_bound_local(const MetadataPrefixWindowLocal 
   return lo;
 }
 
-/* A broad authored scalar sequence and a contained weak same-unit leaf encode
- * the same type contract. Keep the authoritative leaf and any labels intact,
- * but do not let its duplicate native footprint force the enclosing sequence
- * into raw BYTE fragments. Independent comments/types/pointers are not tagged. */
-static void metadata_project_compatible_scalar_precedence_local(M68kAnalysisPolicy *policy) {
-  for (size_t i = 0U; i < policy->structured_data_item_count; ++i) {
-    M68kAnalysisStructuredDataItem *leaf = &policy->structured_data_items[i];
-    if (leaf->metadata_precedence != M68K_METADATA_PRECEDENCE_LEGACY_SCALAR) continue;
-    uint32_t unit = leaf->kind == M68K_ANALYSIS_STRUCTURED_DATA_WORDS ? 2U :
-      leaf->kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS ? 4U : 0U;
-    int covered = 0, conflict = 0;
-    if (!unit || !leaf->size || leaf->size % unit) continue;
-    for (size_t j = 0U; j < policy->structured_data_item_count; ++j) {
+/* Authored scalar extents shadow compatible weak imported scalar footprints
+ * only in the native projection. Preserve uncovered same-unit fragments and
+ * authoritative facts; any conflicting overlapping declaration prevents this
+ * reduction. Independently owned facts are never tagged LEGACY_SCALAR. */
+static int metadata_project_compatible_scalar_precedence_local(M68kAnalysisPolicy *policy) {
+  size_t count = policy->structured_data_item_count;
+  MetadataPrefixWindowLocal *spans;
+  if (!count) return 1;
+  if (count > SIZE_MAX / sizeof(*spans)) return 0;
+  spans = calloc(count, sizeof(*spans));
+  if (!spans) return 0;
+  for (size_t i = 0U; i < count; ++i) {
+    M68kAnalysisStructuredDataItem original = policy->structured_data_items[i];
+    size_t span_count = 0U;
+    int conflict = 0;
+    uint32_t unit = original.kind == M68K_ANALYSIS_STRUCTURED_DATA_WORDS ? 2U :
+      original.kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS ? 4U : 0U;
+    uint64_t end = (uint64_t)original.offset + original.size;
+    if (original.metadata_precedence != M68K_METADATA_PRECEDENCE_LEGACY_SCALAR ||
+        !unit || !original.size || original.size % unit || end > UINT32_MAX) continue;
+    for (size_t j = 0U; j < count; ++j) {
       const M68kAnalysisStructuredDataItem *owner = &policy->structured_data_items[j];
-      if (owner->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_SCALAR &&
-          owner->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_SCALAR_SEQUENCE) continue;
-      if (owner->section_index != leaf->section_index || owner->offset >= leaf->offset + leaf->size ||
-          leaf->offset >= owner->offset + owner->size) continue;
-      if (owner->kind != leaf->kind || (leaf->offset >= owner->offset ?
-          (leaf->offset - owner->offset) % unit : (owner->offset - leaf->offset) % unit)) {
+      uint64_t owner_end = (uint64_t)owner->offset + owner->size;
+      if ((owner->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_SCALAR &&
+           owner->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_SCALAR_SEQUENCE) ||
+          owner->has_section_index != original.has_section_index ||
+          owner->section_index != original.section_index || !owner->size || owner_end > UINT32_MAX ||
+          owner->offset >= end || original.offset >= owner_end) continue;
+      if (owner->kind != original.kind || owner->size % unit ||
+          (owner->offset >= original.offset ? (owner->offset - original.offset) % unit :
+           (original.offset - owner->offset) % unit)) {
         conflict = 1;
         continue;
       }
-      if (owner->offset <= leaf->offset && leaf->offset + leaf->size <= owner->offset + owner->size)
-        covered = 1;
+      spans[span_count++] = (MetadataPrefixWindowLocal){.offset = owner->offset > original.offset ?
+        owner->offset : original.offset, .text_end = (uint32_t)(owner_end < end ? owner_end : end)};
     }
-    if (covered && !conflict) leaf->size = 0U;
+    if (!span_count || conflict) continue;
+    qsort(spans, span_count, sizeof(*spans), metadata_prefix_key_compare_local);
+    uint32_t cursor = original.offset;
+    int retained = 0;
+    /* Sorted union subtraction also handles adjacent/overlapping declarations
+     * without deciding conflicts between the declarations themselves. */
+    for (size_t j = 0U; j <= span_count; ++j) {
+      uint32_t start = j == span_count ? (uint32_t)end : spans[j].offset;
+      if (start > cursor) {
+        M68kAnalysisStructuredDataItem fragment = original;
+        fragment.offset = cursor;
+        fragment.size = start - cursor;
+        if (!retained) {
+          policy->structured_data_items[i] = fragment;
+          retained = 1;
+        } else {
+          size_t index = policy->structured_data_item_count;
+          if (m68k_analysis_policy_reserve_structured_data_items(policy, index + 1U) != 0) {
+            free(spans); return 0;
+          }
+          policy->structured_data_items[index] = fragment;
+          policy->structured_data_item_count++;
+        }
+      }
+      if (j < span_count && spans[j].text_end > cursor) cursor = spans[j].text_end;
+    }
+    if (!retained) policy->structured_data_items[i].size = 0U;
   }
+  free(spans);
+  return 1;
 }
 
 /* Opaque imported classifications have no scalar contract to contradict an
@@ -9710,8 +9749,8 @@ static int append_metadata_generic_policy_text_local(const char *text, M68kAnaly
     }
     cursor = object_end;
   }
-  metadata_project_compatible_scalar_precedence_local(policy);
-  if (!metadata_project_prefix_precedence_local(policy) ||
+  if (!metadata_project_compatible_scalar_precedence_local(policy) ||
+      !metadata_project_prefix_precedence_local(policy) ||
       !metadata_project_scalar_opaque_precedence_local(policy)) {
     platform_file_add_error(diagnostics.list, "failed allocating native data precedence projection");
     return -1;
