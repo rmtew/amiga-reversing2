@@ -1083,11 +1083,18 @@ def _edit_member_entries(owner, member, body, entries):
         artifact.close()
 
     def append(root, source):
+        from .manual_actions import load_manual_projection
+        from .source_label_identity import reuse_source_global_point_actions
+
+        projection = load_manual_projection(root, binary_source=source)
+        if projection.review_state == "blocked":
+            raise ValueError("member annotation replay blocked before edit")
+        normalized = reuse_source_global_point_actions(prepared, projection.labels)
         return {
             "actions": append_manual_actions(
                 root,
                 actions=[
-                    (manual_action_kind(kind), payload) for kind, payload in prepared
+                    (manual_action_kind(kind), payload) for kind, payload in normalized
                 ],
                 binary_source=source,
             )
@@ -1118,8 +1125,12 @@ def rollback_member(owner, member, body):
                 "rollback requires a source action in this analysis member"
             )
         projection = load_manual_projection(root, binary_source=source)
+        from .source_label_identity import exact_duplicate_source_owner_undo
+
+        recovering = (not redo and projection.review_state == "blocked"
+                      and exact_duplicate_source_owner_undo(projection, record))
         if (
-            projection.review_state == "blocked"
+            (projection.review_state == "blocked" and not recovering)
             or (action_id in projection.active_action_ids) == redo
         ):
             raise ValueError(
@@ -1341,6 +1352,10 @@ def _apply_member_change(owner, member, body, append, *, regenerate_all=False):
                     "member journal projection does not match its native metadata snapshot"
                 )
             mutation = append(root, source)
+            from .manual_actions import load_manual_projection
+
+            if load_manual_projection(root, binary_source=source).review_state == "blocked":
+                raise ValueError("member annotation replay blocked after edit")
             metadata = effective_metadata_text(root, binary_source=source).encode()
         a = candidate.members[analysis_member]["analysis"]
         p = file_at(root, a["metadata"]["path"])

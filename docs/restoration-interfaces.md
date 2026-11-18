@@ -1089,6 +1089,21 @@ not proof of unreachability. `history` preserves decisions and shows whether
 verification is current. `rollback` takes `action_id` and optional `redo: true`;
 it appends through existing history rather than deleting annotations.
 
+Scoped row edits reuse an active durable label ID when name, source section,
+point offset and global scope match exactly. Catalog-specific ID spellings do
+not create a second identity for that same point. Runtime aliases, local scopes,
+ranges and different names or source locations are not merged. Original action
+records and optional label attributes remain in history.
+
+Member mutations must leave annotation replay unblocked before any regenerated
+package is published. For a legacy snapshot blocked solely by two exact global
+source-point duplicates, normal `rollback` may undo an active label-creation
+action named by every blocker. It stages the undo privately and still requires
+clean replay, matching input snapshot, exact builds, complete media coverage and
+the current member revision before publication. Other blocked states and redo
+that would recreate the conflict remain refused; this is not a general blocked
+journal override.
+
 Normal target source output is configured through the revision-bound catalog command
 `target.source_output.configure` in target context, with `mode` set to `inline`
 (default) or `binary_assets`, and optional `minimum_asset_size` (default 256).
