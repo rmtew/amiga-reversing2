@@ -467,6 +467,7 @@ def inspect_member(owner, member, body, *, artifact=None):
                     "row.data_block.element.set",
                     "row.data_block.element.interpret_ref",
                     "row.data_block.layout.describe",
+                    "row.data_block.layout.pointer_table",
                 }
             )
         from amiga_reversing.disasm.server import _command_entry

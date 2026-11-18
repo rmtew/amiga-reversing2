@@ -11,6 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import cast
 
+from amiga_reversing.disasm.behaviour_validation import LoadedSource
 from amiga_reversing.disasm.binary_source import (
     BinarySource,
     DiskEntryBinarySource,
@@ -64,9 +65,8 @@ from amiga_reversing.disasm.target_metadata import (
     validate_base_displacement_owner,
     validate_base_displacement_range,
     validate_base_displacement_reference,
+    validate_data_pointer_table,
 )
-
-from amiga_reversing.disasm.behaviour_validation import LoadedSource
 
 LOADED_SOURCE = LoadedSource(__file__)
 
@@ -1090,6 +1090,7 @@ def _manual_data_block_layout_to_metadata(
     try:
         return DataBlockLayoutMetadata(
             layout_id=layout_id,
+            pointer_table=layout.get("pointer_table"),
             hunk=hunk,
             source_start=source_start,
             source_end=source_end,
@@ -1826,8 +1827,28 @@ def _data_block_element_entity(
     )
 
 
+def _declared_data_pointer_table_entities(layout: DataBlockLayoutMetadata) -> list[SeededEntityMetadata]:
+    if layout.pointer_table is None:
+        return []
+    declaration = validate_data_pointer_table(layout.pointer_table, layout.source_end - layout.source_start)
+    # Use native typed ABS32 data leaves. The one durable declaration owns the
+    # row/column shape; these derived fields do not add manual runtime refs or
+    # infer address semantics for holes, neighbouring scalars or code targets.
+    citation = declaration.get("citation", layout.citation)
+    return [SeededEntityMetadata(
+        hunk=layout.hunk, addr=start, end=start + 4, unit="long", type="data", subtype="pointer_table",
+        name=layout.name if start == layout.source_start else None,
+        value_kind="target_pointer", pointer_address_domain="mapped_source",
+        seed_origin=TargetMetadataSeedOrigin.MANUAL_ANALYSIS,
+        review_status=TargetMetadataReviewStatus.SEEDED, citation=citation,
+        source_id="manual_action_log" if citation.startswith("manual_action_log:") else "data_pointer_table_declaration",
+        source_locator=f"DataPointerTable:{layout.layout_id}",
+    ) for row in range(declaration["row_count"]) for column in declaration["pointer_offsets"]
+      for start in [layout.source_start + row * declaration["row_stride"] + column]]
+
+
 def _declared_table_scalar_labels(
-    entities: list[SeededEntityMetadata], tables: list[SeededEntityMetadata],
+    entities: list[SeededEntityMetadata], tables: list[SeededEntityMetadata], *, include_exact: bool = False,
 ) -> list[SeededEntityMetadata]:
     """Keep provisional scalar names without fragmenting a newer table owner.
 
@@ -1851,7 +1872,7 @@ def _declared_table_scalar_labels(
         owner = next((table for table in tables if plain and entity.hunk == table.hunk
                       and entity.unit == table.unit and table.end is not None
                       and table.addr <= entity.addr and entity.end <= table.end
-                      and (entity.addr, entity.end) != (table.addr, table.end)), None)
+                      and (include_exact or (entity.addr, entity.end) != (table.addr, table.end))), None)
         if owner is None:
             result.append(entity)
         elif entity.name:
@@ -2827,6 +2848,11 @@ def _apply_manual_seed_projection(
                 element_representation = _data_block_element_representation(effective_layout, element)
                 if element_representation is not None:
                     manual_representations.append(element_representation)
+    declared_pointer_tables = [entity for layout in effective_data_block_layouts
+                               for entity in _declared_data_pointer_table_entities(layout)]
+    if declared_pointer_tables:
+        seeded_entities = _declared_table_scalar_labels(seeded_entities, declared_pointer_tables, include_exact=True)
+        seeded_entities.extend(declared_pointer_tables)
     # Each encoded value has its own canonical ref, even inside a wider array.
     relative_ref_interpretations = dict(data_block_reference_interpretations)
     for effective_layout in effective_data_block_layouts:

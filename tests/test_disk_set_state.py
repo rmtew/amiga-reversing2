@@ -20,6 +20,7 @@ def editable(
     interior=False,
     owner_scope=False,
     opaque_prefix=False,
+    pointer_rows=False,
 ):
     from amiga_reversing.disasm import restoration, server
 
@@ -53,6 +54,13 @@ def editable(
             "main_data": bytes.fromhex("60024e7570074e75"),
             "main_text": " SECTION code,code\n ORG $1000\n bra.b helper\n rts\nhelper:\n moveq #7,d0\nending:\n rts\n",
         }
+    if pointer_rows:
+        values = [0x1020, 0x1020, 0x1028, 0, 0x1020, 0xDEADBEEF, 0x1020]
+        data = bytes.fromhex("70074e75") + b"".join(value.to_bytes(4, "big") for value in values)
+        data += bytes.fromhex("4e75123456789abc11112222")
+        extra = {"main_data": data, "main_text": " SECTION code,code\n ORG $1000\n moveq #7,d0\n rts\n dc.l "
+                 + ",".join(f"${value:08X}" for value in values) + "\n dc.b "
+                 + ",".join(f"${value:02X}" for value in data[32:]) + "\n"}
     project, target, paths, manifest = fixture(tmp_path, **extra)
     metadata_path = target / manifest["members"][0]["analysis"]["metadata"]["path"]
     metadata = json.loads(metadata_path.read_bytes())
@@ -108,6 +116,13 @@ def editable(
                 "citation": "Synthetic alternate entry into the same normal text bytes",
             }
         )
+    if pointer_rows:
+        metadata.setdefault("seeded_entities", []).append({
+            "hunk": 0, "addr": 32, "end": 40, "type": "data", "unit": "long", "name": "existingRecord",
+            "seed_origin": "manual_analysis", "review_status": "seeded", "citation": "Independent fixture record"})
+        metadata["seeded_entities"].append({
+            "hunk": 0, "addr": 28, "end": 32, "type": "data", "unit": "long",
+            "seed_origin": "manual_analysis", "review_status": "seeded", "citation": "Independent scalar"})
     data = json.dumps(metadata).encode()
     metadata_path.write_bytes(data)
     manifest["members"][0]["analysis"]["metadata"]["sha256"] = digest(data)
@@ -1031,3 +1046,40 @@ def test_large_scoped_batch_validates_late_entry_before_atomic_exact_publish(tmp
     assert f"Independent scoped batch evidence {count - 1}." in (target / "main.s").read_text()
     with pytest.raises(ValueError, match="stale_revision"):
         call("interpret_batch", expected_revision=revision, entries=entries)
+
+
+def test_scoped_pointer_table_declaration_roundtrips_and_undo_keeps_shape_and_history(tmp_path, monkeypatch):
+    from tests.test_declared_data_pointer_table import declaration
+
+    _, target, _, call = editable(tmp_path, monkeypatch, pointer_rows=True)
+    selected = call("inspect", source_offset=4, end_offset=28, row_kind="data")
+    call("interpret", **data_request(selected, "range.data_block.layout.create",
+                                    {"name": "pointerRows", "default_unit": "long"}))
+    for offset in (8, 20):
+        scalar = call("inspect", source_offset=offset, end_offset=offset + 4, row_kind="data")
+        call("interpret", **data_request(scalar, "range.data_block.element.set", {"kind": "scalar", "width": 4}))
+    selected = call("inspect", source_offset=4, row_kind="data")
+    assert "row.data_block.layout.pointer_table" in {a["command_id"] for a in selected["commands"]}
+    bad = declaration(count=3)
+    before = (target / "analysis/main.manual_actions.jsonl").read_bytes()
+    with pytest.raises(ValueError, match="exactly cover"):
+        call("interpret", **data_request(selected, "row.data_block.layout.pointer_table", bad))
+    assert (target / "analysis/main.manual_actions.jsonl").read_bytes() == before
+    saved = call("interpret", **data_request(selected, "row.data_block.layout.pointer_table", declaration()))
+    assert saved["verification"]["media_exact"] and saved["verification"]["all_placement_coverage"]
+    text = (target / "main.s").read_text()
+    assert "dc.l existingRecord" in text
+    assert "dc.l $00001020" in text  # Scalar columns/adjacent scalar stay numeric.
+    metadata = json.loads((target / DiskSet.load(target, project_root=target.parent.parent).members["main"]["analysis"]["metadata"]["path"]).read_bytes())
+    table = metadata["data_block_layouts"][0]["pointer_table"]
+    assert {k: v for k, v in table.items() if k != "citation"} == declaration()
+    assert not metadata["manual_runtime_address_refs"]
+    assert len(saved["actions"]) == 1
+    identity = saved["actions"][0]["action_id"]
+    undone = call("rollback", expected_revision=saved["revision"], action_id=identity)
+    metadata = json.loads((target / DiskSet.load(target, project_root=target.parent.parent).members["main"]["analysis"]["metadata"]["path"]).read_bytes())
+    assert metadata["data_block_layouts"][0].get("pointer_table") is None
+    redone = call("rollback", expected_revision=undone["revision"], action_id=identity, redo=True)
+    assert redone["verification"]["media_exact"]
+    assert (target / "main.s").read_text() == text
+    assert (target / "analysis/main.manual_actions.jsonl").read_bytes().startswith(before)

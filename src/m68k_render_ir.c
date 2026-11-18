@@ -3532,21 +3532,54 @@ static uint8_t resolve_owned_source_pointer_expression(const M68kRenderLookup *l
 
 static uint8_t resolve_mapped_source_pointer_expression(const M68kRenderLookup *lookup,
     const M68kDecodeIR *decode, uint8_t *const *accepted_start,
+    uint8_t *const *accepted_bytes, int data_table,
     uint32_t value, M68kRenderPlannedExpression *expression) {
-  uint32_t section = 0U, offset = 0U;
+  uint32_t section = 0U, offset = 0U, logical = 0U;
   int resolution = m68k_analysis_policy_resolve_pointer_address(lookup->policy, value, &section, &offset);
   if (resolution != 1) {
     expression->outcome = M68K_RENDER_PLANNED_EXPRESSION_NUMERIC;
     snprintf(expression->reason, sizeof(expression->reason), "%s", resolution == 2 ? "ambiguous_source" : "unmapped_source");
     return expression->outcome;
   }
-  return resolve_owned_source_pointer_expression(lookup, decode, accepted_start, value, section, offset, 0, expression);
+  uint8_t outcome = resolve_owned_source_pointer_expression(lookup, decode, accepted_start,
+    value, section, offset, 0, expression);
+  if (outcome != M68K_RENDER_PLANNED_EXPRESSION_NUMERIC || !data_table ||
+      strcmp(expression->reason, "missing_source_owner") != 0) return outcome;
+  /* A declared data-table field may need a new data anchor. Use the shared
+   * planned-declaration path used by absolute LONG tables, after unique source
+   * mapping. Do not introduce code starts, split accepted instructions, or
+   * displace an existing named/typed owner. */
+  for (size_t index = 0U; decode && accepted_bytes && index < decode->section_count; ++index) {
+    const M68kDecodeSectionIR *target = &decode->sections[index];
+    M68kRenderRangeOwnershipView ownership;
+    if (target->section_index != section || offset >= target->size) continue;
+    if (accepted_byte_at(target, accepted_bytes[index], offset) ||
+        lookup_offset_is_inside_relocation_payload(lookup, section, offset) ||
+        !lookup_source_logical_address(lookup, section, offset, &logical) || logical != value) return outcome;
+    if (lookup_range_ownership_at_offset(lookup, section, offset, &ownership) && ownership.structured_item) {
+      const M68kAnalysisStructuredDataItem *owner = ownership.structured_item;
+      if (owner->table_conflicted || owner->label[0] || owner->struct_name[0] ||
+          owner->field_name[0] || owner->has_source_owner_span) return outcome;
+    }
+    (void)format_rendered_asm_label_with_generation(lookup, expression->target_symbol,
+      sizeof(expression->target_symbol), section, offset);
+    if (!expression->target_symbol[0]) return outcome;
+    expression->target_section_index = section;
+    expression->target_offset = offset;
+    expression->has_target = 1U;
+    expression->requires_declaration = 1U;
+    expression->outcome = M68K_RENDER_PLANNED_EXPRESSION_SYMBOLIC;
+    snprintf(expression->expression, sizeof(expression->expression), "%s", expression->target_symbol);
+    snprintf(expression->reason, sizeof(expression->reason), "resolved_data_table_target");
+    return expression->outcome;
+  }
+  return outcome;
 }
 
 static uint8_t resolve_rendered_data_pointer_expression(const M68kRenderLookup *lookup,
     const M68kDecodeSectionIR *section, const M68kAnalysisStructuredDataItem *item, uint32_t offset,
     uint8_t allow_in_section_source_offset, const M68kDecodeIR *decode, uint8_t *const *accepted_start,
-    M68kRenderPlannedExpression *out_expression) {
+    uint8_t *const *accepted_bytes, M68kRenderPlannedExpression *out_expression) {
   uint32_t value;
   uint32_t target_section_index = 0U;
   uint32_t target_offset = 0U;
@@ -3604,7 +3637,8 @@ static uint8_t resolve_rendered_data_pointer_expression(const M68kRenderLookup *
     }
   }
   if (item != NULL && item->pointer_address_domain == M68K_ANALYSIS_POINTER_DOMAIN_MAPPED_SOURCE)
-    return resolve_mapped_source_pointer_expression(lookup, decode, accepted_start, value, out_expression);
+    return resolve_mapped_source_pointer_expression(lookup, decode, accepted_start, accepted_bytes,
+      item->table_kind_id == M68K_ANALYSIS_TABLE_KIND_POINTER, value, out_expression);
   if (bounded_typed_table) {
     uint32_t owner_offset;
     /* A bounded typed owner can name an interior local-offset target even
@@ -5968,7 +6002,7 @@ static int plan_rendered_structured_pointer_expressions(M68kRenderLookup *lookup
             M68kRenderPlannedExpression expression;
             if (lookup_relocation_at(lookup, section->section_index, offset + cursor) != NULL) continue;
             if (resolve_rendered_data_pointer_expression(lookup, section, item, offset + cursor, 0U,
-                decode, accepted_start, &expression) ==
+                decode, accepted_start, accepted_bytes, &expression) ==
                 M68K_RENDER_PLANNED_EXPRESSION_INVALID) return -1;
             if (m68k_render_plan_append_expression(plan, &expression) != 0) return -1;
           }
@@ -5976,7 +6010,7 @@ static int plan_rendered_structured_pointer_expressions(M68kRenderLookup *lookup
           for (cursor = 0U; cursor + 4U <= item->size; cursor += 4U) {
             M68kRenderPlannedExpression expression;
             if (resolve_rendered_data_pointer_expression(lookup, section, item, offset + cursor, 1U,
-                decode, accepted_start, &expression) ==
+                decode, accepted_start, accepted_bytes, &expression) ==
                 M68K_RENDER_PLANNED_EXPRESSION_INVALID) return -1;
             if (m68k_render_plan_append_expression(plan, &expression) != 0) return -1;
           }
@@ -6023,7 +6057,7 @@ static int plan_rendered_structured_pointer_expressions(M68kRenderLookup *lookup
       }
       if (code_overlap) continue;
       if (resolve_rendered_data_pointer_expression(lookup, section, field, field->offset, 0U,
-          decode, accepted_start, &expression) == M68K_RENDER_PLANNED_EXPRESSION_INVALID) return -1;
+          decode, accepted_start, accepted_bytes, &expression) == M68K_RENDER_PLANNED_EXPRESSION_INVALID) return -1;
       existing = m68k_render_plan_find_expression(plan, field_section, field->offset, UINT32_MAX,
         M68K_RENDER_PLANNED_EXPRESSION_TABLE_ENTRY);
       if (existing == NULL) existing = m68k_render_plan_find_expression(plan, field_section, field->offset,

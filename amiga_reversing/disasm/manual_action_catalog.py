@@ -20,6 +20,7 @@ from amiga_reversing.disasm.target_metadata import (
     validate_base_displacement_owner,
     validate_base_displacement_range,
     validate_base_displacement_reference,
+    validate_data_pointer_table,
 )
 
 _KNOWLEDGE_PATH = Path(__file__).resolve().parents[2] / "knowledge" / "amiga_ndk_includes_parsed.json"
@@ -468,6 +469,19 @@ def listing_row_action_catalog(
     if _row_allows_data_seed(row):
         active_layout = _active_data_block_layout(row)
         if active_layout is not None:
+            actions.append(_context_log_action(
+                "row.data_block.layout.pointer_table", "Declare ABS32 data pointer table",
+                "edit_manual_data_block_layout", context,
+                {"encoding": "abs32", "target_kind": "data", "address_domain": "mapped_source"},
+                {"type": "object", "properties": {
+                    "row_count": {"type": "integer", "minimum": 1},
+                    "row_stride": {"type": "integer", "minimum": 4},
+                    "pointer_offsets": {"type": "array", "minItems": 1, "uniqueItems": True,
+                                        "items": {"type": "integer", "minimum": 0}},
+                    "encoding": {"const": "abs32"}, "target_kind": {"const": "data"},
+                    "address_domain": {"const": "mapped_source"}},
+                 "required": ["row_count", "row_stride", "pointer_offsets"]},
+            ))
             actions.append(_context_log_action(
                 "row.data_block.layout.describe", "Describe data-block layout",
                 "edit_manual_data_block_layout", context,
@@ -2056,6 +2070,13 @@ def listing_catalog_manual_payload(
         return "create_manual_rsset_use_site_binding", {
             "rsset_use_site_binding": _rsset_use_site_binding_payload(row, element_context, params)
         }
+    if action_id == "row.data_block.layout.pointer_table":
+        layout = _active_data_block_layout(row)
+        if layout is None:
+            raise ValueError("data pointer table requires an active bounded layout")
+        declaration = validate_data_pointer_table(dict(params), layout["source_end"] - layout["source_start"])
+        return "edit_manual_data_block_layout", {"data_block_layout": {
+            "layout_id": layout["layout_id"], "pointer_table": declaration}}
     if ui_action == "edit_manual_data_block_layout":
         return target_catalog_manual_payload("target.data_block.layout.describe", params)
     if ui_action == "create_manual_data_block_layout":

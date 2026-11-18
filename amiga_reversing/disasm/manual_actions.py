@@ -30,6 +30,7 @@ from amiga_reversing.disasm.target_metadata import (
     validate_base_displacement_owner,
     validate_base_displacement_range,
     validate_base_displacement_reference,
+    validate_data_pointer_table,
 )
 
 MANUAL_ACTION_LOG_FILE_NAME = "manual_actions.jsonl"
@@ -1319,6 +1320,8 @@ def _data_block_layout_key(layout: dict[str, object], *, require_range: bool = T
         raise ValueError("data_block_layout runtime_start must be non-negative")
     if runtime_end is not None and (runtime_start is None or runtime_end <= runtime_start):
         raise ValueError("data_block_layout runtime_end must be greater than runtime_start")
+    if layout.get("pointer_table") is not None:
+        validate_data_pointer_table(layout["pointer_table"], source_end - source_start)
     version = _manual_seed_int(layout, "version")
     if version is not None and version <= 0:
         raise ValueError("data_block_layout version must be positive")
@@ -2264,6 +2267,7 @@ def _project_actions(
             ManualActionKind.EDIT_MANUAL_DATA_BLOCK_LAYOUT,
         }:
             layout = dict(_action_object(action, "data_block_layout"))
+            declaring_pointer_table = layout.get("pointer_table") is not None
             if action.kind is ManualActionKind.EDIT_MANUAL_DATA_BLOCK_LAYOUT:
                 layout_id = _data_block_layout_key(layout, require_range=False)
                 existing_layout = data_block_layouts.get(layout_id)
@@ -2272,6 +2276,11 @@ def _project_actions(
                         raise ValueError(f"data_block_layout {layout_id} range does not match existing layout")
                     layout = {**existing_layout, **layout}
             layout_id = _data_block_layout_key(layout)
+            if declaring_pointer_table:
+                layout["pointer_table"] = {
+                    **validate_data_pointer_table(layout["pointer_table"], layout["source_end"] - layout["source_start"]),
+                    "citation": f"manual_action_log:{action.action_id}",
+                }
             conflicts = [
                 existing
                 for existing_id, existing in active_layouts().items()

@@ -1906,6 +1906,28 @@ class DataBlockElementMetadata:
         )
 
 
+def validate_data_pointer_table(value: object, extent: int) -> dict[str, object]:
+    """An authored bounded ABS32 data family; never an inferred control table."""
+    required = {"row_count", "row_stride", "pointer_offsets", "encoding", "target_kind", "address_domain"}
+    if not isinstance(value, dict) or not required <= value.keys() or value.keys() - required - {"citation"}:
+        raise ValueError("data pointer table requires row count/stride, pointer offsets and ABS32 data semantics")
+    count, stride, offsets = value["row_count"], value["row_stride"], value["pointer_offsets"]
+    if (type(count) is not int or type(stride) is not int or count <= 0 or stride < 4
+            or stride % 2 or count * stride != extent):
+        raise ValueError("data pointer table rows must exactly cover the independently declared layout extent")
+    if (not isinstance(offsets, (list, tuple)) or not offsets
+            or any(type(offset) is not int or offset < 0 or offset % 2 or offset + 4 > stride for offset in offsets)
+            or len(set(offsets)) != len(offsets)
+            or any(right < left + 4 for left, right in zip(sorted(offsets), sorted(offsets)[1:]))):
+        raise ValueError("data pointer table columns require distinct non-overlapping in-row ABS32 spans")
+    if (value["encoding"] != "abs32" or value["target_kind"] != "data"
+            or value["address_domain"] != "mapped_source"):
+        raise ValueError("data pointer tables support mapped-source ABS32 data targets only")
+    if "citation" in value and (not isinstance(value["citation"], str) or not value["citation"]):
+        raise ValueError("data pointer table citation must be nonempty text")
+    return {**value, "pointer_offsets": sorted(offsets)}
+
+
 @dataclass(frozen=True, slots=True)
 class DataBlockLayoutMetadata:
     layout_id: str
@@ -1924,6 +1946,7 @@ class DataBlockLayoutMetadata:
     version: int = 1
     provenance: dict[str, object] | None = None
     elements: tuple[DataBlockElementMetadata, ...] = ()
+    pointer_table: dict[str, object] | None = None
 
     def __post_init__(self) -> None:
         _assert_target_metadata_review_fields(self.seed_origin, self.review_status)
@@ -1937,6 +1960,8 @@ class DataBlockLayoutMetadata:
         if self.runtime_end is not None:
             assert self.runtime_start is not None
             assert self.runtime_end > self.runtime_start
+        if self.pointer_table is not None:
+            validate_data_pointer_table(self.pointer_table, self.source_end - self.source_start)
         for element in self.elements:
             assert element.layout_id == self.layout_id
             assert element.offset + element.width <= self.source_end - self.source_start
@@ -1973,6 +1998,8 @@ class DataBlockLayoutMetadata:
         assert isinstance(version, int)
         assert provenance is None or isinstance(provenance, dict)
         return cls(
+            pointer_table=None if payload.get("pointer_table") is None else validate_data_pointer_table(
+                payload["pointer_table"], source_end - source_start),
             layout_id=layout_id,
             hunk=hunk,
             source_start=source_start,
@@ -2247,6 +2274,9 @@ def _function_summary_location_payload(location: object) -> dict[str, object]:
 
 def target_metadata_json_payload(metadata: TargetMetadata) -> dict[str, object]:
     payload = asdict(metadata)
+    for layout in payload.get("data_block_layouts", ()):
+        if layout.get("pointer_table") is None:
+            layout.pop("pointer_table", None)
     for seed in payload.get("entry_register_seeds", ()):
         if seed.get("hardware_indexed") is None:
             seed.pop("hardware_indexed", None)
