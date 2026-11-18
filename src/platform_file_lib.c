@@ -7960,9 +7960,10 @@ static int metadata_project_compatible_scalar_precedence_local(M68kAnalysisPolic
   for (size_t i = 0U; i < count; ++i) {
     M68kAnalysisStructuredDataItem original = policy->structured_data_items[i];
     size_t span_count = 0U;
-    int conflict = 0;
+    int conflict = 0, named_owner_match = !original.label[0];
     uint32_t unit = original.kind == M68K_ANALYSIS_STRUCTURED_DATA_WORDS ? 2U :
-      original.kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS ? 4U : 0U;
+      original.kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS ? 4U :
+      original.kind == M68K_ANALYSIS_STRUCTURED_DATA_BYTES ? 1U : 0U;
     uint64_t end = (uint64_t)original.offset + original.size;
     if (original.metadata_precedence != M68K_METADATA_PRECEDENCE_LEGACY_SCALAR ||
         !unit || !original.size || original.size % unit || end > UINT32_MAX) continue;
@@ -7980,10 +7981,15 @@ static int metadata_project_compatible_scalar_precedence_local(M68kAnalysisPolic
         conflict = 1;
         continue;
       }
+      /* A matching imported anchor contributes no second scalar owner. Its
+       * label is already projected independently; a different name or extent
+       * relationship remains protected, as do typed/evidence-owned facts. */
+      if (original.label[0] && owner->offset == original.offset && owner_end >= end &&
+          owner->size > original.size && !strcmp(owner->label, original.label)) named_owner_match = 1;
       spans[span_count++] = (MetadataPrefixWindowLocal){.offset = owner->offset > original.offset ?
         owner->offset : original.offset, .text_end = (uint32_t)(owner_end < end ? owner_end : end)};
     }
-    if (!span_count || conflict) continue;
+    if (!span_count || conflict || !named_owner_match) continue;
     qsort(spans, span_count, sizeof(*spans), metadata_prefix_key_compare_local);
     uint32_t cursor = original.offset;
     int retained = 0;
@@ -8238,23 +8244,24 @@ static int append_metadata_seeded_entity_local(const char *object_start, const c
   int source_empty = metadata_field_empty_local(object_start, object_end, "source_id");
   int plain = !comment[0] && !struct_name[0] && !field_name[0] && !field_type[0] && !c_type[0] &&
     !pointer_struct[0] && !value_domain[0] && !pointer_domain[0] && !pointer_group[0] && !has_source_owner_start;
-  uint32_t scalar_unit = !strcmp(unit, "word") ? 2U : !strcmp(unit, "long") ? 4U : 0U;
+  uint32_t scalar_unit = !strcmp(unit, "word") ? 2U : !strcmp(unit, "long") ? 4U :
+    !strcmp(unit, "byte") ? 1U : 0U;
   if (manual_citation && (manual_source || source_empty) && plain && !subtype[0] && !encoding[0] &&
-      (!value_kind[0] || !strcmp(value_kind, "scalar")) && !(addr & 1U) && scalar_unit &&
+      (!value_kind[0] || !strcmp(value_kind, "scalar")) && (scalar_unit == 1U || !(addr & 1U)) && scalar_unit &&
       end - addr >= scalar_unit && (end - addr) % scalar_unit == 0U)
     precedence_item->metadata_precedence = end - addr == scalar_unit ?
       M68K_METADATA_PRECEDENCE_DECLARED_SCALAR : M68K_METADATA_PRECEDENCE_DECLARED_SCALAR_SEQUENCE;
   else if (manual_citation && manual_source && !strcmp(subtype, "string") &&
       !strcmp(encoding, "ascii") && !strcmp(unit, "byte"))
     precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_DECLARED_TEXT;
-  else if (!manual_citation && !manual_source && plain && !name[0] && !value_kind[0] &&
+  else if (!manual_citation && !manual_source && plain && !value_kind[0] &&
       metadata_field_equals_local(object_start, object_end, "review_status", "seeded") &&
       metadata_field_empty_local(object_start, object_end, "owner_action_id") &&
       metadata_field_empty_local(object_start, object_end, "source_evidence_id") &&
       metadata_field_empty_local(object_start, object_end, "parent_evidence_ids")) {
-    if (!strcmp(unit, "byte") && !strcmp(subtype, "string") && !strcmp(encoding, "ascii"))
+    if (!name[0] && !strcmp(unit, "byte") && !strcmp(subtype, "string") && !strcmp(encoding, "ascii"))
       precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_LEGACY_STRING;
-    else if (!strcmp(unit, "byte") && !strcmp(subtype, "opaque_data"))
+    else if (!name[0] && !strcmp(unit, "byte") && !strcmp(subtype, "opaque_data"))
       precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_LEGACY_OPAQUE;
     else if (scalar_unit && !subtype[0] && !encoding[0])
       precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_LEGACY_SCALAR;

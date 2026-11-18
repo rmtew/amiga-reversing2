@@ -10,7 +10,7 @@ from tests.test_disk_set_state import data_request, editable
 COMMAND = "correction.suppress_seeded_item.seeded_entity"
 
 
-def prepared(tmp_path, monkeypatch):
+def prepared(tmp_path, monkeypatch, unit="word"):
     _, target, _, call = editable(
         tmp_path,
         monkeypatch,
@@ -24,7 +24,7 @@ def prepared(tmp_path, monkeypatch):
         **data_request(
             selected,
             "range.data_block.layout.create",
-            {"name": "wordValues", "default_unit": "word"},
+            {"name": "wordValues", "default_unit": unit},
         ),
     )
     selected = call("inspect", source_offset=4, end_offset=1032, row_kind="data")
@@ -33,7 +33,12 @@ def prepared(tmp_path, monkeypatch):
         **data_request(
             selected,
             "range.data_block.element.set",
-            {"kind": "array", "width": 1028, "array_count": 514, "array_stride": 2},
+            {
+                "kind": "array",
+                "width": 1028,
+                "array_count": 1028 if unit == "byte" else 514,
+                "array_stride": 1 if unit == "byte" else 2,
+            },
         ),
     )
     return target, call
@@ -210,3 +215,26 @@ def test_same_general_predicate_handles_both_scalar_array_widths(
     assert _conflicting_array_scalar_seed(
         {"start_offset": 1028, "end_offset": 1032}, layout, meta
     ) == {"kind": "seeded_entity", "hunk": 0, "addr": 1028, "end": 1032}
+
+
+def test_explicit_scalar_correction_in_a_byte_array_keeps_aliases_and_exact_bytes(
+    tmp_path, monkeypatch
+):
+    target, call = prepared(tmp_path, monkeypatch, unit="byte")
+    selected = call("inspect", source_offset=1028, row_kind="data")
+    assert COMMAND in {c["command_id"] for c in selected["commands"]}
+    saved = call("interpret", **data_request(selected, COMMAND, {}))
+    assert (
+        saved["verification"]["media_exact"]
+        and saved["verification"]["all_placement_coverage"]
+    )
+    text = (target / "main.s").read_text()
+    assert "syntheticRuntimeEntry:" in text
+    assert "dc.l $02000201" not in text
+    undone = call(
+        "rollback",
+        expected_revision=saved["revision"],
+        action_id=saved["actions"][0]["action_id"],
+    )
+    assert undone["verification"]["media_exact"]
+    assert "dc.l $02000201" in (target / "main.s").read_text()

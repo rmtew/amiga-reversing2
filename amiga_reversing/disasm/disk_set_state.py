@@ -304,8 +304,8 @@ def _conflicting_array_scalar_seed(row, layout, metadata):
 
     start, end = row["start_offset"], row["end_offset"]
     unit = layout.get("default_unit")
-    width = {"word": 2, "long": 4}.get(unit)
-    if not width or start % 2 or (end - start) % width:
+    width = {"byte": 1, "word": 2, "long": 4}.get(unit)
+    if not width or (width > 1 and start % 2) or (end - start) % width:
         return None
     elements = [
         e
