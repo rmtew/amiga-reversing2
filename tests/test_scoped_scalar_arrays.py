@@ -426,7 +426,9 @@ def test_existing_array_cannot_silently_discard_requested_type_binding(
     call("interpret", **array_request(call))
     selected = call("inspect", source_offset=4, end_offset=32, row_kind="data")
     before = snapshot(target)
-    with pytest.raises(ValueError, match="typed/reference bindings|byte/word/long scalars"):
+    with pytest.raises(
+        ValueError, match="typed/reference bindings|byte/word/long scalars"
+    ):
         call(
             "interpret",
             **data_request(
@@ -436,3 +438,63 @@ def test_existing_array_cannot_silently_discard_requested_type_binding(
             ),
         )
     assert snapshot(target) == before
+
+
+def test_array_native_unit_supersedes_redundant_imported_same_unit_leaf(
+    tmp_path, monkeypatch
+):
+    _, target, _, call = editable(
+        tmp_path, monkeypatch, scalar_array=True, scalar_tail=True
+    )
+    create(call, 1032)
+    saved = call("interpret", **array_request(call, end=1032, stride=2, count=514))
+    text = (target / "main.s").read_text()
+    assert "\tdc.w $0000\nexistingArrayWord:\n\tdc.w $0001" in text
+    assert saved["verification"]["media_exact"]
+    owner = DiskSet.load(target, project_root=target.parent.parent)
+    metadata = json.loads(
+        (target / owner.members["main"]["analysis"]["metadata"]["path"]).read_bytes()
+    )
+    assert any(
+        e["addr"] == 1030 and e["end"] == 1032 and e["source_id"] == "fixture-import"
+        for e in metadata["seeded_entities"]
+    )
+    before = (
+        target / owner.members["main"]["analysis"]["metadata"]["path"]
+    ).read_bytes()
+    assert call("regenerate", expected_revision=saved["revision"])["verification"][
+        "media_exact"
+    ]
+    assert (
+        target / owner.members["main"]["analysis"]["metadata"]["path"]
+    ).read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "protection", ["comment", "manual", "named", "partial", "long"]
+)
+def test_native_array_keeps_independent_or_incompatible_scalar_footprints(
+    tmp_path, monkeypatch, protection
+):
+    from amiga_reversing.disasm import c_backend
+
+    _, target, paths, call = editable(
+        tmp_path, monkeypatch, scalar_array=True, scalar_tail=protection
+    )
+    create(call, 1032)
+    call("interpret", **array_request(call, end=1032, stride=2, count=514))
+    owner = DiskSet.load(target, project_root=target.parent.parent)
+    values, _, _ = owner.recover(paths)
+    source, _ = owner._analysis_input("main", values)
+    metadata = target / owner.members["main"]["analysis"]["metadata"]["path"]
+    policy = c_backend.effective_policy_project_source_with_c_backend(
+        source, metadata_path=metadata
+    )
+    offset = 1028 if protection == "long" else 1030
+    size = 4 if protection in {"long", "partial"} else 2
+    assert any(
+        item["offset"] == offset and item["size"] == size
+        for item in policy["analysis_policy"]["structured_data_items"]
+    )
+    if protection == "named":
+        assert "keptTailWord:" in (target / "main.s").read_text()

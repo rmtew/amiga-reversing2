@@ -23,6 +23,7 @@ def editable(
     pointer_rows=False,
     legacy_prefix=False,
     scalar_array=False,
+    scalar_tail=False,
 ):
     from amiga_reversing.disasm import restoration, server
 
@@ -135,6 +136,23 @@ def editable(
             "hunk": 0, "addr": 6, "type": "data", "name": "existingArrayWord",
             "seed_origin": "manual_analysis", "review_status": "seeded",
             "citation": "Independent interior WORD label, not a code entry"})
+    if scalar_tail:
+        assert scalar_array
+        tail = {
+            "hunk": 0, "addr": 1030, "end": 1032, "type": "data", "unit": "word",
+            "seed_origin": "manual_analysis", "review_status": "seeded",
+            "source_id": "fixture-import", "citation": "Imported scalar width, no independent owner"}
+        if scalar_tail == "comment":
+            tail["comment"] = "Independent authored scalar annotation"
+        if scalar_tail == "manual":
+            tail.update(source_id="manual_action_log", citation="manual_action_log:independent")
+        if scalar_tail == "named":
+            tail["name"] = "keptTailWord"
+        if scalar_tail == "partial":
+            tail["end"] = 1034
+        if scalar_tail == "long":
+            tail.update(addr=1028, unit="long")
+        metadata.setdefault("seeded_entities", []).append(tail)
     if pointer_rows:
         metadata.setdefault("seeded_entities", []).append({
             "hunk": 0, "addr": 32, "end": 40, "type": "data", "unit": "long", "name": "existingRecord",

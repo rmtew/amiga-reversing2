@@ -7946,6 +7946,36 @@ static size_t metadata_prefix_lower_bound_local(const MetadataPrefixWindowLocal 
   return lo;
 }
 
+/* A broad authored scalar sequence and a contained weak same-unit leaf encode
+ * the same type contract. Keep the authoritative leaf and any labels intact,
+ * but do not let its duplicate native footprint force the enclosing sequence
+ * into raw BYTE fragments. Independent comments/types/pointers are not tagged. */
+static void metadata_project_compatible_scalar_precedence_local(M68kAnalysisPolicy *policy) {
+  for (size_t i = 0U; i < policy->structured_data_item_count; ++i) {
+    M68kAnalysisStructuredDataItem *leaf = &policy->structured_data_items[i];
+    if (leaf->metadata_precedence != M68K_METADATA_PRECEDENCE_LEGACY_SCALAR) continue;
+    uint32_t unit = leaf->kind == M68K_ANALYSIS_STRUCTURED_DATA_WORDS ? 2U :
+      leaf->kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS ? 4U : 0U;
+    int covered = 0, conflict = 0;
+    if (!unit || !leaf->size || leaf->size % unit) continue;
+    for (size_t j = 0U; j < policy->structured_data_item_count; ++j) {
+      const M68kAnalysisStructuredDataItem *owner = &policy->structured_data_items[j];
+      if (owner->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_SCALAR &&
+          owner->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_SCALAR_SEQUENCE) continue;
+      if (owner->section_index != leaf->section_index || owner->offset >= leaf->offset + leaf->size ||
+          leaf->offset >= owner->offset + owner->size) continue;
+      if (owner->kind != leaf->kind || (leaf->offset >= owner->offset ?
+          (leaf->offset - owner->offset) % unit : (owner->offset - leaf->offset) % unit)) {
+        conflict = 1;
+        continue;
+      }
+      if (owner->offset <= leaf->offset && leaf->offset + leaf->size <= owner->offset + owner->size)
+        covered = 1;
+    }
+    if (covered && !conflict) leaf->size = 0U;
+  }
+}
+
 static int metadata_project_prefix_precedence_local(M68kAnalysisPolicy *policy) {
   size_t count = policy->structured_data_item_count, text_count = 0U, window_count = 0U;
   MetadataPrefixWindowLocal *texts, *windows;
@@ -8108,22 +8138,26 @@ static int append_metadata_seeded_entity_local(const char *object_start, const c
   int source_empty = metadata_field_empty_local(object_start, object_end, "source_id");
   int plain = !comment[0] && !struct_name[0] && !field_name[0] && !field_type[0] && !c_type[0] &&
     !pointer_struct[0] && !value_domain[0] && !pointer_domain[0] && !pointer_group[0] && !has_source_owner_start;
+  uint32_t scalar_unit = !strcmp(unit, "word") ? 2U : !strcmp(unit, "long") ? 4U : 0U;
   if (manual_citation && (manual_source || source_empty) && plain && !subtype[0] && !encoding[0] &&
-      (!value_kind[0] || !strcmp(value_kind, "scalar")) && !(addr & 1U) &&
-      ((!strcmp(unit, "word") && end - addr == 2U) || (!strcmp(unit, "long") && end - addr == 4U)))
-    precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_DECLARED_SCALAR;
+      (!value_kind[0] || !strcmp(value_kind, "scalar")) && !(addr & 1U) && scalar_unit &&
+      end - addr >= scalar_unit && (end - addr) % scalar_unit == 0U)
+    precedence_item->metadata_precedence = end - addr == scalar_unit ?
+      M68K_METADATA_PRECEDENCE_DECLARED_SCALAR : M68K_METADATA_PRECEDENCE_DECLARED_SCALAR_SEQUENCE;
   else if (manual_citation && manual_source && !strcmp(subtype, "string") &&
       !strcmp(encoding, "ascii") && !strcmp(unit, "byte"))
     precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_DECLARED_TEXT;
-  else if (!manual_citation && !manual_source && plain && !name[0] && !value_kind[0] && !strcmp(unit, "byte") &&
+  else if (!manual_citation && !manual_source && plain && !name[0] && !value_kind[0] &&
       metadata_field_equals_local(object_start, object_end, "review_status", "seeded") &&
       metadata_field_empty_local(object_start, object_end, "owner_action_id") &&
       metadata_field_empty_local(object_start, object_end, "source_evidence_id") &&
       metadata_field_empty_local(object_start, object_end, "parent_evidence_ids")) {
-    if (!strcmp(subtype, "string") && !strcmp(encoding, "ascii"))
+    if (!strcmp(unit, "byte") && !strcmp(subtype, "string") && !strcmp(encoding, "ascii"))
       precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_LEGACY_STRING;
-    else if (!strcmp(subtype, "opaque_data"))
+    else if (!strcmp(unit, "byte") && !strcmp(subtype, "opaque_data"))
       precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_LEGACY_OPAQUE;
+    else if (scalar_unit && !subtype[0] && !encoding[0])
+      precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_LEGACY_SCALAR;
   }
   if (name[0] != '\0' && !((field_name[0] && !has_source_owner_start) ?
       policy_add_named_label_local(policy, has_hunk ? hunk : 0U, addr, name) :
@@ -9615,6 +9649,7 @@ static int append_metadata_generic_policy_text_local(const char *text, M68kAnaly
     }
     cursor = object_end;
   }
+  metadata_project_compatible_scalar_precedence_local(policy);
   if (!metadata_project_prefix_precedence_local(policy)) {
     platform_file_add_error(diagnostics.list, "failed allocating native scalar/text precedence projection");
     return -1;
