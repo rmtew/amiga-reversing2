@@ -37,6 +37,7 @@
 
 #define M68K_FACTS_V2_TRACE_INDIRECT_STATE_VARIANT_LIMIT 8U
 #define M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT 2U
+#define M68K_FACTS_V2_TRACE_CONTROL_INPUT_VARIANT 3U
 /* Word-relative dispatches may fan out across a large routine cluster; each
    entry is still required to map to an even in-section control target. */
 #define M68K_FACTS_V2_WORD_DISPATCH_LOCAL_LIMIT 0x2000
@@ -486,6 +487,9 @@ typedef struct M68kFactsV2CallbackFieldTargets {
 typedef struct M68kFactsV2TraceState {
   /* Entry lineage only: not a guarantee that copied memory remains intact. */
   uint8_t established_entry_lineage;
+  /* Legacy values surviving a call are not proved callback inputs. */
+  uint8_t call_exposed_address_registers;
+  uint8_t call_exposed_data_registers;
   /* Controller configuration is scalar memory state, never handler registers. */
   uint8_t vector_selection_known;
   uint8_t vector_selection;
@@ -948,6 +952,8 @@ static int trace_state_equal(const M68kFactsV2TraceState *lhs, const M68kFactsV2
     }
   }
   if (lhs->established_entry_lineage != rhs->established_entry_lineage ||
+      lhs->call_exposed_address_registers != rhs->call_exposed_address_registers ||
+      lhs->call_exposed_data_registers != rhs->call_exposed_data_registers ||
       lhs->d_low16_known != rhs->d_low16_known ||
       lhs->d_low16_has_origin != rhs->d_low16_has_origin ||
       memcmp(lhs->d_low16, rhs->d_low16, sizeof(lhs->d_low16)) != 0 ||
@@ -1176,6 +1182,9 @@ static int work_queue_push(M68kFactsV2WorkQueue *queue, size_t section_index, ui
         saw_entry_lineage_upgrade = 1U;
       if (trace_state_matches_queued(&item->trace_state, trace_state) &&
           (allow_trace_variant != M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT ||
+           item->allow_trace_variant == M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT) &&
+          (allow_trace_variant != M68K_FACTS_V2_TRACE_CONTROL_INPUT_VARIANT ||
+           item->allow_trace_variant == M68K_FACTS_V2_TRACE_CONTROL_INPUT_VARIANT ||
            item->allow_trace_variant == M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT)) return 0;
       if ((reason == M68K_FACT_CODE_START_REASON_FALLTHROUGH &&
            item->reason == M68K_FACT_CODE_START_REASON_CONTROL_TARGET) ||
@@ -4388,25 +4397,36 @@ static void trace_state_apply_known_effects(size_t section_index, const M68kDeco
       operand_is_data_register_direct(&candidate->operands[1], &reg)) {
     trace_state_set_data_register_low16(state, reg, (uint16_t)(value & 0xFFFFU), candidate->offset);
   }
+  if (candidate_is_long_immediate_to_data_register(candidate, &reg, &value) ||
+      (candidate->mnemonic_id == M68K_ASM_MNEMONIC_MOVE && candidate->size_suffix == 'w' &&
+       candidate->operand_count == 2U &&
+       operand_immediate_value(candidate->operand_kinds[0], &candidate->operands[0], &value) &&
+       operand_is_data_register_direct(&candidate->operands[1], &reg)))
+    state->call_exposed_data_registers &= (uint8_t)~(1U << reg);
   if (candidate_lea_pc_relative_data_target(candidate, section_index,
       section != NULL && section->size <= UINT32_MAX ? (uint32_t)section->size : 0U, &reg, &value)) {
     trace_value_set_source_offset(&state->a[reg], section_index, value);
+    state->call_exposed_address_registers &= (uint8_t)~(1U << reg);
   } else if (candidate_lea_relocated_address(relocation_lookup, facts, section_index, candidate, &reg,
       &target_section, &target_offset)) {
     trace_value_set_source_offset(&state->a[reg], target_section, target_offset);
     handled_relocated_address = 1;
+    state->call_exposed_address_registers &= (uint8_t)~(1U << reg);
   } else if (candidate_moves_relocated_address_to_address_register(relocation_lookup, facts, section_index,
       candidate, &reg, &target_section, &target_offset)) {
     trace_value_set_source_offset(&state->a[reg], target_section, target_offset);
     handled_relocated_address = 1;
+    state->call_exposed_address_registers &= (uint8_t)~(1U << reg);
   } else if (candidate_lea_absolute_address(candidate, &reg, &value)) {
     trace_value_set_runtime_address_with_origin(&state->a[reg], value, section_index, candidate->offset, 0U);
+    state->call_exposed_address_registers &= (uint8_t)~(1U << reg);
   }
   if (!handled_relocated_address && candidate->mnemonic_id == M68K_ASM_MNEMONIC_MOVEA &&
       candidate->operand_count == 2U &&
       operand_immediate_value(candidate->operand_kinds[0], &candidate->operands[0], &value) &&
       operand_is_address_register_direct(&candidate->operands[1], &reg)) {
     trace_value_set_runtime_address_with_origin(&state->a[reg], value, section_index, candidate->offset, 0U);
+    state->call_exposed_address_registers &= (uint8_t)~(1U << reg);
   } else if (candidate->mnemonic_id == M68K_ASM_MNEMONIC_MOVEA && candidate->size_suffix == 'l' &&
       candidate->operand_count == 2U &&
       m68k_asm_operand_absolute_value(candidate->operand_kinds[0], &candidate->operands[0], &value) &&
@@ -10543,43 +10563,70 @@ static int trace_state_record_target_loader_file_transfer(const M68kObject *obje
 
 static int target_prefix_uses_trace_indirect_control(M68kDecodeIR *decode, size_t section_index,
     uint32_t target_offset, const M68kFactsV2TraceState *trace_state, uint8_t max_cpu) {
-  const uint32_t scan_limit = 8U;
+  /* Scheduling demand only: follow a bounded local CFG to an indirect use of
+   * an incoming address register. Acceptance, ownership and full value transfer
+   * remain in the ordinary worklist. Unknown calls are not preservation proofs. */
+  enum { SCAN_LIMIT = 64 };
+  struct { uint32_t offset; uint8_t live; } pending[SCAN_LIMIT];
+  size_t count = 0U, next = 0U;
+  uint8_t live = 0U;
   const M68kDecodeSectionIR *section;
-  uint32_t cursor = target_offset;
-  uint32_t step;
-  if (decode == NULL || trace_state == NULL || section_index >= decode->section_count ||
-      !trace_state_can_drive_indirect_control(trace_state)) {
+  if (decode == NULL || trace_state == NULL || section_index >= decode->section_count)
     return 0;
-  }
+  for (uint8_t reg = 0U; reg < 8U; ++reg)
+    if (!(trace_state->call_exposed_address_registers & (1U << reg)) &&
+        trace_value_can_drive_indirect_control(&trace_state->a[reg])) live |= (uint8_t)(1U << reg);
+  if (!live) return 0;
   section = &decode->sections[section_index];
-  for (step = 0U; step < scan_limit && cursor < section->size; ++step) {
+  pending[count].offset = target_offset; pending[count++].live = live;
+  while (next < count) {
     const M68kDecodeCandidate *candidate = NULL;
     M68kInstructionIR instruction;
     const M68kSimFormMetadata *metadata;
-    size_t operand_index;
+    M68kFactsV2TraceState survivors;
+    uint32_t cursor = pending[next].offset;
+    uint8_t mask = pending[next++].live;
+    uint32_t successors[M68K_DECODE_IR_MAX_TARGETS + 1U];
+    size_t successor_count = 0U;
+    if (cursor >= section->size || !mask) continue;
     if (m68k_decode_ir_ensure_candidate_at(decode, section_index, cursor, max_cpu, &candidate,
-        m68k_diag_sink(NULL)) != 0 || candidate == NULL) {
-      return 0;
-    }
-    if (m68k_decode_candidate_to_instruction(candidate, &instruction) != 0) return 0;
+        m68k_diag_sink(NULL)) != 0 || candidate == NULL ||
+        m68k_decode_candidate_to_instruction(candidate, &instruction) != 0) continue;
     metadata = m68k_sim_metadata_for_instruction(&instruction);
-    if (metadata != NULL &&
-        (metadata->flow_kind == M68K_SIM_FLOW_CALL || metadata->flow_kind == M68K_SIM_FLOW_JUMP)) {
-      for (operand_index = 0U; operand_index < candidate->operand_count && operand_index < 4U; ++operand_index) {
+    if (metadata == NULL) continue;
+    if (metadata->flow_kind == M68K_SIM_FLOW_CALL || metadata->flow_kind == M68K_SIM_FLOW_JUMP) {
+      for (size_t op = 0U; op < candidate->operand_count && op < instruction.operand_count && op < 4U; ++op) {
         uint8_t reg = 0U;
-        if (operand_index >= instruction.operand_count ||
-            metadata->operand_access_kinds[operand_index] != M68K_SIM_ACCESS_BRANCH_TARGET ||
-            metadata->operand_result_kinds[operand_index] != M68K_SIM_RESULT_CONTROL_TARGET ||
-            !operand_is_control_address_register_indirect(candidate->operand_kinds[operand_index],
-              &candidate->operands[operand_index], &reg)) {
-          continue;
-        }
-        if (reg < 8U && trace_value_can_drive_indirect_control(&trace_state->a[reg])) return 1;
+        if (metadata->operand_access_kinds[op] == M68K_SIM_ACCESS_BRANCH_TARGET &&
+            metadata->operand_result_kinds[op] == M68K_SIM_RESULT_CONTROL_TARGET &&
+            operand_is_control_address_register_indirect(candidate->operand_kinds[op],
+              &candidate->operands[op], &reg) && reg < 8U && (mask & (1U << reg))) return 1;
       }
     }
-    if (!candidate_has_normal_fallthrough(candidate) || candidate_has_control_target_local(candidate)) return 0;
-    if (candidate->byte_count == 0U || candidate->byte_count > UINT32_MAX - cursor) return 0;
-    cursor += candidate->byte_count;
+    if (metadata->flow_kind == M68K_SIM_FLOW_CALL || metadata->flow_kind == M68K_SIM_FLOW_TRAP) continue;
+    trace_state_init_unknown(&survivors);
+    for (uint8_t reg = 0U; reg < 8U; ++reg)
+      if (mask & (1U << reg)) survivors.a[reg] = trace_state->a[reg];
+    trace_state_kill_register_writes(candidate, &survivors);
+    for (uint8_t reg = 0U; reg < 8U; ++reg)
+      if (!trace_value_can_drive_indirect_control(&survivors.a[reg])) mask &= (uint8_t)~(1U << reg);
+    if (!mask) continue;
+    for (size_t i = 0U; i < candidate->target_count; ++i) {
+      const M68kDecodeTarget *target = &candidate->targets[i];
+      if (target->kind != M68K_DECODE_TARGET_DATA && target->has_section &&
+          target->section_index == section_index && target->offset < section->size)
+        successors[successor_count++] = target->offset;
+    }
+    if (candidate_has_normal_fallthrough(candidate) && candidate->byte_count &&
+        candidate->byte_count <= UINT32_MAX - cursor)
+      successors[successor_count++] = cursor + candidate->byte_count;
+    for (size_t i = 0U; i < successor_count; ++i) {
+      size_t seen;
+      for (seen = 0U; seen < count; ++seen)
+        if (pending[seen].offset == successors[i] && pending[seen].live == mask) break;
+      if (seen != count || count == SCAN_LIMIT) continue;
+      pending[count].offset = successors[i]; pending[count++].live = mask;
+    }
   }
   return 0;
 }
@@ -10744,7 +10791,11 @@ static int run_reachable_fixed_point(const M68kObject *object, M68kDecodeIR *dec
      * the short sink replay stops at branches and absolute tail jumps.
      * Queue identity/variant bounds still limit replay; acceptance is not
      * counted again, and unphased roots keep their existing refusal. */
+    /* A demanded incoming control value must cross accepted branch edges via
+     * the same bounded queue; linear replay stops before a branching dispatcher. */
     if (already_accepted && item.allow_trace_variant != M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT &&
+        !(item.allow_trace_variant == M68K_FACTS_V2_TRACE_CONTROL_INPUT_VARIANT &&
+          trace_state_can_drive_indirect_control(&item.trace_state)) &&
         !item.trace_state.established_entry_lineage) {
       if (item.has_runtime_address || item.allow_trace_variant) {
         if (replay_runtime_sink_provenance_fallthrough(object, decode, relocation_lookup, runtime_addresses, facts,
@@ -10890,6 +10941,7 @@ static int run_reachable_fixed_point(const M68kObject *object, M68kDecodeIR *dec
       {
         const M68kDecodeCandidate *target_candidate = NULL;
         const M68kFactsV2TraceState *target_trace_state = &next_trace_state;
+        M68kFactsV2TraceState proved_call_inputs;
         uint8_t allow_trace_variant = 0U;
         if (candidate_preserves_trace_state_across_jump(candidate)) {
           target_trace_state = &item.trace_state;
@@ -10900,9 +10952,32 @@ static int run_reachable_fixed_point(const M68kObject *object, M68kDecodeIR *dec
         if (item.allow_trace_variant == M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT ||
             trace_state_has_continuation_input(target_trace_state)) {
           allow_trace_variant = M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT;
+        } else if (item.allow_trace_variant == M68K_FACTS_V2_TRACE_CONTROL_INPUT_VARIANT &&
+            target->kind != M68K_DECODE_TARGET_CALL &&
+            trace_state_can_drive_indirect_control(target_trace_state)) {
+          allow_trace_variant = M68K_FACTS_V2_TRACE_CONTROL_INPUT_VARIANT;
         } else if (target_prefix_uses_trace_indirect_control(decode, item.section_index, target_offset,
             target_trace_state, max_cpu)) {
-          allow_trace_variant = 1U;
+          allow_trace_variant = M68K_FACTS_V2_TRACE_CONTROL_INPUT_VARIANT;
+          /* The legacy trace may retain values and memory slots across calls
+           * for other analysis lanes. A new control context carries only
+           * proved register inputs, never those unproved cached side effects. */
+          trace_state_init_unknown(&proved_call_inputs);
+          proved_call_inputs.established_entry_lineage = target_trace_state->established_entry_lineage;
+          proved_call_inputs.call_exposed_address_registers = target_trace_state->call_exposed_address_registers;
+          proved_call_inputs.call_exposed_data_registers = target_trace_state->call_exposed_data_registers;
+          for (uint8_t reg = 0U; reg < 8U; ++reg) {
+            if (!(target_trace_state->call_exposed_address_registers & (1U << reg)))
+              proved_call_inputs.a[reg] = target_trace_state->a[reg];
+            if (!(target_trace_state->call_exposed_data_registers & (1U << reg))) {
+              proved_call_inputs.d[reg] = target_trace_state->d[reg];
+              proved_call_inputs.d_low16_known |= target_trace_state->d_low16_known & (1U << reg);
+              proved_call_inputs.d_low16_has_origin |= target_trace_state->d_low16_has_origin & (1U << reg);
+              proved_call_inputs.d_low16[reg] = target_trace_state->d_low16[reg];
+              proved_call_inputs.d_low16_origin_offset[reg] = target_trace_state->d_low16_origin_offset[reg];
+            }
+          }
+          target_trace_state = &proved_call_inputs;
         }
         if (target_prefix_uses_trace_runtime_sink(decode, relocation_lookup, runtime_addresses, facts,
             object->platform_backend_kind, accepted_start, accepted_bytes, item.section_index, target_offset,
@@ -10959,11 +11034,15 @@ static int run_reachable_fixed_point(const M68kObject *object, M68kDecodeIR *dec
     if (candidate_has_normal_fallthrough(candidate)) {
       M68kInstructionIR flow_instruction;
       const M68kSimFormMetadata *flow_metadata = NULL;
-      if (item.allow_trace_variant == M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT &&
-          m68k_decode_candidate_to_instruction(candidate, &flow_instruction) == 0)
+      if (m68k_decode_candidate_to_instruction(candidate, &flow_instruction) == 0)
         flow_metadata = m68k_sim_metadata_for_instruction(&flow_instruction);
-      if (flow_metadata != NULL && flow_metadata->flow_kind == M68K_SIM_FLOW_CALL) {
-        trace_state_drop_call_provenance(&next_trace_state);
+      if (flow_metadata != NULL && (flow_metadata->flow_kind == M68K_SIM_FLOW_CALL ||
+          flow_metadata->flow_kind == M68K_SIM_FLOW_TRAP)) {
+        next_trace_state.call_exposed_address_registers = UINT8_MAX;
+        next_trace_state.call_exposed_data_registers = UINT8_MAX;
+        if (item.allow_trace_variant == M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT ||
+            item.allow_trace_variant == M68K_FACTS_V2_TRACE_CONTROL_INPUT_VARIANT)
+          trace_state_drop_call_provenance(&next_trace_state);
         /* This recognizer supplies an explicit, independently checked result,
          * rather than preserving incoming continuation registers. */
         (void)trace_state_apply_platform_loadseg_helper_call(decode, object->platform_backend_kind,
@@ -10975,8 +11054,9 @@ static int run_reachable_fixed_point(const M68kObject *object, M68kDecodeIR *dec
         uint8_t fallthrough_has_runtime = 0U;
         uint32_t fallthrough_runtime = 0U;
         uint8_t fallthrough_allow_trace_variant =
-          item.allow_trace_variant == M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT
-            ? M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT
+          item.allow_trace_variant == M68K_FACTS_V2_TRACE_CONTINUATION_VARIANT ||
+          item.allow_trace_variant == M68K_FACTS_V2_TRACE_CONTROL_INPUT_VARIANT
+            ? item.allow_trace_variant
             : (uint8_t)(item.allow_trace_variant &&
                 (trace_state_can_drive_indirect_control(&next_trace_state) ||
                  trace_state_can_drive_runtime_sink(object->platform_backend_kind, &next_trace_state)));
