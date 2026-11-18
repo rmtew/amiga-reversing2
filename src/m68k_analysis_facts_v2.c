@@ -1176,7 +1176,23 @@ static int work_queue_push(M68kFactsV2WorkQueue *queue, size_t section_index, ui
       const M68kFactsV2WorkItem *item = &queue->items[item_index - 1U];
       if (!work_queue_existing_stateful_item_matches(item, section_index, offset, confidence,
           has_runtime_address, runtime_address)) continue;
-      ++state_variant_count;
+      /* A confidence upgrade may queue the exact same full context again.
+       * Keep both work items (and their admission strengths), but charge the
+       * variant budget once. Do not project registers or erase provenance;
+       * replay modes and runtime-address domains must still match exactly. */
+      int duplicate_variant = 0;
+      for (size_t prior = *stateful_head_slot; prior != item_index;
+          prior = queue->stateful_next[prior - 1U]) {
+        const M68kFactsV2WorkItem *other = &queue->items[prior - 1U];
+        if (work_queue_existing_stateful_item_matches(other, section_index, offset,
+              confidence, has_runtime_address, runtime_address) &&
+            other->allow_trace_variant == item->allow_trace_variant &&
+            trace_state_equal(&other->trace_state, &item->trace_state)) {
+          duplicate_variant = 1;
+          break;
+        }
+      }
+      if (!duplicate_variant) ++state_variant_count;
       if (trace_state != NULL && trace_state->established_entry_lineage &&
           !item->trace_state.established_entry_lineage)
         saw_entry_lineage_upgrade = 1U;

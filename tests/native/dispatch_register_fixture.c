@@ -26,13 +26,15 @@ int main(int argc, char **argv) {
   /* Accept the helper without an incoming A6 before analyzing the caller. */
   policy.entry_point_count = 2;
   policy.entry_points[0].has_section_index = policy.entry_points[1].has_section_index = 1;
-  policy.entry_points[0].offset = 32; policy.entry_points[1].offset = 0;
+  policy.entry_points[0].offset = atoi(argv[2]) == 2 ? 64U : 32U; policy.entry_points[1].offset = 0;
   assert(m68k_facts_v2_render_asm_source_analysis_profile_alloc(&object, &policy,
     &source, &profile, &analysis, 1U, m68k_diag_sink(NULL)) == 0);
   assert(source && !profile.asm_source_refused && !profile.required_instruction_failures);
   assert(!profile.asm_source_instruction_byte_mismatches);
   fprintf(stderr, "target128=%d expected=%d\n", code_at(&analysis, 128), atoi(argv[2]));
-  assert(code_at(&analysis, 128) == atoi(argv[2]));
+  assert(code_at(&analysis, 128) == (atoi(argv[2]) != 0));
+  if (atoi(argv[2]) == 2)
+    for (uint32_t offset = 128U; offset < 152U; offset += 4U) assert(code_at(&analysis, offset));
   unsigned char *rebuilt = NULL; size_t rebuilt_size = 0U;
   char *assembly_profile = NULL, *error = NULL;
   assert(platform_file_assemble_source_text_bytes_profile_alloc("amiga-raw", "", source,
