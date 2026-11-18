@@ -19,6 +19,7 @@ def editable(
     string=False,
     interior=False,
     owner_scope=False,
+    opaque_prefix=False,
 ):
     from amiga_reversing.disasm import restoration, server
 
@@ -40,6 +41,12 @@ def editable(
         if string
         else {}
     )
+    if opaque_prefix:
+        assert not table and not string and not interior and not owner_scope
+        extra = {
+            "main_data": bytes.fromhex("70074e75") + b"\xa5" * 1024 + bytes(4),
+            "main_text": " SECTION code,code\n ORG $1000\n moveq #7,d0\n rts\n dcb.b 1024,$a5\n dc.l 0\n",
+        }
     if owner_scope:
         assert not table and not string and not interior
         extra = {
@@ -59,6 +66,25 @@ def editable(
             "citation": "Synthetic RTS boundary",
         }
     ]
+    if opaque_prefix:
+        metadata["source_output_policy"] = {
+            "mode": "binary_assets",
+            "minimum_asset_size": 256,
+        }
+        metadata.setdefault("seeded_entities", []).append(
+            {
+                "hunk": 0,
+                "addr": 4,
+                "end": 1032,
+                "name": "opaquePrefix",
+                "type": "data",
+                "unit": "byte",
+                "subtype": "opaque_data",
+                "seed_origin": "manual_analysis",
+                "review_status": "seeded",
+                "citation": "Synthetic pre-existing opaque record with a later typed tail",
+            }
+        )
     if owner_scope:
         metadata["seeded_code_labels"].append(
             {
@@ -920,3 +946,47 @@ def test_scoped_word_offset_binds_two_source_points_and_builds_exactly(
                 ),
             )
         assert (target / "manifest.json").read_bytes() == before
+
+
+def test_scoped_opaque_prefix_remains_an_asset_beside_typed_fields(
+    tmp_path, monkeypatch
+):
+    _, target, _, call = editable(tmp_path, monkeypatch, opaque_prefix=True)
+    selected = call("inspect", source_offset=4, end_offset=1028, row_kind="data")
+    saved = call(
+        "interpret",
+        **data_request(selected, "range.seed.data.opaque_data", {}),
+    )
+    assert saved["verification"]["media_exact"]
+    text = (target / "main.s").read_text()
+    assert "INCBIN" in text
+    manifest = json.loads((target / "source-package-manifest.json").read_bytes())
+    before_assets = [x for x in manifest["manifest"]["files"] if x["kind"] == "asset"]
+    assert len(before_assets) == 1 and before_assets[0]["size"] == 1024
+    selected = call("inspect", source_offset=1028, end_offset=1032, row_kind="data")
+    call(
+        "interpret",
+        **data_request(
+            selected, "range.data_block.layout.create", {"name": "recordTail"}
+        ),
+    )
+    selected = call("inspect", source_offset=1028, end_offset=1032, row_kind="data")
+    call(
+        "interpret",
+        **data_request(
+            selected,
+            "range.data_block.element.set",
+            {"kind": "scalar", "width": 4, "name": "tailValue"},
+        ),
+    )
+    manifest = json.loads((target / "source-package-manifest.json").read_bytes())
+    after_assets = [x for x in manifest["manifest"]["files"] if x["kind"] == "asset"]
+    assert [(x["asset_id"], x["sha256"], x["size"]) for x in before_assets] == [
+        (x["asset_id"], x["sha256"], x["size"]) for x in after_assets
+    ]
+    assert "INCBIN" in (target / "main.s").read_text()
+    selected = call("inspect", source_offset=1028, end_offset=1032, row_kind="data")
+    before = (target / "manifest.json").read_bytes()
+    with pytest.raises(ValueError, match="overlaps an existing typed layout"):
+        call("interpret", **data_request(selected, "range.seed.data.opaque_data", {}))
+    assert (target / "manifest.json").read_bytes() == before

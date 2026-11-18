@@ -880,6 +880,14 @@ unsupported by this scoped path; they are not inferred from numeric resemblance.
 Layout and scalar actions retain the existing Manual Action representations and
 validators.
 
+The data-role catalog also exposes `range.seed.data.opaque_data`. Scoped Restore
+accepts this only for an inspected, bounded native data span, with byte seeds
+that exactly partition that selection and do not overlap a typed layout. It
+records an explicit classification, not a guess from the byte values. Under the
+existing binary-assets output policy, an independently evidenced opaque prefix
+can therefore retain its INCBIN ownership beside typed fields. The existing
+native asset checks still decide whether a span is eligible for extraction.
+
 An interpreted runtime LONG reference with an explicit source locator can render
 as a source label without an authored name. The native render plan requires a
 unique materialized mapping in both directions, agreement with the stored bytes

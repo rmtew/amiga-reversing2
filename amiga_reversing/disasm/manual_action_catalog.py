@@ -33,6 +33,7 @@ _DATA_ROLE_COMMANDS: tuple[dict[str, str], ...] = (
     {"role": "pointer_table", "label": "Pointer table", "unit": "pointer"},
     {"role": "copper_list", "label": "Copper list", "unit": "word"},
     {"role": "palette", "label": "Palette", "unit": "word"},
+    {"role": "opaque_data", "label": "Opaque data", "unit": "byte"},
     {"role": "bitmap", "label": "Bitmap", "unit": "byte"},
     {"role": "sound_sample", "label": "Sound sample", "unit": "byte"},
     {"role": "audio_table", "label": "Audio table", "unit": "pointer"},

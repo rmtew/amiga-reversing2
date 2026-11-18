@@ -363,7 +363,11 @@ def _inspect_member_data_range(owner, member, body, artifact):
     selected = [
         _member_data_layout_row(owner, member, row, layouts) for row in selected
     ]
-    supported = {"range.data_block.layout.create", "range.seed.data.string"}
+    supported = {
+        "range.data_block.layout.create",
+        "range.seed.data.string",
+        "range.seed.data.opaque_data",
+    }
     layout_ids = {
         row.get("active_data_block_layout", {}).get("layout_id") for row in selected
     }
@@ -622,8 +626,9 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None, source
                 parameters=body.get("parameters"),
             )
         ]
-    if command == "range.seed.data.string":
-        _validate_member_string_seeds(actions, context["source_span"])
+    if command in {"range.seed.data.string", "range.seed.data.opaque_data"}:
+        role = command.rsplit(".", 1)[1]
+        _validate_member_data_seeds(actions, context["source_span"], role=role)
         start, end = (
             context["source_span"]["start_offset"],
             context["source_span"]["end_offset"],
@@ -632,9 +637,9 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None, source
             layout["source_start"] < end and layout["source_end"] > start
             for layout in _member_layouts(owner, member)
         ):
-            raise ValueError("string seed overlaps an existing typed layout")
+            raise ValueError(f"{role} seed overlaps an existing typed layout")
         value = source.read_bytes()[start:end]
-        if (
+        if role == "string" and (
             not value
             or value[-1] != 0
             or 0 in value[:-1]
@@ -700,12 +705,12 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None, source
     return actions
 
 
-def _validate_member_string_seeds(actions, span):
-    """Require catalog text fragments to exactly partition the selected string.
+def _validate_member_data_seeds(actions, span, *, role):
+    """Require catalog classifications to exactly partition the selected span.
 
     Label rows split catalog subranges. Retain those fragment boundaries so the
-    existing renderer emits each text slice and its interior declaration. Their
-    common inspected source span binds one logical string, not duplicate bytes.
+    existing renderer preserves each slice and its interior declarations. The
+    common inspected source span binds one classification, not duplicate bytes.
     """
     cursor = span["start_offset"]
     for kind, payload in actions:
@@ -718,17 +723,17 @@ def _validate_member_string_seeds(actions, span):
             or seed.get("addr") != cursor
             or type(end) is not int
             or end <= cursor
-            or seed.get("data_role") != "string"
+            or seed.get("data_role") != role
             or seed.get("unit") != "byte"
-            or seed.get("encoding") != "ascii"
+            or seed.get("encoding") != ("ascii" if role == "string" else None)
         ):
             raise ValueError(
-                "string seed pieces must exactly cover the inspected data span"
+                f"{role} seed pieces must exactly cover the inspected data span"
             )
         cursor = end
     if not actions or cursor != span["end_offset"]:
         raise ValueError(
-            "string seed pieces must exactly cover the inspected data span"
+            f"{role} seed pieces must exactly cover the inspected data span"
         )
 
 
