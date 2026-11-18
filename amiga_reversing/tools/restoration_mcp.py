@@ -304,7 +304,7 @@ def create_server(client: RestorationClient):
         verification_id: str | None = None,
         probe_id: str | None = None,
     ) -> dict[str, object]:
-        """Atomically review 1..100 distinct actions using one current proof and reason."""
+        """Atomically review a nonempty set of distinct actions using one current proof and reason."""
         return call(project, "review_batch", expected_revision=expected_revision,
                     action_ids=action_ids, decision=decision, reason=reason,
                     verification_id=verification_id, probe_id=probe_id)

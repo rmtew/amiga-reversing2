@@ -833,8 +833,8 @@ def edit_member(owner, member, body):
 
 def edit_member_batch(owner, member, body):
     entries = body.get("entries")
-    if not isinstance(entries, list) or not 1 <= len(entries) <= 100:
-        raise ValueError("interpret_batch requires 1..100 entries")
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("interpret_batch requires a nonempty entries list")
     if any(
         not isinstance(entry, dict)
         or set(entry) & {"operation", "expected_revision", "member_id", "media_paths"}

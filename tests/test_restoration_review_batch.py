@@ -115,3 +115,27 @@ def test_batch_matches_single_reviews_and_sequential_supersessions(target):
     assert semantic(singles["records"]) == semantic(batched["records"])
     assert len(batched["records"]) == 9
     assert [item["status"] for item in invoke("history")["items"] if item["action_id"] in ids] == ["rejected"] * 3
+
+
+@pytest.mark.parametrize("invalid_last", [False, True])
+def test_large_review_batch_is_one_validated_journal_append(target, monkeypatch, invalid_last):
+    ids = actions(target, count=257)
+    manual = (target.directory / "manual_actions.jsonl").read_bytes()
+    if invalid_last:
+        ids[-1] = "not-an-active-action"
+        with pytest.raises(ValueError, match="current active manual action"):
+            review(ids)
+        assert not (target.directory / "decision_journal.jsonl").exists()
+    else:
+        append = restoration.append_decision_records
+        calls = []
+        def counted(*args, **kwargs):
+            calls.append(len(args[1]))
+            return append(*args, **kwargs)
+        monkeypatch.setattr(restoration, "append_decision_records", counted)
+        result = review(ids)
+        assert len(result["decisions"]) == 257
+        assert calls == [257]
+        journal = read_decision_journal(target.directory)
+        assert journal["valid"] and len(journal["records"]) == 257
+    assert (target.directory / "manual_actions.jsonl").read_bytes() == manual

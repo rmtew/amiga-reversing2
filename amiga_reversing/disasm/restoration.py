@@ -388,8 +388,8 @@ def _interpret(target_id, body, current):
 
 def _interpret_batch(target_id, body, current):
     entries = body.get("entries")
-    if not isinstance(entries, list) or not 1 <= len(entries) <= 100:
-        raise ValueError("interpret_batch requires 1..100 entries")
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("interpret_batch requires a nonempty entries list")
     if any(not isinstance(entry, dict) or "expected_revision" in entry or "operation" in entry
            for entry in entries):
         raise ValueError("batch entries must be interpretation parameters without operation or expected_revision")
@@ -473,8 +473,8 @@ def _review(target_id, body, current):
 
 def _review_batch(target_id, body, current):
     action_ids = body.get("action_ids")
-    if not isinstance(action_ids, list) or not 1 <= len(action_ids) <= 100:
-        raise ValueError("review_batch requires 1..100 action_ids")
+    if not isinstance(action_ids, list) or not action_ids:
+        raise ValueError("review_batch requires a nonempty action_ids list")
     if any(not isinstance(identity, str) or not identity or len(identity) > 256 for identity in action_ids):
         raise ValueError("review_batch action_ids must be nonempty strings of at most 256 characters")
     if len(set(action_ids)) != len(action_ids):

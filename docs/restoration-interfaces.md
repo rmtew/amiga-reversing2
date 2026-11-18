@@ -928,12 +928,17 @@ All entries are checked against one fresh member analysis under the owner lock,
 then appended and regenerated together. The existing transaction requires exact
 member builds and complete media-placement coverage before publishing state.
 
-Use `interpret_batch` for a connected set of 1..100 interpretations from the same
+Use `interpret_batch` for a nonempty connected set of interpretations from the same
 inspected revision:
 
 ```sh
 python -m amiga_reversing.tools.restoration --target TARGET interpret_batch --request batch.json
 ```
+
+Interpretation and review batches have no fixed action-count ceiling. They are
+prepared and published atomically as one request, subject to available memory
+and the existing per-action validation and transport constraints. A large batch
+does not bypass evidence, scope, revision or exact-rebuild requirements.
 
 `batch.json` has one top-level `expected_revision` and an `entries` array. Each
 entry contains `command_id`, the actual catalog `context`, `parameters` and
@@ -1039,7 +1044,7 @@ out-of-bounds or code-overlapping fields do not receive this fragment annotation
 
 Run `interpret`, inspect its new revision, then `verify`. Verification returns a
 `receipt_id`; review acceptance requires that receipt for the current subject.
-`review_batch` reviews 1–100 unique `action_ids` with one decision, reason and
+`review_batch` reviews a nonempty list of unique `action_ids` with one decision, reason and
 current verification receipt. It validates every action and the complete
 decision chain before one atomic append, including supersessions. Its bounded
 response contains decision identities, one compact proof and the fresh revision.

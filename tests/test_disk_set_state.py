@@ -990,3 +990,44 @@ def test_scoped_opaque_prefix_remains_an_asset_beside_typed_fields(
     with pytest.raises(ValueError, match="overlaps an existing typed layout"):
         call("interpret", **data_request(selected, "range.seed.data.opaque_data", {}))
     assert (target / "manifest.json").read_bytes() == before
+
+
+@pytest.mark.parametrize("count", [127, 257])
+def test_large_scoped_batch_validates_late_entry_before_atomic_exact_publish(tmp_path, monkeypatch, count):
+    from copy import deepcopy
+
+    from amiga_reversing.disasm import disk_set_state
+
+    _, target, _, call = editable(tmp_path, monkeypatch)
+    selected = call("inspect", source_offset=0)
+    revision = selected["revision"]
+    entries = []
+    for index in range(count):
+        body = request(selected, text=f"Independent scoped batch evidence {index}.")
+        body.pop("expected_revision")
+        entries.append(body)
+    original = disk_set_state._artifact
+    visits = []
+    def artifact(*args, **kwargs):
+        visits.append(args[1])
+        return original(*args, **kwargs)
+    monkeypatch.setattr(disk_set_state, "_artifact", artifact)
+    manifest = (target / "manifest.json").read_bytes()
+    source = (target / "main.s").read_bytes()
+    invalid = deepcopy(entries)
+    invalid[-1]["command_id"] = "unsupported"
+    with pytest.raises(ValueError, match="not available"):
+        call("interpret_batch", expected_revision=revision, entries=invalid)
+    assert visits == ["main"]
+    assert (target / "manifest.json").read_bytes() == manifest
+    assert (target / "main.s").read_bytes() == source
+    assert not list((target / "analysis").glob("*.manual_actions.jsonl"))
+    visits.clear()
+    saved = call("interpret_batch", expected_revision=revision, entries=entries)
+    assert visits == ["main"]
+    assert len(saved["actions"]) == count
+    assert saved["verification"]["media_exact"]
+    assert saved["verification"]["all_placement_coverage"]
+    assert f"Independent scoped batch evidence {count - 1}." in (target / "main.s").read_text()
+    with pytest.raises(ValueError, match="stale_revision"):
+        call("interpret_batch", expected_revision=revision, entries=entries)

@@ -183,7 +183,6 @@ def test_stale_batch_refused_before_any_append(batch_target):
     [
         [],
         [None],
-        [{}] * 101,
         [{"expected_revision": "extra"}],
         [{"operation": "command"}],
     ],
@@ -196,11 +195,12 @@ def test_batch_shape_refused_without_history(batch_target, entries):
     assert not (batch_target.directory / "manual_actions.jsonl").exists()
 
 
+@pytest.mark.parametrize("count", [3, 127, 257])
 @pytest.mark.parametrize("invalid_last", [None, "parameters", "codec"])
 def test_repeated_context_resolves_once_but_validates_each_parameters(
-    batch_target, monkeypatch, invalid_last
+    batch_target, monkeypatch, invalid_last, count
 ):
-    entries = [deepcopy(batch_target.entries[1]) for _ in range(3)]
+    entries = [deepcopy(batch_target.entries[1]) for _ in range(count)]
     for index, entry in enumerate(entries):
         entry["parameters"]["text"] = f"Caller evidence interpretation {index}."
     if invalid_last:
