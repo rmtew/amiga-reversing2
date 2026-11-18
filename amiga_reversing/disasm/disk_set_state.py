@@ -294,6 +294,147 @@ def _member_layouts(owner, member):
     return metadata.get("data_block_layouts", [])
 
 
+def _conflicting_array_scalar_seed(row, layout, metadata):
+    """Expose one revisable imported scalar beneath a proven scalar array.
+
+    This ports the existing journal correction, not code suppression or automatic
+    precedence. Independently owned/typed facts and partial identities stay closed.
+    """
+    from amiga_reversing.disasm.target_metadata import validate_scalar_data_array_owner
+
+    start, end = row["start_offset"], row["end_offset"]
+    unit = layout.get("default_unit")
+    width = {"word": 2, "long": 4}.get(unit)
+    if not width or start % 2 or (end - start) % width:
+        return None
+    elements = [
+        e
+        for e in layout.get("elements", ())
+        if e.get("kind") == "array"
+        and layout["source_start"] + e["offset"] <= start
+        and end <= layout["source_start"] + e["offset"] + e["width"]
+        and e.get("array_stride") == width
+    ]
+    if len(elements) != 1:
+        return None
+    element = elements[0]
+    if not all(
+        str(x.get("citation", "")).startswith("manual_action_log:")
+        for x in (layout, element)
+    ):
+        return None
+    if (start - layout["source_start"] - element["offset"]) % width:
+        return None
+    try:
+        validate_scalar_data_array_owner(element, layout)
+    except ValueError:
+        return None
+    overlapping = [
+        e
+        for e in metadata.get("seeded_entities", ())
+        if e.get("hunk") == 0
+        and type(e.get("end")) is int
+        and e.get("addr", end) < end
+        and start < e["end"]
+    ]
+    # The saved effective snapshot includes the authored array's own scalar
+    # projection. Recognize only that exact provenance/shape, not other owners.
+    array_start = layout["source_start"] + element["offset"]
+    overlapping = [
+        e
+        for e in overlapping
+        if not (
+            e.get("addr") == array_start
+            and e.get("end") == array_start + element["width"]
+            and e.get("unit") == unit
+            and e.get("type") == "data"
+            and e.get("citation") == element.get("citation")
+            and e.get("name") in {None, layout.get("name"), element.get("name")}
+            and e.get("source_id") in {None, "manual_action_log"}
+            and e.get("source_owner_start") is None
+            and e.get("source_owner_size") is None
+            and not any(
+                e.get(k)
+                for k in (
+                    "comment",
+                    "subtype",
+                    "encoding",
+                    "struct_name",
+                    "field_name",
+                    "field_type",
+                    "c_type",
+                    "pointer_struct",
+                    "value_kind",
+                    "value_domain",
+                    "pointer_address_domain",
+                    "pointer_symbol_group",
+                    "source_owner_start",
+                    "source_owner_size",
+                    "owner_action_id",
+                    "source_evidence_id",
+                    "parent_evidence_ids",
+                )
+            )
+        )
+    ]
+    if len(overlapping) != 1:
+        return None
+    seed = overlapping[0]
+    if (
+        seed.get("addr") != start
+        or seed.get("end") != end
+        or seed.get("type") != "data"
+        or seed.get("unit") not in {"word", "long"}
+        or seed["unit"] == unit
+        or (end - start) % {"word": 2, "long": 4}[seed["unit"]]
+        or seed.get("review_status") != "seeded"
+        or seed.get("source_owner_start") is not None
+        or seed.get("source_owner_size") is not None
+        or seed.get("source_id") in {None, "", "manual_action_log"}
+        or str(seed.get("citation", "")).startswith("manual_action_log:")
+        or any(
+            seed.get(k)
+            for k in (
+                "name",
+                "comment",
+                "subtype",
+                "encoding",
+                "struct_name",
+                "field_name",
+                "field_type",
+                "c_type",
+                "pointer_struct",
+                "value_kind",
+                "value_domain",
+                "pointer_address_domain",
+                "pointer_symbol_group",
+                "source_owner_start",
+                "source_owner_size",
+                "owner_action_id",
+                "source_evidence_id",
+                "parent_evidence_ids",
+            )
+        )
+    ):
+        return None
+    return {"kind": "seeded_entity", "hunk": 0, "addr": start, "end": end}
+
+
+def _member_conflicting_scalar_seed(owner, member, row, layout):
+    from amiga_reversing.disasm.disk_set import file_at
+
+    start, end = row["start_offset"], row["end_offset"]
+    analysis_member, bias = owner.owner(member)
+    if not bias <= start < end <= bias + owner.members[member]["size"]:
+        return None
+    metadata = json.loads(
+        file_at(
+            owner.root, owner.members[analysis_member]["analysis"]["metadata"]["path"]
+        ).read_bytes()
+    )
+    return _conflicting_array_scalar_seed(row, layout, metadata)
+
+
 def _member_data_layout_row(owner, member, row, layouts=None):
     """Join hash-validated layout seeds to compact native catalog context.
 
@@ -310,7 +451,12 @@ def _member_data_layout_row(owner, member, row, layouts=None):
     ]
     if len(layouts) > 1:
         raise ValueError("ambiguous member data layout")
-    return {**row, **({"active_data_block_layout": layouts[0]} if layouts else {})}
+    result = {**row, **({"active_data_block_layout": layouts[0]} if layouts else {})}
+    if layouts and row.get("kind") == "data":
+        correction = _member_conflicting_scalar_seed(owner, member, row, layouts[0])
+        if correction:
+            result["suppressible_seeded_items"] = [correction]
+    return result
 
 
 def _inspect_member_data_range(owner, member, body, artifact):
@@ -461,6 +607,8 @@ def inspect_member(owner, member, body, *, artifact=None):
                 context.update(kind="element", element_id=label["element_id"])
                 commands = listing_element_action_catalog(row, label)
         supported = {"comment.edit", "label.rename"}
+        if row["kind"] == "data" and row.get("suppressible_seeded_items"):
+            supported.add("correction.suppress_seeded_item.seeded_entity")
         if row["kind"] == "data" and row.get("active_data_block_layout"):
             supported.update(
                 {
@@ -650,6 +798,17 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None, source
                 "scoped string seed requires one complete NUL-terminated ASCII span"
             )
     for kind, payload in actions:
+        if kind == "suppress_seeded_item":
+            layout = rows[0].get("active_data_block_layout")
+            expected = (
+                _member_conflicting_scalar_seed(owner, member, rows[0], layout)
+                if layout
+                else None
+            )
+            if not expected or payload.get("suppressed_seeded_item") != expected:
+                raise ValueError(
+                    "scalar correction must match the complete inspected imported data fact"
+                )
         if kind == "create_manual_data_block_layout":
             new = payload["data_block_layout"]
             if any(
@@ -678,14 +837,20 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None, source
             and any(
                 (body.get("parameters") or {}).get(key) is not None
                 for key in (
-                    "binding_kind", "type_id", "domain_id", "type_binding_id",
-                    "type_binding", "reference_interpretation",
+                    "binding_kind",
+                    "type_id",
+                    "domain_id",
+                    "type_binding_id",
+                    "type_binding",
+                    "reference_interpretation",
                 )
             )
         ):
             # The generic set operation does not bind types; refuse rather than
             # silently discard a requested record/pointer interpretation.
-            raise ValueError("scoped scalar arrays do not accept typed/reference bindings")
+            raise ValueError(
+                "scoped scalar arrays do not accept typed/reference bindings"
+            )
         if kind in {
             "set_manual_data_block_element",
             "interpret_manual_data_block_element_ref",
