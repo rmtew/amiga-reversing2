@@ -22,6 +22,7 @@ def editable(
     opaque_prefix=False,
     pointer_rows=False,
     legacy_prefix=False,
+    scalar_array=False,
 ):
     from amiga_reversing.disasm import restoration, server
 
@@ -62,6 +63,12 @@ def editable(
         extra = {"main_data": data, "main_text": " SECTION code,code\n ORG $1000\n moveq #7,d0\n rts\n dc.l "
                  + ",".join(f"${value:08X}" for value in values) + "\n dc.b "
                  + ",".join(f"${value:02X}" for value in data[32:]) + "\n"}
+    if scalar_array:
+        assert not any((table, string, interior, owner_scope, opaque_prefix, pointer_rows, legacy_prefix))
+        payload = b"".join(n.to_bytes(2, "big") for n in range(514))
+        extra = {"main_data": bytes.fromhex("70074e75") + payload + bytes.fromhex("cafe"),
+                 "main_text": " SECTION code,code\n ORG $1000\n moveq #7,d0\n rts\n dc.w "
+                 + ",".join(f"${n:04X}" for n in range(514)) + ", $cafe\n"}
     project, target, paths, manifest = fixture(tmp_path, **extra)
     metadata_path = target / manifest["members"][0]["analysis"]["metadata"]["path"]
     metadata = json.loads(metadata_path.read_bytes())
@@ -123,6 +130,11 @@ def editable(
             "hunk": 0, "addr": 5, "end": 12, "type": "data", "subtype": "string", "unit": "byte",
             "encoding": "ascii", "source_id": "fixture-import", "source_locator": "legacy-prefix",
             "seed_origin": "manual_analysis", "review_status": "seeded", "citation": "Preliminary imported string"})
+    if scalar_array:
+        metadata.setdefault("seeded_entities", []).append({
+            "hunk": 0, "addr": 6, "type": "data", "name": "existingArrayWord",
+            "seed_origin": "manual_analysis", "review_status": "seeded",
+            "citation": "Independent interior WORD label, not a code entry"})
     if pointer_rows:
         metadata.setdefault("seeded_entities", []).append({
             "hunk": 0, "addr": 32, "end": 40, "type": "data", "unit": "long", "name": "existingRecord",

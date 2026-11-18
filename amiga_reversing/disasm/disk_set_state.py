@@ -672,6 +672,20 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None, source
                 raise ValueError(
                     "layout description must match the inspected member layout"
                 )
+        if (
+            kind == "set_manual_data_block_element"
+            and payload["data_block_element"]["kind"] == "array"
+            and any(
+                (body.get("parameters") or {}).get(key) is not None
+                for key in (
+                    "binding_kind", "type_id", "domain_id", "type_binding_id",
+                    "type_binding", "reference_interpretation",
+                )
+            )
+        ):
+            # The generic set operation does not bind types; refuse rather than
+            # silently discard a requested record/pointer interpretation.
+            raise ValueError("scoped scalar arrays do not accept typed/reference bindings")
         if kind in {
             "set_manual_data_block_element",
             "interpret_manual_data_block_element_ref",
@@ -760,6 +774,20 @@ def _validate_member_data_action(owner, member, rows, kind, payload, source, art
             "data action must match the inspected member layout and exact span"
         )
     if kind == "set_manual_data_block_element":
+        if value["kind"] == "array":
+            from amiga_reversing.disasm.target_metadata import (
+                validate_scalar_data_array_owner,
+            )
+
+            validate_scalar_data_array_owner(value, layout)
+            # A shape-preserving update must not silently drop an existing name
+            # or scalar representation. Typed/reference owners were refused above.
+            for prior in layout.get("elements", ()):
+                if prior.get("offset") == value["offset"]:
+                    for field in ("name", "representation"):
+                        if prior.get(field) is not None:
+                            value.setdefault(field, prior[field])
+            return
         if value["kind"] != "scalar" or value["width"] not in {1, 2, 4}:
             raise ValueError(
                 "scoped data elements currently require byte/word/long scalars"

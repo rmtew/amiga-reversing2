@@ -1845,7 +1845,13 @@ def _range_data_block_element_action(
 ) -> dict[str, object]:
     eligible = [row for row in rows if _row_allows_data_seed(row)]
     action = _context_log_action(action_id, label, ui_action, context, defaults, parameter_schema)
-    subranges = _contiguous_subranges(eligible)
+    # One data element owns bytes, including across zero-width label rows.
+    # Never join different sections or independently owned layouts.
+    subranges = (
+        _contiguous_data_layout_subranges(eligible, same_layout=True)
+        if ui_action == "set_manual_data_block_element"
+        else _contiguous_subranges(eligible)
+    )
     if len(eligible) == len(rows):
         action["range_availability"] = "applicable"
         action["availability_reason"] = f"Applies to all {len(rows)} selected rows."
@@ -1908,17 +1914,27 @@ def _range_is_existing_data_block_layout(
     return start == _int_field(rows[0], "start_offset", fallback="addr") and end == _optional_int(rows[-1].get("end_offset"))
 
 
-def _contiguous_data_layout_subranges(rows: Sequence[Mapping[str, object]]) -> list[dict[str, object]]:
+def _contiguous_data_layout_subranges(
+    rows: Sequence[Mapping[str, object]], *, same_layout: bool = False,
+) -> list[dict[str, object]]:
     """Group selected data rows by adjoining byte spans, ignoring label rows."""
     if not rows:
         return []
-    ordered = sorted(rows, key=lambda row: _int_field(row, "start_offset", fallback="addr"))
+    ordered = sorted(rows, key=lambda row: (
+        _int_field(row, "section_index", default=0),
+        _int_field(row, "start_offset", fallback="addr"),
+    ))
     groups: list[list[Mapping[str, object]]] = [[ordered[0]]]
     for row in ordered[1:]:
         previous = groups[-1][-1]
         previous_end = _optional_int(previous.get("end_offset"))
         start = _int_field(row, "start_offset", fallback="addr")
-        if previous_end == start:
+        section_matches = _int_field(previous, "section_index", default=0) == _int_field(row, "section_index", default=0)
+        owner_matches = not same_layout or (
+            _active_data_block_layout(previous) is not None
+            and _active_data_block_layout(previous) == _active_data_block_layout(row)
+        )
+        if previous_end == start and section_matches and owner_matches:
             groups[-1].append(row)
         else:
             groups.append([row])

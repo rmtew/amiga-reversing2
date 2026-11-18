@@ -1603,6 +1603,57 @@ def validate_base_displacement_range(ref: Mapping[str, object], *, source_hunk: 
         raise ValueError("base_displacement_range does not accept runtime_address")
 
 
+def validate_scalar_data_array(element: Mapping[str, object]) -> None:
+    """Validate a packed scalar array, without inferring pointer/record semantics.
+
+    This is the positive contract for scoped ARRAY admission, not a replacement
+    for member, source ownership, revision or generic data-block validation.
+    Bound every operand before multiplication to match native uint32 extents.
+    """
+    if element.get("kind") != "array":
+        raise ValueError("scalar array requires array kind")
+    offset, width, count, stride = (element.get(k) for k in
+                                    ("offset", "width", "array_count", "array_stride"))
+    if any(type(v) is not int for v in (offset, width, count, stride)):
+        raise ValueError("scalar array requires integer offset, width, count and stride")
+    if not 0 <= offset <= 0xFFFFFFFF or not 0 < width <= 0xFFFFFFFF - offset:
+        raise ValueError("scalar array requires a bounded uint32 span")
+    if not 0 < count <= 0xFFFFFFFF or stride not in {1, 2, 4}:
+        raise ValueError("scalar array requires a positive uint32 count and byte/word/long stride")
+    if count > width // stride or count * stride != width:
+        raise ValueError("scalar array count times stride must equal its full byte extent")
+    if element.get("type_binding") or element.get("reference_interpretation"):
+        raise ValueError("scoped scalar array cannot replace a typed or reference contract")
+
+
+def validate_scalar_data_array_owner(element: Mapping[str, object], layout: Mapping[str, object]) -> None:
+    """Keep explicit leaf contracts when adding a scalar-array representation."""
+    validate_scalar_data_array(element)
+    start, end = layout.get("source_start"), layout.get("source_end")
+    offset, width = element["offset"], element["width"]
+    if type(start) is not int or type(end) is not int or not 0 <= start < end <= 0xFFFFFFFF:
+        raise ValueError("scalar array requires a bounded owner layout")
+    if offset + width > end - start:
+        raise ValueError("scalar array falls outside its owner layout")
+    if layout.get("pointer_table"):
+        raise ValueError("scalar array overlaps an existing pointer-table contract")
+    prior_elements = layout.get("elements", ())
+    if not isinstance(prior_elements, list | tuple):
+        raise ValueError("scalar array requires valid existing owner elements")
+    for prior in prior_elements:
+        if not isinstance(prior, Mapping):
+            raise ValueError("scalar array requires valid existing owner elements")
+        lo, size = prior.get("offset"), prior.get("width")
+        if type(lo) is not int or type(size) is not int:
+            raise ValueError("scalar array has an invalid existing owner element")
+        if lo >= offset + width or lo + size <= offset:
+            continue
+        identical_shape = all(prior.get(k) == element.get(k) for k in
+                              ("kind", "offset", "width", "array_count", "array_stride"))
+        if not identical_shape or prior.get("type_binding") or prior.get("reference_interpretation"):
+            raise ValueError("scalar array overlaps an existing element contract")
+
+
 def validate_base_displacement_owner(
     ref: Mapping[str, object], element: Mapping[str, object], *, defer_struct_leaf: bool = False,
 ) -> None:
