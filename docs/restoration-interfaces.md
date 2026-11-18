@@ -947,6 +947,15 @@ evidence. The final NUL belongs to the complete selected string, not every
 presentation fragment. Other encodings, unterminated selections and typed-field
 replacement are outside this narrow command. Existing revision, journal, build and media gates apply.
 
+In the native presentation, an authored ASCII span also takes precedence over
+overlapping weak imported opaque BYTE classifications. Only its exact extent is
+subtracted from those provisional footprints; uncovered bytes and authoritative
+metadata remain unchanged. Named, commented, validated, typed or evidence-owned
+facts are not eligible for that subtraction. Explicit interior source labels
+and comments split the rendered text without inventing extra NUL bytes, and
+undo/redo restores the corresponding projection. Imported string guesses alone
+do not acquire authored precedence.
+
 Disk-set members support the same `interpret_batch` operation for these scoped
 catalog actions, plus `comment.edit` and `label.rename`. Put `member_id`, `media_paths`
 and `expected_revision` on the outer request only; entries cannot override them.

@@ -8021,12 +8021,12 @@ static int metadata_project_compatible_scalar_precedence_local(M68kAnalysisPolic
   return 1;
 }
 
-/* Opaque imported classifications have no scalar contract to contradict an
- * authored scalar extent. Subtract that extent only in the native projection;
+/* Opaque imported classifications have no scalar or text contract to contradict
+ * an authored extent. Subtract that extent only in the native projection;
  * retain every uncovered fragment and the unchanged authoritative input fact.
  * Labels/comments are projected independently. Named, commented, validated or
  * evidence-owned items are never tagged LEGACY_OPAQUE by the parser. */
-static int metadata_project_scalar_opaque_precedence_local(M68kAnalysisPolicy *policy) {
+static int metadata_project_authored_opaque_precedence_local(M68kAnalysisPolicy *policy) {
   size_t count = policy->structured_data_item_count;
   MetadataPrefixWindowLocal *spans;
   if (!count) return 1;
@@ -8043,7 +8043,8 @@ static int metadata_project_scalar_opaque_precedence_local(M68kAnalysisPolicy *p
       const M68kAnalysisStructuredDataItem *owner = &policy->structured_data_items[j];
       uint64_t owner_end = (uint64_t)owner->offset + owner->size;
       if ((owner->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_SCALAR &&
-           owner->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_SCALAR_SEQUENCE) ||
+           owner->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_SCALAR_SEQUENCE &&
+           owner->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_TEXT) ||
           owner->has_section_index != original.has_section_index ||
           owner->section_index != original.section_index || !owner->size || owner_end > UINT32_MAX ||
           owner->offset >= end || original.offset >= owner_end) continue;
@@ -9758,7 +9759,7 @@ static int append_metadata_generic_policy_text_local(const char *text, M68kAnaly
   }
   if (!metadata_project_compatible_scalar_precedence_local(policy) ||
       !metadata_project_prefix_precedence_local(policy) ||
-      !metadata_project_scalar_opaque_precedence_local(policy)) {
+      !metadata_project_authored_opaque_precedence_local(policy)) {
     platform_file_add_error(diagnostics.list, "failed allocating native data precedence projection");
     return -1;
   }

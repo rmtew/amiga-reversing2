@@ -4505,8 +4505,22 @@ static void render_asm_dc_b_string_with_labels(M68kRenderIRPreview *preview, con
     if (cursor != 0U && render_plan_should_emit_data_label_statement(preview, section, offset + cursor)) {
       render_asm_label(preview, lookup, section->section_index, offset + cursor, io_logical_pc);
     }
+    if (cursor != 0U) {
+      render_asm_policy_entry_comments(preview, lookup->policy, section->section_index, offset + cursor);
+      render_asm_comment_line(preview, lookup_instruction_comment(lookup, section->section_index, offset + cursor));
+    }
+    if (lookup->policy != NULL) {
+      uint16_t index;
+      for (index = 0U; index < lookup->policy->entry_comment_count && index < M68K_ANALYSIS_ENTRY_COMMENT_LIMIT; ++index) {
+        const M68kAnalysisEntryComment *entry = &lookup->policy->entry_comments[index];
+        if ((!entry->has_section_index || entry->section_index == section->section_index) && entry->comment[0] &&
+            entry->offset > offset + cursor && entry->offset - offset - cursor < chunk_size)
+          chunk_size = entry->offset - offset - cursor;
+      }
+    }
     for (probe = 1U; probe < chunk_size; ++probe) {
-      if (render_plan_should_emit_data_label_statement(preview, section, offset + cursor + probe)) {
+      if (render_plan_should_emit_data_label_statement(preview, section, offset + cursor + probe) ||
+          lookup_instruction_comment(lookup, section->section_index, offset + cursor + probe) != NULL) {
         chunk_size = probe;
         break;
       }
@@ -9185,10 +9199,13 @@ int lookup_has_renderable_label(const M68kRenderLookup *lookup, size_t section_i
      * Automatically expanded field names still follow their existing policy. */
     if (lookup->policy != NULL &&
         (covering_item->size > 4U ||
+         covering_item->metadata_precedence == M68K_METADATA_PRECEDENCE_DECLARED_TEXT ||
          covering_item->metadata_precedence == M68K_METADATA_PRECEDENCE_LEGACY_OPAQUE) &&
         (covering_item->kind == M68K_ANALYSIS_STRUCTURED_DATA_BYTES ||
          covering_item->kind == M68K_ANALYSIS_STRUCTURED_DATA_WORDS ||
-         covering_item->kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS)) {
+         covering_item->kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS ||
+         (covering_item->kind == M68K_ANALYSIS_STRUCTURED_DATA_STRING &&
+          covering_item->metadata_precedence == M68K_METADATA_PRECEDENCE_DECLARED_TEXT))) {
       uint16_t index;
       for (index = 0U; index < lookup->policy->named_label_count && index < M68K_ANALYSIS_NAMED_LABEL_LIMIT; ++index) {
         const M68kAnalysisNamedLabel *label = &lookup->policy->named_labels[index];

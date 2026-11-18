@@ -396,3 +396,251 @@ def test_out_of_range_section_still_fails_existing_source_validation(tmp_path):
     with pytest.raises(RuntimeError, match="hunk is out of range"):
         policy(source, tmp_path)
     assert path.read_bytes() == before
+
+
+def text_fixture(tmp_path, *, protection=None, keep_interior=True, authored=True):
+    source, raw, legacy = fixture(tmp_path, arrays=(), protection=protection)
+    raw = raw[:8] + b"Hello!!\0" + raw[16:]
+    source.path.write_bytes(raw)
+    path = tmp_path / "target_metadata.json"
+    meta = json.loads(path.read_text())
+    if not keep_interior:
+        meta["seeded_entities"] = [
+            e for e in meta["seeded_entities"] if e["addr"] != 10
+        ]
+        meta["entry_comments"] = [e for e in meta["entry_comments"] if e["addr"] != 10]
+    if authored:
+        action = {
+            "record": "manual_action",
+            "action_id": "text",
+            "sequence": 0,
+            "created_at": "2026-11-18T00:00:00+00:00",
+            "kind": "create_manual_seed",
+            "seed": {
+                "seed_id": "text",
+                "kind": "data",
+                "mode": "required",
+                "hunk": 0,
+                "addr": 8,
+                "end": 16,
+                "data_role": "string",
+                "unit": "byte",
+                "encoding": "ascii",
+            },
+        }
+        (tmp_path / MANUAL_ACTION_LOG_FILE_NAME).write_text(
+            json.dumps(
+                {
+                    "record": "manual_action_log_header",
+                    "version": 1,
+                    "target_identity": {},
+                }
+            )
+            + "\n"
+            + json.dumps(action)
+            + "\n"
+        )
+    else:
+        meta["seeded_entities"].append(
+            {
+                "hunk": 0,
+                "addr": 8,
+                "end": 16,
+                "type": "data",
+                "subtype": "string",
+                "unit": "byte",
+                "encoding": "ascii",
+                "seed_origin": "manual_analysis",
+                "review_status": "seeded",
+                "source_id": "fixture-import",
+                "citation": "Inherited string guess",
+            }
+        )
+    path.write_text(json.dumps(meta))
+    return source, raw, legacy
+
+
+def test_authored_text_subtracts_only_weak_opaque_extent_and_renders(tmp_path):
+    source, raw, legacy = text_fixture(tmp_path, keep_interior=False)
+    paths = [tmp_path / "target_metadata.json", tmp_path / MANUAL_ACTION_LOG_FILE_NAME]
+    before = [p.read_bytes() for p in paths]
+    assert sorted(
+        (i["offset"], i["size"])
+        for i in policy(source, tmp_path)
+        if i.get("semantic_role") == "opaque_data" and i["size"]
+    ) == [(4, 4), (16, 4)]
+    with effective_metadata_file(tmp_path) as path:
+        text = c_backend.render_project_source_with_c_backend(
+            source, metadata_path=path, project_root=PROJECT_ROOT
+        )
+    assert '\tdc.b "Hello!!",$00' in text
+    assert "opaqueStart:" in text and "opaqueInterior:" in text
+    assert "Keep prefix annotation" in text and "Keep suffix annotation" in text
+    rebuilt, _ = c_backend.assemble_platform_source_text_with_c_backend(
+        "amiga-raw", text, project_root=PROJECT_ROOT
+    )
+    assert rebuilt == raw and source.path.read_bytes() == raw
+    assert [p.read_bytes() for p in paths] == before
+    assert any(
+        e.addr == legacy["addr"]
+        and e.end == legacy["end"]
+        and e.source_id == "fixture-import"
+        for e in effective_target_metadata(tmp_path).seeded_entities
+    )
+
+
+@pytest.mark.parametrize(
+    "protection",
+    [
+        "comment",
+        "named",
+        "manual",
+        "validated",
+        "evidence",
+        "owner",
+        "parents",
+        "string",
+        "typed",
+    ],
+)
+def test_authored_text_does_not_remove_independent_opaque_contract(
+    tmp_path, protection
+):
+    source, _, _ = text_fixture(tmp_path, protection=protection)
+    assert any(i["offset"] == 4 and i["size"] == 16 for i in policy(source, tmp_path))
+
+
+def test_inherited_text_does_not_gain_authored_opaque_precedence(tmp_path):
+    source, _, _ = text_fixture(tmp_path, authored=False)
+    assert any(i["offset"] == 4 and i["size"] == 16 for i in policy(source, tmp_path))
+
+
+@pytest.mark.parametrize("keep_label", [True, False])
+def test_text_precedence_keeps_interior_anchors_and_comment_exact(tmp_path, keep_label):
+    source, raw, _ = text_fixture(tmp_path)
+    if not keep_label:
+        metadata_path = tmp_path / "target_metadata.json"
+        meta = json.loads(metadata_path.read_text())
+        meta["seeded_entities"] = [
+            e for e in meta["seeded_entities"] if e["addr"] != 10
+        ]
+        metadata_path.write_text(json.dumps(meta))
+    with effective_metadata_file(tmp_path) as path:
+        text = c_backend.render_project_source_with_c_backend(
+            source, metadata_path=path, project_root=PROJECT_ROOT
+        )
+    assert ("arrayInterior:" in text) == keep_label
+    assert "Keep this interior annotation" in text
+    rebuilt, _ = c_backend.assemble_platform_source_text_with_c_backend(
+        "amiga-raw", text, project_root=PROJECT_ROOT
+    )
+    assert rebuilt == raw
+
+
+def test_text_undo_redo_restores_opaque_projection_and_keeps_history(tmp_path):
+    source, _, _ = text_fixture(tmp_path)
+    initial = policy(source, tmp_path)
+    journal = tmp_path / MANUAL_ACTION_LOG_FILE_NAME
+    prefix = journal.read_bytes()
+    rows = [json.loads(line) for line in journal.read_text().splitlines()]
+    for seq, (kind, relation) in enumerate(
+        [
+            ("undo_action", "undoes_action_id"),
+            ("redo_action", "redoes_action_id"),
+        ],
+        1,
+    ):
+        rows.append(
+            dict(
+                record="manual_action",
+                action_id=f"text-{seq}",
+                sequence=seq,
+                created_at="2026-11-18T00:00:00+00:00",
+                kind=kind,
+                **{relation: "text"},
+            )
+        )
+        journal.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+        if kind == "undo_action":
+            assert any(
+                i["offset"] == 4 and i["size"] == 16 for i in policy(source, tmp_path)
+            )
+        else:
+            assert policy(source, tmp_path) == initial
+    assert journal.read_bytes().startswith(prefix)
+
+
+def test_authored_text_merges_projection_over_multiple_weak_fragments(tmp_path):
+    source, raw, legacy = text_fixture(tmp_path, keep_interior=False)
+    path = tmp_path / "target_metadata.json"
+    meta = json.loads(path.read_text())
+    meta["seeded_entities"].remove(legacy)
+    meta["seeded_entities"].extend(
+        {**legacy, "addr": lo, "end": hi} for lo, hi in [(4, 10), (10, 12), (12, 20)]
+    )
+    path.write_text(json.dumps(meta))
+    assert sorted(
+        (i["offset"], i["size"])
+        for i in policy(source, tmp_path)
+        if i.get("semantic_role") == "opaque_data" and i["size"]
+    ) == [(4, 4), (16, 4)]
+    with effective_metadata_file(tmp_path) as path:
+        text = c_backend.render_project_source_with_c_backend(
+            source, metadata_path=path, project_root=PROJECT_ROOT
+        )
+    assert '\tdc.b "Hello!!",$00' in text
+    rebuilt, _ = c_backend.assemble_platform_source_text_with_c_backend(
+        "amiga-raw", text, project_root=PROJECT_ROOT
+    )
+    assert rebuilt == raw
+
+
+def test_adjacent_authored_strings_preserve_distinct_nuls_and_opaque_remainders(
+    tmp_path,
+):
+    source, raw, _ = text_fixture(tmp_path, keep_interior=False)
+    raw = raw[:8] + b"Hi!\0Yo!\0" + raw[16:]
+    source.path.write_bytes(raw)
+    journal = tmp_path / MANUAL_ACTION_LOG_FILE_NAME
+    header, first = [json.loads(line) for line in journal.read_text().splitlines()]
+    first["seed"]["end"] = 12
+    second = {
+        **first,
+        "action_id": "text2",
+        "sequence": 1,
+        "seed": {**first["seed"], "seed_id": "text2", "addr": 12, "end": 16},
+    }
+    journal.write_text(
+        json.dumps(header) + "\n" + json.dumps(first) + "\n" + json.dumps(second) + "\n"
+    )
+    assert sorted(
+        (i["offset"], i["size"])
+        for i in policy(source, tmp_path)
+        if i.get("semantic_role") == "opaque_data" and i["size"]
+    ) == [(4, 4), (16, 4)]
+    with effective_metadata_file(tmp_path) as path:
+        text = c_backend.render_project_source_with_c_backend(
+            source, metadata_path=path, project_root=PROJECT_ROOT
+        )
+    assert '\tdc.b "Hi!",$00' in text and '\tdc.b "Yo!",$00' in text
+    rebuilt, _ = c_backend.assemble_platform_source_text_with_c_backend(
+        "amiga-raw", text, project_root=PROJECT_ROOT
+    )
+    assert rebuilt == raw
+
+
+def test_text_precedence_retains_separate_contradictory_typed_fact(tmp_path):
+    source, raw, _ = text_fixture(tmp_path, protection="contradictory")
+    assert any(
+        i["offset"] == 12 and i["size"] == 4 and i.get("label") == "strongLong"
+        for i in policy(source, tmp_path)
+    )
+    with effective_metadata_file(tmp_path) as path:
+        text = c_backend.render_project_source_with_c_backend(
+            source, metadata_path=path, project_root=PROJECT_ROOT
+        )
+    assert "strongLong:" in text
+    rebuilt, _ = c_backend.assemble_platform_source_text_with_c_backend(
+        "amiga-raw", text, project_root=PROJECT_ROOT
+    )
+    assert rebuilt == raw
