@@ -2686,6 +2686,13 @@ def _apply_manual_seed_projection(
     for struct in custom_struct_projections:
         custom_struct = _manual_custom_struct_to_metadata(struct)
         if custom_struct is not None:
+            if struct.get("bounded_record_declaration"):
+                from .record_arrays import record_shape
+                prior = next((s for s in custom_structs if s.name == custom_struct.name), None)
+                if prior is not None:
+                    if record_shape(prior) != record_shape(custom_struct):
+                        raise ValueError("record declaration conflicts with existing custom type")
+                    continue  # Reuse the original type, including its provenance.
             custom_structs.append(custom_struct)
     removed_custom_struct_field_keys = {
         removed_field_key
@@ -2790,6 +2797,13 @@ def _apply_manual_seed_projection(
     typed_entities_by_element = {}
     for layout in effective_data_block_layouts:
         for element in layout.elements:
+            binding = element.type_binding or {}
+            if binding.get("record_contract") is not None:
+                from .record_arrays import record_shape, validate_record_array
+                record = merged_custom_structs.get(binding.get("bound_type_id"))
+                if record is None or record_shape(record) != binding["record_contract"]:
+                    raise ValueError("record binding lost or changed its declared custom type")
+                validate_record_array(asdict(element), record, asdict(layout))
             compact = _data_block_compact_struct_array_entity(
                 layout, element, merged_custom_structs, manual_representations, target_equates,
             )

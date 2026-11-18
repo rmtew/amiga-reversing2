@@ -518,7 +518,7 @@ def _inspect_member_data_range(owner, member, body, artifact):
         row.get("active_data_block_layout", {}).get("layout_id") for row in selected
     }
     if len(layout_ids) == 1 and None not in layout_ids:
-        supported.add("range.data_block.element.set")
+        supported.update({"range.data_block.element.set", "range.data_block.records.declare"})
     return {
         "context": context,
         "rows": rows,
@@ -797,7 +797,25 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None, source
             raise ValueError(
                 "scoped string seed requires one complete NUL-terminated ASCII span"
             )
+    from .disk_set import file_at
     for kind, payload in actions:
+        if kind == "declare_manual_record_array":
+            from .record_arrays import record_shape, validate_record_array
+            selected = inspected.get("selection_rows", rows)
+            layout = selected[0].get("active_data_block_layout")
+            element, record = payload["data_block_element"], payload["custom_struct"]
+            if (command != "range.data_block.records.declare" or not layout
+                    or element["layout_id"] != layout["layout_id"]
+                    or not bias <= layout["source_start"] < layout["source_end"] <= bias + owner.members[member]["size"]
+                    or element["offset"] != selected[0]["start_offset"] - layout["source_start"]
+                    or element["width"] != selected[-1]["end_offset"] - selected[0]["start_offset"]):
+                raise ValueError("record declaration must match the exact inspected member owner and span")
+            validate_record_array(element, record, layout)
+            metadata = json.loads(file_at(owner.root,
+                owner.members[analysis_member]["analysis"]["metadata"]["path"]).read_bytes())
+            for prior in metadata.get("custom_structs", ()):
+                if prior["name"] == record["name"] and record_shape(prior) != record_shape(record):
+                    raise ValueError("record declaration conflicts with an existing custom type")
         if kind == "suppress_seeded_item":
             layout = rows[0].get("active_data_block_layout")
             expected = (

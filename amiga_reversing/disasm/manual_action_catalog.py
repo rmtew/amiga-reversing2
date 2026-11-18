@@ -1277,6 +1277,37 @@ def listing_range_catalog_manual_payload(
             ("create_manual_data_block_layout", {"data_block_layout": _data_block_layout_payload(subrange_rows, params)})
             for subrange_rows in _range_action_subrange_rows(action, rows_list)
         ]
+    if action.get("action") == "declare_manual_record_array":
+        subranges = _range_action_subrange_rows(action, rows_list)
+        if len(subranges) != 1:
+            raise ValueError("record declaration requires one contiguous existing data owner")
+        selected = subranges[0]
+        allowed = {"record_type", "record_size", "record_count", "record_stride", "fields"}
+        if set(user_params) - allowed:
+            raise ValueError("record declaration accepts only an explicit type, shape and scalar fields")
+        if not isinstance(params.get("fields"), list | tuple) or any(
+            not isinstance(f, Mapping) or set(f) - {"name", "type", "offset", "size"}
+            for f in params["fields"]
+        ):
+            raise ValueError("record declaration requires flat primitive field definitions")
+        context = _data_block_element_context(selected)
+        owner = _active_data_block_layout(selected[0])
+        if owner is None:
+            raise ValueError("record declaration requires an existing bounded data owner")
+        context.update(offset=selected[0]["start_offset"] - owner["source_start"],
+                       width=selected[-1]["end_offset"] - selected[0]["start_offset"])
+        record = _custom_struct_payload({"name": params.get("record_type"),
+            "size": params.get("record_size"), "fields": params.get("fields")})
+        from .record_arrays import record_shape, validate_record_array
+        record = record_shape(record)
+        element = _data_block_element_type_binding_payload(selected, {
+            **context, "kind": "array", "array_count": params.get("record_count"),
+            "array_stride": params.get("record_stride"), "binding_kind": "custom_struct",
+            "type_id": record["name"]})
+        element["type_binding"]["record_contract"] = record
+        validate_record_array(element, record, owner)
+        return [("declare_manual_record_array", {
+            "custom_struct": record, "data_block_element": element})]
     if action.get("action") == "set_manual_data_block_element":
         return [
             (
@@ -1805,6 +1836,23 @@ def _range_data_block_element_actions(
     defaults = _data_block_element_context(rows)
     return [
         _range_data_block_element_action(
+            "range.data_block.records.declare", "Declare bounded record array",
+            "declare_manual_record_array", context, rows, defaults,
+            {"type": "object", "properties": {
+                "record_type": {"type": "string"},
+                "record_size": {"type": "integer", "minimum": 1},
+                "record_count": {"type": "integer", "minimum": 1},
+                "record_stride": {"type": "integer", "minimum": 1},
+                "fields": {"type": "array", "minItems": 1, "items": {
+                    "type": "object", "properties": {
+                        "name": {"type": "string"}, "type": {"type": "string"},
+                        "offset": {"type": "integer", "minimum": 0},
+                        "size": {"type": "integer", "minimum": 1}},
+                    "required": ["name", "type", "offset", "size"],
+                    "additionalProperties": False}}},
+             "required": ["record_type", "record_size", "record_count", "record_stride", "fields"],
+             "additionalProperties": False}),
+        _range_data_block_element_action(
             "range.data_block.element.set",
             "Set data-block element",
             "set_manual_data_block_element",
@@ -1849,7 +1897,7 @@ def _range_data_block_element_action(
     # Never join different sections or independently owned layouts.
     subranges = (
         _contiguous_data_layout_subranges(eligible, same_layout=True)
-        if ui_action == "set_manual_data_block_element"
+        if ui_action in {"set_manual_data_block_element", "declare_manual_record_array"}
         else _contiguous_subranges(eligible)
     )
     if len(eligible) == len(rows):
@@ -1861,6 +1909,13 @@ def _range_data_block_element_action(
     else:
         action["range_availability"] = "unavailable"
         action["availability_reason"] = "No selected rows match this action."
+        action["enabled"] = False
+    if ui_action == "declare_manual_record_array" and (
+        len(subranges) != 1 or len(eligible) != len(rows)
+        or not eligible or _active_data_block_layout(eligible[0]) is None
+    ):
+        action["range_availability"] = "unavailable"
+        action["availability_reason"] = "Record declaration requires one complete selection inside an existing data owner."
         action["enabled"] = False
     action["applicable_subranges"] = subranges
     action["row_reasons"] = _row_eligibility_reasons(rows, eligible)

@@ -880,6 +880,24 @@ unsupported by this scoped path; they are not inferred from numeric resemblance.
 Layout and scalar actions retain the existing Manual Action representations and
 validators.
 
+`range.data_block.records.declare` binds a bounded fixed-stride record array
+inside one existing member-owned layout. Supply `record_type`, `record_size`,
+`record_count`, `record_stride`, and explicit `fields` (`name`, `type`, `offset`,
+`size`). The initial contract accepts flat BYTE/UBYTE, WORD/UWORD and LONG/ULONG
+fields; the stride must equal the record size and count × stride must equal the
+entire inspected span. Unknown gaps remain raw bytes. Nested, inherited,
+pointer-bearing and padded-stride records require their existing richer paths;
+they are not inferred here. Multibyte fields require even coordinates.
+
+The declaration reuses the existing shared custom type and bound ARRAY rendering
+path. One journal action owns the type declaration and binding together, so
+review, replay and undo retain their relationship. Identical existing types keep
+their provenance; conflicting types and overlapping element contracts fail.
+The bound shape is checked again on replay. Member identity, revision, ownership,
+source evidence and native admission checks still apply, including through a
+shared member view. This is declaration-driven rendering, not automatic record
+inference or code-entry admission.
+
 The data-role catalog also exposes `range.seed.data.opaque_data`. Scoped Restore
 accepts this only for an inspected, bounded native data span, with byte seeds
 that exactly partition that selection and do not overlap a typed layout. It

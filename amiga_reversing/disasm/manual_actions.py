@@ -182,6 +182,7 @@ class ManualActionKind(StrEnum):
     EDIT_MANUAL_DATA_BLOCK_LAYOUT = "edit_manual_data_block_layout"
     RESIZE_MANUAL_DATA_BLOCK_LAYOUT = "resize_manual_data_block_layout"
     REMOVE_MANUAL_DATA_BLOCK_LAYOUT = "remove_manual_data_block_layout"
+    DECLARE_MANUAL_RECORD_ARRAY = "declare_manual_record_array"
     SET_MANUAL_DATA_BLOCK_ELEMENT = "set_manual_data_block_element"
     RENAME_MANUAL_DATA_BLOCK_ELEMENTS = "rename_manual_data_block_elements"
     REMOVE_MANUAL_DATA_BLOCK_ELEMENT = "remove_manual_data_block_element"
@@ -2175,6 +2176,28 @@ def _project_actions(
                 raise ValueError("target_equate requires name")
             target_equates.pop(removed_target_equate_name, None)
             removed_target_equates[removed_target_equate_name] = equate
+        elif action.kind is ManualActionKind.DECLARE_MANUAL_RECORD_ARRAY:
+            from .record_arrays import record_shape, validate_record_array
+            record = dict(_action_object(action, "custom_struct"))
+            element = _validated_data_block_element(
+                _action_object(action, "data_block_element"), data_block_layouts)
+            layout = {**data_block_layouts[element["layout_id"]], "elements": [
+                value for (lid, _), value in data_block_elements.items()
+                if lid == element["layout_id"]]}
+            validate_record_array(element, record, layout)
+            prior = custom_structs.get(record["name"])
+            if prior is not None:
+                if record_shape(prior) != record_shape(record):
+                    raise ValueError("record declaration conflicts with an existing custom type")
+            else:
+                record.update(bounded_record_declaration=True, custom_struct_id=action.action_id)
+                _put_by_id(custom_structs, record, "name")
+            removed_custom_structs.pop(record["name"], None)
+            element = dict(element)
+            element["type_binding"] = {**element["type_binding"], "owner_action_id": action.action_id}
+            key = _data_block_element_key(element)
+            removed_data_block_elements.pop(key, None)
+            data_block_elements[key] = element
         elif action.kind is ManualActionKind.CREATE_MANUAL_CUSTOM_STRUCT:
             custom_struct = _action_object(action, "custom_struct")
             _put_by_id(custom_structs, custom_struct, "name")
@@ -2764,6 +2787,7 @@ _POLICY_STORAGE_ACTION_KINDS = frozenset({
     ManualActionKind.RENAME_DATA_SYMBOL, ManualActionKind.SUPPRESS_SEEDED_ITEM,
     ManualActionKind.CREATE_MANUAL_LABEL, ManualActionKind.REMOVE_MANUAL_LABEL,
     ManualActionKind.RENAME_MANUAL_LABEL, ManualActionKind.CHANGE_LABEL_SCOPE,
+    ManualActionKind.DECLARE_MANUAL_RECORD_ARRAY,
     ManualActionKind.CREATE_MANUAL_CUSTOM_STRUCT, ManualActionKind.RENAME_MANUAL_CUSTOM_STRUCT,
     ManualActionKind.REMOVE_MANUAL_CUSTOM_STRUCT, ManualActionKind.CREATE_MANUAL_CUSTOM_STRUCT_FIELD,
     ManualActionKind.RENAME_MANUAL_CUSTOM_STRUCT_FIELD, ManualActionKind.REMOVE_MANUAL_CUSTOM_STRUCT_FIELD,
