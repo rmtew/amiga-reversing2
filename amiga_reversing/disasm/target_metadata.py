@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 from typing import TypeGuard, cast
@@ -2559,17 +2559,10 @@ def apply_suppressed_seeded_items(
     if not suppressed_seeded_items:
         return seeded
     suppressed = set(suppressed_seeded_items)
-    return TargetMetadata(
-        target_type=seeded.target_type,
-        source_output_policy=seeded.source_output_policy,
-        entry_register_seeds=seeded.entry_register_seeds,
-        function_summaries=seeded.function_summaries,
-        bootblock=seeded.bootblock,
-        resident=seeded.resident,
-        library=seeded.library,
-        custom_structs=seeded.custom_structs,
-        rsset_layout_regions=seeded.rsset_layout_regions,
-        absolute_storage_slots=seeded.absolute_storage_slots,
+    # Filter only the selected declarations; retain every unrelated metadata
+    # field, including future additions, through the dataclass replacement.
+    return replace(
+        seeded,
         seeded_entities=tuple(
             entity
             for entity in seeded.seeded_entities
@@ -2590,13 +2583,6 @@ def apply_suppressed_seeded_items(
                 suppressed,
             )
         ),
-        entry_comments=seeded.entry_comments,
-        manual_representations=seeded.manual_representations,
-        target_equates=seeded.target_equates,
-        manual_runtime_address_refs=seeded.manual_runtime_address_refs,
-        manual_data_references=seeded.manual_data_references,
-        data_block_layouts=seeded.data_block_layouts,
-        execution_views=seeded.execution_views,
         suppressed_seeded_items=(),
     )
 

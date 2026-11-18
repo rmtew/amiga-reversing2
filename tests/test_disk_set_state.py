@@ -24,6 +24,7 @@ def editable(
     legacy_prefix=False,
     scalar_array=False,
     scalar_tail=False,
+    absolute_alias=False,
 ):
     from amiga_reversing.disasm import restoration, server
 
@@ -73,6 +74,9 @@ def editable(
     project, target, paths, manifest = fixture(tmp_path, **extra)
     metadata_path = target / manifest["members"][0]["analysis"]["metadata"]["path"]
     metadata = json.loads(metadata_path.read_bytes())
+    if absolute_alias:
+        metadata["absolute_code_labels"] = [{"addr": 0x1000, "name": "syntheticRuntimeEntry",
+            "seed_origin": "manual_analysis", "review_status": "seeded", "citation": "Imported runtime identity"}]
     metadata["seeded_code_labels"] = [
         {
             "hunk": 0,

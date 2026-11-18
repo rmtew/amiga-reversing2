@@ -12,7 +12,11 @@ COMMAND = "correction.suppress_seeded_item.seeded_entity"
 
 def prepared(tmp_path, monkeypatch):
     _, target, _, call = editable(
-        tmp_path, monkeypatch, scalar_array=True, scalar_tail="long"
+        tmp_path,
+        monkeypatch,
+        scalar_array=True,
+        scalar_tail="long",
+        absolute_alias=True,
     )
     selected = call("inspect", source_offset=4, end_offset=1032, row_kind="data")
     call(
@@ -48,6 +52,7 @@ def test_explicit_imported_correction_roundtrip_undo_and_redo(tmp_path, monkeypa
     text = (target / "main.s").read_text()
     assert "$0200" in text and "dc.w $0201" in text
     assert "dc.l $02000201" not in text
+    assert "syntheticRuntimeEntry:" in text
     assert (target / "analysis/main.target_metadata.json").read_bytes() == original
     assert any(
         e.get("unit") == "long" and e["addr"] == 1028
