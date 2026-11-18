@@ -25,6 +25,8 @@ def editable(
     scalar_array=False,
     scalar_tail=False,
     absolute_alias=False,
+    record_data=None,
+    record_label=None,
 ):
     from amiga_reversing.disasm import restoration, server
 
@@ -71,9 +73,23 @@ def editable(
         extra = {"main_data": bytes.fromhex("70074e75") + payload + bytes.fromhex("cafe"),
                  "main_text": " SECTION code,code\n ORG $1000\n moveq #7,d0\n rts\n dc.w "
                  + ",".join(f"${n:04X}" for n in range(514)) + ", $cafe\n"}
+    if record_data is not None:
+        assert not extra and isinstance(record_data, bytes) and record_data
+        extra = {"main_data": bytes.fromhex("70074e75") + record_data,
+                 "main_text": " SECTION code,code\n ORG $1000\n moveq #7,d0\n rts\n dc.b "
+                 + ",".join(f"${value:02X}" for value in record_data) + "\n"}
     project, target, paths, manifest = fixture(tmp_path, **extra)
     metadata_path = target / manifest["members"][0]["analysis"]["metadata"]["path"]
     metadata = json.loads(metadata_path.read_bytes())
+    if record_label is not None:
+        assert record_data is not None
+        offset, name = record_label
+        metadata.setdefault("seeded_entities", []).append({
+            "hunk": 0, "addr": offset, "end": offset + 4,
+            "name": name, "type": "data", "unit": "byte", "subtype": "opaque_data",
+            "seed_origin": "manual_analysis", "review_status": "seeded",
+            "citation": "Synthetic pre-existing data anchor, without code admission",
+        })
     if absolute_alias:
         metadata["absolute_code_labels"] = [{"addr": 0x1000, "name": "syntheticRuntimeEntry",
             "seed_origin": "manual_analysis", "review_status": "seeded", "citation": "Imported runtime identity"}]

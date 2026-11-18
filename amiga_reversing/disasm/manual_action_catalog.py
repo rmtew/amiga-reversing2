@@ -1284,22 +1284,25 @@ def listing_range_catalog_manual_payload(
         selected = subranges[0]
         allowed = {"record_type", "record_size", "record_count", "record_stride", "fields"}
         if set(user_params) - allowed:
-            raise ValueError("record declaration accepts only an explicit type, shape and scalar fields")
+            raise ValueError("record declaration accepts only an explicit type, shape and flat fields")
         if not isinstance(params.get("fields"), list | tuple) or any(
-            not isinstance(f, Mapping) or set(f) - {"name", "type", "offset", "size"}
+            not isinstance(f, Mapping) or set(f) - {"name", "type", "offset", "size", "value_kind",
+                    "pointer_address_domain", "pointer_symbol_group"}
             for f in params["fields"]
         ):
-            raise ValueError("record declaration requires flat primitive field definitions")
+            raise ValueError("record declaration requires flat scalar or ABS32 address field definitions")
         context = _data_block_element_context(selected)
         owner = _active_data_block_layout(selected[0])
         if owner is None:
             raise ValueError("record declaration requires an existing bounded data owner")
         context.update(offset=selected[0]["start_offset"] - owner["source_start"],
                        width=selected[-1]["end_offset"] - selected[0]["start_offset"])
-        record = _custom_struct_payload({"name": params.get("record_type"),
-            "size": params.get("record_size"), "fields": params.get("fields")})
         from .record_arrays import record_shape, validate_record_array
-        record = record_shape(record)
+        # Validate the complete field contract before the general type codec
+        # normalizes it; malformed optional semantics must not be dropped.
+        record = record_shape({"name": params.get("record_type"),
+            "size": params.get("record_size"), "fields": params.get("fields")})
+        record = record_shape(_custom_struct_payload(record))
         element = _data_block_element_type_binding_payload(selected, {
             **context, "kind": "array", "array_count": params.get("record_count"),
             "array_stride": params.get("record_stride"), "binding_kind": "custom_struct",
@@ -1847,7 +1850,10 @@ def _range_data_block_element_actions(
                     "type": "object", "properties": {
                         "name": {"type": "string"}, "type": {"type": "string"},
                         "offset": {"type": "integer", "minimum": 0},
-                        "size": {"type": "integer", "minimum": 1}},
+                        "size": {"type": "integer", "minimum": 1},
+                        "value_kind": {"type": "string", "enum": ["scalar", "target_pointer"]},
+                        "pointer_address_domain": {"type": "string", "enum": ["mapped_source", "runtime_only"]},
+                        "pointer_symbol_group": {"type": "string", "minLength": 1, "maxLength": 63}},
                     "required": ["name", "type", "offset", "size"],
                     "additionalProperties": False}}},
              "required": ["record_type", "record_size", "record_count", "record_stride", "fields"],

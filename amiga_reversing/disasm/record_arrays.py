@@ -1,16 +1,26 @@
 """Positive contracts for bounded flat records using existing custom types.
 
 These checks add record admission, not a relaxation of primitive-array or
-member ownership rules. Pointer, inherited and nested records stay outside this
-operation; their richer contracts need their own validated command paths.
+member ownership rules. ABS32 address fields reuse the existing pointer-domain
+contract without a pointee type. Inherited and nested records remain separate.
 """
 
 import re
 from collections.abc import Mapping
 from dataclasses import asdict, is_dataclass
 
+from .pointer_domains import validate_pointer_domain
+
 _UINT32 = 0xFFFFFFFF
-_WIDTHS = {"BYTE": 1, "UBYTE": 1, "WORD": 2, "UWORD": 2, "LONG": 4, "ULONG": 4}
+_WIDTHS = {
+    "BYTE": 1,
+    "UBYTE": 1,
+    "WORD": 2,
+    "UWORD": 2,
+    "LONG": 4,
+    "ULONG": 4,
+    "APTR": 4,
+}
 
 
 def _mapping(value):
@@ -48,7 +58,7 @@ def record_shape(value):
             "bounded record declaration requires a flat non-inherited type"
         )
     if not isinstance(fields, list | tuple) or not fields:
-        raise ValueError("record requires explicit scalar fields")
+        raise ValueError("record requires explicit scalar or ABS32 address fields")
     result, used, cursor = [], set(), 0
     for field in fields:
         field = _mapping(field)
@@ -67,30 +77,51 @@ def record_shape(value):
             raise ValueError(
                 "record fields require matching primitive widths and contained offsets"
             )
+        value_kind = field.get("value_kind", "scalar")
         if (
-            field.get("value_kind", "scalar") != "scalar"
+            not isinstance(value_kind, str)
+            or value_kind not in {"scalar", "target_pointer"}
             or any(
                 field.get(k)
-                for k in (
-                    "struct",
-                    "pointer_struct",
-                    "named_base",
-                    "pointer_address_domain",
-                    "pointer_symbol_group",
-                    "equate_group",
-                )
+                for k in ("struct", "pointer_struct", "named_base", "equate_group")
             )
             or field.get("available_since", "1.0") != "1.0"
         ):
             raise ValueError(
                 "record declaration cannot discard a richer field contract"
             )
+        domain, group = (
+            field.get("pointer_address_domain"),
+            field.get("pointer_symbol_group"),
+        )
+        if value_kind == "target_pointer":
+            if (
+                width != 4
+                or not isinstance(domain, str)
+                or domain not in {"mapped_source", "runtime_only"}
+            ):
+                raise ValueError(
+                    "ABS32 address field requires four bytes and an explicit pointer domain"
+                )
+            validate_pointer_domain(
+                value_kind=value_kind,
+                size=width,
+                address_domain=domain,
+                symbol_group=group,
+            )
+        elif kind.upper() == "APTR" or domain is not None or group is not None:
+            raise ValueError(
+                "address spelling/domain requires an explicit target_pointer field"
+            )
         if fname in used:
             raise ValueError("record fields require unique names")
         used.add(fname)
-        result.append(
-            {"name": fname, "type": kind.upper(), "offset": off, "size": width}
-        )
+        canonical = {"name": fname, "type": kind.upper(), "offset": off, "size": width}
+        if value_kind == "target_pointer":
+            canonical.update(value_kind=value_kind, pointer_address_domain=domain)
+            if group is not None:
+                canonical["pointer_symbol_group"] = group
+        result.append(canonical)
     result.sort(key=lambda f: f["offset"])
     for field in result:
         if field["offset"] < cursor:
@@ -145,7 +176,7 @@ def validate_record_array(element, record, layout):
         or binding.get("layout_id") != element.get("layout_id")
     ):
         raise ValueError(
-            "record array requires its exact custom-type witness and no pointer contract"
+            "record array requires its exact custom-type witness and no separate pointer-table contract"
         )
     for prior in layout.get("elements", ()):
         if not isinstance(prior, Mapping):

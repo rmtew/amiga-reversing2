@@ -883,10 +883,18 @@ validators.
 `range.data_block.records.declare` binds a bounded fixed-stride record array
 inside one existing member-owned layout. Supply `record_type`, `record_size`,
 `record_count`, `record_stride`, and explicit `fields` (`name`, `type`, `offset`,
-`size`). The initial contract accepts flat BYTE/UBYTE, WORD/UWORD and LONG/ULONG
-fields; the stride must equal the record size and count × stride must equal the
+`size`). The contract accepts flat BYTE/UBYTE, WORD/UWORD and LONG/ULONG
+scalar fields. Four-byte LONG/ULONG/APTR address fields additionally require
+`value_kind: target_pointer` and an explicit `pointer_address_domain`:
+`mapped_source`, or `runtime_only` with a `pointer_symbol_group`. These reuse
+the existing ABS32 mapping rules; null, unmapped and ambiguous values remain
+literal. An address field does not declare a pointee, immutability, a closed
+target set or a code entry. Runtime writes retain the existing native write
+barriers; typing storage does not turn its initial bytes into constants.
+
+The stride must equal the record size and count × stride must equal the
 entire inspected span. Unknown gaps remain raw bytes. Nested, inherited,
-pointer-bearing and padded-stride records require their existing richer paths;
+struct-pointer and padded-stride records require their existing richer paths;
 they are not inferred here. Multibyte fields require even coordinates.
 
 The declaration reuses the existing shared custom type and bound ARRAY rendering
