@@ -49,8 +49,13 @@ def audit_native(payload, mapping, *, instruction, references):
             for f in projected["operand_facts"]
         ):
             raise ValueError("native projection dispatch differs")
-        count = instruction(operands["face_count_argument_runtime"])
         for view in entry["geometry"]["views"]:
+            count = instruction(
+                view.get(
+                    "face_count_argument_runtime",
+                    operands["face_count_argument_runtime"],
+                )
+            )
             check_immediate_operand(count, value=view["face_count"] - 1, register="D0")
             refs = [
                 r

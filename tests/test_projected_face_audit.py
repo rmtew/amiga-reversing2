@@ -195,3 +195,97 @@ def test_recipe_rechecks_native_operands_and_does_not_mutate_callbacks():
         audit_native(
             data, mapping, instruction=rows.__getitem__, references=lambda _: refs
         )
+
+
+def test_recipe_checks_each_explicit_branch_count_witness():
+    import hashlib
+
+    from tools.foft_model_audit import audit_native
+
+    data = bytes(16) + face() * 3
+    mapping = {
+        "main_payload_sha256": hashlib.sha256(data).hexdigest(),
+        "load_address": 0x1000,
+        "revision": "branch-fixture",
+        "entries": [
+            {
+                "index": 0,
+                "symbol": "example",
+                "body_protocol_traced": True,
+                "recognized_body": {
+                    "runtime_start": 0x1000,
+                    "runtime_end": 0x1010,
+                    "sha256": hashlib.sha256(data[:16]).hexdigest(),
+                    "projection_max_byte_offset": 20,
+                },
+                "routine_operands": {
+                    "projection_argument_runtime": 0x1000,
+                    "projection_call_runtime": 0x1006,
+                    "projection_reader_runtime": 0x2000,
+                    "face_count_argument_runtime": 0x1002,
+                    "face_reader_runtime": 0x3000,
+                },
+                "geometry": {
+                    "start_runtime": 0x1010,
+                    "end_runtime": 0x102E,
+                    "unique_face_records": 3,
+                    "shared_face_record_runtimes": [],
+                    "views": [
+                        {
+                            **view(start=0x1010, end=0x101A),
+                            "load_runtime": 0x1008,
+                            "call_runtime": 0x100A,
+                        },
+                        {
+                            **view(start=0x101A, end=0x102E, count=2),
+                            "load_runtime": 0x100C,
+                            "call_runtime": 0x100E,
+                            "face_count_argument_runtime": 0x1004,
+                        },
+                    ],
+                },
+            }
+        ],
+    }
+
+    def assignment(value):
+        return {
+            "operand_facts": [
+                {"immediate_value": value},
+                {"direct_register": "D0", "access": "register_write"},
+            ]
+        }
+
+    rows = {
+        0x1000: assignment(20),
+        0x1002: assignment(0),
+        0x1004: assignment(1),
+        0x1006: {
+            "operand_facts": [{"access": "branch_target", "absolute_address": 0x2000}]
+        },
+        0x100A: {
+            "operand_facts": [{"access": "branch_target", "absolute_address": 0x3000}]
+        },
+        0x100E: {
+            "operand_facts": [{"access": "branch_target", "absolute_address": 0x3000}]
+        },
+    }
+
+    def refs(address):
+        return [
+            {
+                "source_offset": address - 0x1000,
+                "operand_index": 0,
+                "target_offset": 16 if address == 0x1008 else 26,
+            }
+        ]
+
+    assert (
+        audit_native(data, mapping, instruction=rows.__getitem__, references=refs)[
+            "physical_face_records"
+        ]
+        == 3
+    )
+    rows[0x1004] = assignment(0)
+    with pytest.raises(ValueError, match="operand"):
+        audit_native(data, mapping, instruction=rows.__getitem__, references=refs)
