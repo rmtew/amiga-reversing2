@@ -181,6 +181,26 @@ def body_work_chain(rows):
             'intent_or_global_alias_closure': False}
 
 
+def glyph_stream_inventory(rows):
+    """Exact direct-transfer/cell inventory, not an indirect effect analysis."""
+    calls = {0x1B0E2: [], 0x1B24C: []}
+    sign_uses = []
+    for row in rows:
+        if row['provenance'] != 'accepted_instruction':
+            raise ValueError('glyph inventory requires accepted instructions')
+        at = row['source_offset'] + 0x800
+        for p in row['operand_facts']:
+            address = p.get('absolute_address')
+            if row['mnemonic'] in ('jsr', 'jmp') and address in calls:
+                calls[address].append({'runtime': at, 'mnemonic': row['mnemonic']})
+            if address == 0x1B2D8:
+                sign_uses.append({'runtime': at, 'access': p['access'], 'width': p['width_bytes']})
+    return {'five_row_draw_transfers': calls[0x1B0E2],
+            'numeric_preparation_calls': calls[0x1B24C],
+            'encoded_sign_cell_uses': sign_uses,
+            'indirect_alias_or_input_range_closure': False}
+
+
 def audit(payload, rows):
     if len(payload) != 489472 or hashlib.sha256(payload).hexdigest() != MAIN_SHA256:
         raise ValueError('main member identity differs')
@@ -228,6 +248,7 @@ def collect(artifact, payload, *, full=False):
                 raise ValueError('frame instruction bytes differ')
         result['frame_inventory'] = frame_inventory(complete)
         result['body_work_chain'] = body_work_chain(complete)
+        result['glyph_stream_inventory'] = glyph_stream_inventory(complete)
     return result
 
 
