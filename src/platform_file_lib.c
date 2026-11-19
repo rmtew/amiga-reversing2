@@ -8100,7 +8100,8 @@ static int metadata_project_prefix_precedence_local(M68kAnalysisPolicy *policy) 
   qsort(texts, text_count, sizeof(*texts), metadata_prefix_key_compare_local);
   for (size_t i = 0U; i < count; ++i) {
     const M68kAnalysisStructuredDataItem *field = &policy->structured_data_items[i];
-    if (field->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_SCALAR) continue;
+    if (field->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_SCALAR &&
+        field->metadata_precedence != M68K_METADATA_PRECEDENCE_DECLARED_RECORD_SCALAR) continue;
     uint32_t boundary = field->offset + field->size;
     size_t found = metadata_prefix_lower_bound_local(texts, text_count, field->section_index, boundary);
     if (found == text_count || texts[found].section != field->section_index || texts[found].offset != boundary) continue;
@@ -8255,6 +8256,18 @@ static int append_metadata_seeded_entity_local(const char *object_start, const c
   else if (manual_citation && manual_source && !strcmp(subtype, "string") &&
       !strcmp(encoding, "ascii") && !strcmp(unit, "byte"))
     precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_DECLARED_TEXT;
+  /* A checked record leaf retains its field metadata and provenance. It can
+   * establish the numeric prefix of an independently declared text boundary,
+   * without treating pointers, gaps or imported records as scalar owners. */
+  else if (manual_citation && manual_source && struct_name[0] && field_name[0] &&
+      !strcmp(field_type, c_type) &&
+      ((!strcmp(unit, "word") && (!strcmp(c_type, "WORD") || !strcmp(c_type, "UWORD"))) ||
+       (!strcmp(unit, "long") && (!strcmp(c_type, "LONG") || !strcmp(c_type, "ULONG")))) &&
+      end - addr == scalar_unit && !(addr & 1U) && !subtype[0] && !encoding[0] &&
+      !pointer_struct[0] && !value_domain[0] && !pointer_domain[0] && !pointer_group[0] &&
+      (!value_kind[0] || !strcmp(value_kind, "scalar")) &&
+      !metadata_field_empty_local(object_start, object_end, "owner_action_id"))
+    precedence_item->metadata_precedence = M68K_METADATA_PRECEDENCE_DECLARED_RECORD_SCALAR;
   else if (!manual_citation && !manual_source && plain && !value_kind[0] &&
       metadata_field_equals_local(object_start, object_end, "review_status", "seeded") &&
       metadata_field_empty_local(object_start, object_end, "owner_action_id") &&

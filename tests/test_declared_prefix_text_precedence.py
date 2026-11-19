@@ -63,12 +63,32 @@ def fixture(tmp_path: Path, *, legacy_role="string", mode="proved"):
             "citation": "manual_action_log:prior-name-or-type"})
     if mode == "imported_text_only":
         metadata["seeded_entities"].append({**legacy, "addr": 6, "citation": "Imported text-boundary guess"})
+    if mode.startswith("record_"):
+        field = dict(hunk=0, addr=4, end=6, type="data", unit="word",
+                     seed_origin="manual_analysis", review_status="seeded",
+                     struct_name="Point", field_name="y", field_type="WORD", c_type="WORD",
+                     source_id="manual_action_log", citation="manual_action_log:record",
+                     owner_action_id="record")
+        if mode == "record_imported":
+            field.update(source_id="imported-analysis", citation="Imported record")
+        if mode == "record_no_owner":
+            field.pop("owner_action_id")
+        if mode == "record_pointer":
+            field.update(field_type="APTR", c_type="APTR")
+        if mode == "record_mismatch":
+            field["c_type"] = "UWORD"
+        if mode == "record_domain":
+            field["value_domain"] = "independent-enum"
+        if mode == "record_long":
+            field.update(addr=2, unit="long", field_type="LONG", c_type="LONG")
+        metadata["seeded_entities"].append(field)
     metadata_path.write_text(json.dumps(metadata))
     actions = [("create_manual_data_block_layout", "data_block_layout", {
-        "layout_id": "prefix", "hunk": 0, "source_start": 2, "source_end": 6, "default_unit": "word"}),
-        ("set_manual_data_block_element", "data_block_element", {
-            "layout_id": "prefix", "offset": 0, "width": 2, "kind": "scalar"})]
-    if mode not in {"no_scalar", "imported_scalar_only", "typed_padding"}:
+        "layout_id": "prefix", "hunk": 0, "source_start": 2, "source_end": 6, "default_unit": "word"})]
+    if mode != "record_long":
+        actions.append(("set_manual_data_block_element", "data_block_element", {
+            "layout_id": "prefix", "offset": 0, "width": 2, "kind": "scalar"}))
+    if mode not in {"no_scalar", "imported_scalar_only", "typed_padding"} and not mode.startswith("record_"):
         actions.append(("set_manual_data_block_element", "data_block_element", {
             "layout_id": "prefix", "offset": 2, "width": 2, "kind": "scalar"}))
     if mode not in {"no_text", "imported_text_only"}:
@@ -137,6 +157,35 @@ def test_native_coordinate_word_and_text_render_exactly(tmp_path, legacy_role):
     rebuilt, _ = c_backend.assemble_platform_source_text_with_c_backend(
         "amiga-raw", text, project_root=PROJECT_ROOT)
     assert rebuilt == raw
+
+
+@pytest.mark.c_backend
+@pytest.mark.parametrize("legacy_role", ["string", "opaque_data"])
+@pytest.mark.parametrize("mode,directive", [("record_proved", "dc.w $006C"),
+                                           ("record_long", "dc.l $0004006C")])
+def test_declared_record_field_and_text_preserve_exact_numeric_prefix(tmp_path, legacy_role, mode, directive):
+    source, raw, legacy = fixture(tmp_path, mode=mode, legacy_role=legacy_role)
+    original = (tmp_path / "target_metadata.json").read_bytes()
+    with effective_metadata_file(tmp_path) as metadata:
+        text = c_backend.render_project_source_with_c_backend(
+            source, metadata_path=metadata, project_root=PROJECT_ROOT)
+    assert '\t' + directive in text and '"lMessage!"' not in text
+    assert '"Message!",$00' in text and '"Ordinary",$00' in text
+    rebuilt, _ = c_backend.assemble_platform_source_text_with_c_backend(
+        "amiga-raw", text, project_root=PROJECT_ROOT)
+    assert rebuilt == raw
+    assert (tmp_path / "target_metadata.json").read_bytes() == original
+    assert any(e.addr == 5 and e.end == legacy["end"] for e in effective_target_metadata(tmp_path).seeded_entities)
+
+
+@pytest.mark.parametrize("mode", ["record_imported", "record_no_owner", "record_pointer",
+                                  "record_mismatch", "record_domain"])
+def test_record_prefix_requires_numeric_field_and_checked_provenance(tmp_path, mode):
+    source, _, _ = fixture(tmp_path, mode=mode)
+    with effective_metadata_file(tmp_path) as metadata:
+        native = c_backend.effective_policy_project_source_with_c_backend(source, metadata_path=metadata)
+    assert any(e["offset"] == 5 and e["size"] == 10
+               for e in native["analysis_policy"]["structured_data_items"])
 
 
 def test_undo_and_redo_restore_precedence_without_erasing_legacy_evidence(tmp_path):

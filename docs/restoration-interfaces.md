@@ -1,5 +1,31 @@
 # Restoration interfaces
 
+## Explicit field presentation for a bounded record
+
+`range.data_block.records.declare` accepts optional `field_presentation: true`.
+It uses the existing checked field projection instead of compact homogeneous
+array formatting. This is useful when a proved WORD-based record would
+otherwise retain an inherited BYTE or string presentation. The complete type,
+field widths, count, stride, owner/member bounds, revision and provenance are
+validated exactly as for an ordinary record declaration; this option admits
+no new range or type reinterpretation.
+
+The durable binding stores the explicit projection and scalar-name-preservation
+flags. Re-declaring the same shape can opt in while retaining the original
+binding identity and provenance. Ordinary historical declarations remain
+compact, and later declarations without the option do not silently erase it.
+Undo/redo uses the existing journal. False, numeric and string substitutes are
+rejected; this is an explicit opt-in, not a new formatting default.
+
+Field presentation alone does not assert where an adjacent string begins.
+For a checked numeric WORD/LONG record leaf followed by independently declared
+ASCII text, native prefix precedence can retire an unowned inherited string
+guess beginning inside that leaf. The original fact remains in metadata and
+history. Pointer and enum fields, imported records, conflicting boundaries,
+and independently named, commented or validated string facts retain their
+existing protection. Declare the text's actual bounded range separately;
+do not widen a record or discard an annotation to obtain the desired output.
+
 ## Replacing an imported comment
 
 `comment.edit` remains additive by default. To supersede a specific imported

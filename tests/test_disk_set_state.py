@@ -28,6 +28,7 @@ def editable(
     record_data=None,
     record_label=None,
     record_scalar_label=None,
+    record_legacy_text=False,
     entry_comments=(),
 ):
     from amiga_reversing.disasm import restoration, server
@@ -99,6 +100,12 @@ def editable(
             hunk=0,addr=offset,end=offset+width,name=name,type='data',
             unit={1:'byte',2:'word',4:'long'}[width],seed_origin='manual_analysis',
             review_status='seeded',citation='Independent imported scalar data name'))
+    if record_legacy_text:
+        assert record_data == bytes.fromhex('000a005a') + b'Hello\0\xa5\x5a'
+        metadata.setdefault('seeded_entities', []).append(dict(
+            hunk=0, addr=7, end=14, type='data', subtype='string', unit='byte',
+            encoding='ascii', seed_origin='manual_analysis', review_status='seeded',
+            source_id='imported-analysis', citation='Imported preliminary string boundary'))
     if absolute_alias:
         metadata["absolute_code_labels"] = [{"addr": 0x1000, "name": "syntheticRuntimeEntry",
             "seed_origin": "manual_analysis", "review_status": "seeded", "citation": "Imported runtime identity"}]

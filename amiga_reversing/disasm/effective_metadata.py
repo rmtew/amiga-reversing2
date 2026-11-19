@@ -1606,7 +1606,8 @@ def _data_block_bound_struct_entities(
     # names such as "fields" or "shared_fields" describe only the projection
     # plumbing and must not hide that identity in generated field labels.
     base_label = layout.name if element.offset == 0 and layout.name else element.name
-    if binding.get("record_list_field_presentation") is True and element.name:
+    if (binding.get("record_list_field_presentation") is True
+            or binding.get("record_field_presentation") is True) and element.name:
         base_label = element.name
     entities: list[SeededEntityMetadata] = []
     for index in range(array_count):
@@ -1739,11 +1740,12 @@ def _data_block_compact_struct_array_entity(
     """
     if element.kind is not DataBlockElementKind.ARRAY or element.reference_interpretation:
         return None
-    # An ordered heterogeneous list promises visible record fields/boundaries.
-    # A compact range loses those roles and can inherit a wider legacy byte
-    # unit. Reuse the existing checked field projection for this container;
-    # ordinary homogeneous arrays keep their existing compact presentation.
-    if (element.type_binding or {}).get("record_list_field_presentation") is True:
+    # Explicit record/list presentation promises visible field boundaries.
+    # A compact range can inherit a wider legacy byte/string unit. Reuse the
+    # existing checked field projection; historical homogeneous declarations
+    # remain compact unless they explicitly request fields.
+    if ((element.type_binding or {}).get("record_list_field_presentation") is True
+            or (element.type_binding or {}).get("record_field_presentation") is True):
         return None
     struct = _data_block_bound_custom_struct(element, custom_structs)
     if struct is None or not struct.fields or struct.size <= 0:
@@ -2845,7 +2847,8 @@ def _apply_manual_seed_projection(
                 (compact,) if compact is not None
                 else _data_block_bound_struct_entities(layout, element, merged_custom_structs)
             )
-            if binding.get('record_list_preserve_scalar_names') is True:
+            if (binding.get('record_list_preserve_scalar_names') is True
+                    or binding.get('record_preserve_scalar_names') is True):
                 typed_entities_by_element[(layout.layout_id, element.offset)] = _record_list_scalar_names(
                     typed_entities_by_element[(layout.layout_id, element.offset)], seeded_entities, layout)
 

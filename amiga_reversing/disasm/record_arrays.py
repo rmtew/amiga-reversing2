@@ -180,6 +180,11 @@ def validate_record_array(element, record, layout):
     if (start + offset) % 2 and any(_WIDTHS[f["type"]] > 1 for f in shape["fields"]):
         raise ValueError("record array requires aligned multi-byte fields")
     binding = element.get("type_binding") or {}
+    field_presentation = binding.get("record_field_presentation")
+    preserve_names = binding.get("record_preserve_scalar_names")
+    if ((field_presentation is not None or preserve_names is not None)
+            and not (field_presentation is True and preserve_names is True)):
+        raise ValueError("record field presentation and scalar-name preservation require explicit true")
     if (
         element.get("reference_interpretation")
         or layout.get("pointer_table")
@@ -232,6 +237,12 @@ def validate_record_array(element, record, layout):
             if element.get("provenance") not in (None, prior["provenance"]):
                 raise ValueError("record array cannot replace existing provenance")
             element["provenance"] = deepcopy(prior["provenance"])
+    # A display-only upgrade follows all existing extent, shape, ownership and
+    # provenance checks. Shape-preserving reuse above retains the old binding
+    # identity; carry the explicitly requested projection onto that identity.
+    if field_presentation is True:
+        element["type_binding"]["record_field_presentation"] = True
+        element["type_binding"]["record_preserve_scalar_names"] = True
     return shape
 
 
