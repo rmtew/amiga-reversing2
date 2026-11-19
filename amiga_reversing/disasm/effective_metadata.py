@@ -1583,6 +1583,8 @@ def _data_block_bound_struct_entities(
     # names such as "fields" or "shared_fields" describe only the projection
     # plumbing and must not hide that identity in generated field labels.
     base_label = layout.name if element.offset == 0 and layout.name else element.name
+    if binding.get("record_list_field_presentation") is True and element.name:
+        base_label = element.name
     entities: list[SeededEntityMetadata] = []
     for index in range(array_count):
         instance_offset = index * stride
@@ -1713,6 +1715,12 @@ def _data_block_compact_struct_array_entity(
     individual representations retain the existing leaf projection.
     """
     if element.kind is not DataBlockElementKind.ARRAY or element.reference_interpretation:
+        return None
+    # An ordered heterogeneous list promises visible record fields/boundaries.
+    # A compact range loses those roles and can inherit a wider legacy byte
+    # unit. Reuse the existing checked field projection for this container;
+    # ordinary homogeneous arrays keep their existing compact presentation.
+    if (element.type_binding or {}).get("record_list_field_presentation") is True:
         return None
     struct = _data_block_bound_custom_struct(element, custom_structs)
     if struct is None or not struct.fields or struct.size <= 0:

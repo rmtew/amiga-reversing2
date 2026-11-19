@@ -1277,6 +1277,40 @@ def listing_range_catalog_manual_payload(
             ("create_manual_data_block_layout", {"data_block_layout": _data_block_layout_payload(subrange_rows, params)})
             for subrange_rows in _range_action_subrange_rows(action, rows_list)
         ]
+    if action.get("action") == "declare_manual_record_list":
+        from .record_lists import record_list_plan, validate_record_list
+        subranges = _range_action_subrange_rows(action, rows_list)
+        if len(subranges) != 1 or set(user_params) != {"record_types", "runs"}:
+            raise ValueError("record list requires one owner, explicit record_types and runs")
+        selected = subranges[0]
+        owner = _active_data_block_layout(selected[0])
+        if (owner is None or selected[0]['start_offset'] != owner['source_start']
+                or selected[-1]['end_offset'] != owner['source_end']):
+            raise ValueError("record list requires the complete inspected owner")
+        shapes, runs, list_id = record_list_plan(params['record_types'], params['runs'], owner)
+        prior = owner.get('elements', [])
+        if len(prior) == 1 and prior[0].get('type_binding') is None:
+            source = prior[0]
+        elif prior and (prior[0].get('provenance') or {}).get('record_list_id') == list_id:
+            source = prior[0]['provenance']['record_list_source_array']
+        else:
+            raise ValueError("record list requires its original primitive array or identical partition")
+        elements, cursor = [], 0
+        for run in runs:
+            shape = shapes[run['record_type']]
+            width = shape['size'] * run['count']
+            element = _data_block_element_type_binding_payload(selected, {
+                'kind': 'array', 'offset': cursor, 'width': width,
+                'array_count': run['count'], 'array_stride': shape['size'],
+                'binding_kind': 'custom_struct', 'type_id': shape['name']})
+            element['type_binding']['record_contract'] = shape
+            element['type_binding']['record_list_field_presentation'] = True
+            elements.append(element)
+            cursor += width
+        payload = dict(custom_structs=sorted(shapes.values(), key=lambda t: t['name']),
+                       runs=runs, data_block_elements=elements, source_array=source)
+        validate_record_list(payload, owner)
+        return [('declare_manual_record_list', payload)]
     if action.get("action") == "declare_manual_record_array":
         subranges = _range_action_subrange_rows(action, rows_list)
         if len(subranges) != 1:
@@ -1839,6 +1873,20 @@ def _range_data_block_element_actions(
     defaults = _data_block_element_context(rows)
     return [
         _range_data_block_element_action(
+            "range.data_block.record_list.declare", "Declare heterogeneous record list",
+            "declare_manual_record_list", context, rows, defaults,
+            {"type": "object", "properties": {
+                "record_types": {"type": "array", "minItems": 1, "items": {
+                    "type": "object", "properties": {
+                        "name": {"type": "string"}, "size": {"type": "integer", "minimum": 1},
+                        "fields": {"type": "array", "minItems": 1, "items": {"type": "object"}}},
+                    "required": ["name", "size", "fields"], "additionalProperties": False}},
+                "runs": {"type": "array", "minItems": 1, "items": {
+                    "type": "object", "properties": {"record_type": {"type": "string"},
+                        "count": {"type": "integer", "minimum": 1}},
+                    "required": ["record_type", "count"], "additionalProperties": False}}},
+             "required": ["record_types", "runs"], "additionalProperties": False}),
+        _range_data_block_element_action(
             "range.data_block.records.declare", "Declare bounded record array",
             "declare_manual_record_array", context, rows, defaults,
             {"type": "object", "properties": {
@@ -1903,7 +1951,7 @@ def _range_data_block_element_action(
     # Never join different sections or independently owned layouts.
     subranges = (
         _contiguous_data_layout_subranges(eligible, same_layout=True)
-        if ui_action in {"set_manual_data_block_element", "declare_manual_record_array"}
+        if ui_action in {"set_manual_data_block_element", "declare_manual_record_array", "declare_manual_record_list"}
         else _contiguous_subranges(eligible)
     )
     if len(eligible) == len(rows):
@@ -1916,13 +1964,20 @@ def _range_data_block_element_action(
         action["range_availability"] = "unavailable"
         action["availability_reason"] = "No selected rows match this action."
         action["enabled"] = False
-    if ui_action == "declare_manual_record_array" and (
+    if ui_action in {"declare_manual_record_array", "declare_manual_record_list"} and (
         len(subranges) != 1 or len(eligible) != len(rows)
         or not eligible or _active_data_block_layout(eligible[0]) is None
     ):
         action["range_availability"] = "unavailable"
         action["availability_reason"] = "Record declaration requires one complete selection inside an existing data owner."
         action["enabled"] = False
+    if ui_action == "declare_manual_record_list" and eligible:
+        owner = _active_data_block_layout(eligible[0])
+        if (owner is None or eligible[0]['start_offset'] != owner['source_start']
+                or eligible[-1]['end_offset'] != owner['source_end']):
+            action['range_availability'] = 'unavailable'
+            action['availability_reason'] = 'Record list requires the complete inspected owner.'
+            action['enabled'] = False
     action["applicable_subranges"] = subranges
     action["row_reasons"] = _row_eligibility_reasons(rows, eligible)
     return action

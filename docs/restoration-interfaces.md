@@ -1912,3 +1912,37 @@ and keeps shared-member edits and history in the canonical member's journal.
 Verification also needs a fresh private output directory. Selecting a
 different member clears the inspection, review action and verification
 receipt in the panel.
+
+### Heterogeneous primitive-backed record lists
+
+`range.data_block.record_list.declare` takes `record_types` (flat `name`,
+`size`, `fields` definitions) and ordered `runs` (`record_type`, `count`). It
+requires the complete existing member-owned layout and one unbound packed
+primitive ARRAY covering it. The schedule must consume every byte exactly;
+all types must be used and every field must preserve one original primitive
+leaf. Pointer interpretations, changed widths, gaps, explicit display
+representations and conflicting prior typed contracts remain rejected.
+Adjacent runs of the same type and equivalent type-definition ordering
+normalize to one partition identity. This is explicit checked presentation,
+not automatic variable-length parsing or inference from numeric values.
+
+One `declare_manual_record_list` journal action owns the complete partition and
+any newly introduced flat types. It projects ordinary bound record arrays into
+the existing renderer. The original array remains verbatim in each run's
+`provenance.record_list_source_array`, linked by `record_list_id` and run index.
+Its name continues to anchor the list start; the full original extent and
+annotations remain in the source snapshot and layout. Existing independent
+labels and interior references retain their physical addresses. A shared view
+uses the canonical owner offsets and the existing address-context checks.
+Replay validates the actual prior grid and exact ordered partition; identical
+re-declaration preserves provenance, and undo restores the original array and
+removes only types introduced by that action. No independent member analysis,
+code admission, source-byte modification or separate renderer is created.
+
+List field presentation is an explicit checked binding fact
+(`record_list_field_presentation: true`), emitted by new catalog declarations.
+Historical list actions without that fact retain their original compact
+projection so journal snapshot validation stays exact. Re-declaring the identical
+proved list through the normal catalog records a field-presentation upgrade;
+undo restores the historical source. The existing snapshot guard is neither
+skipped nor weakened to accommodate a renderer change.

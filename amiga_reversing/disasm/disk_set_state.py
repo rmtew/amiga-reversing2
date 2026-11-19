@@ -518,7 +518,8 @@ def _inspect_member_data_range(owner, member, body, artifact):
         row.get("active_data_block_layout", {}).get("layout_id") for row in selected
     }
     if len(layout_ids) == 1 and None not in layout_ids:
-        supported.update({"range.data_block.element.set", "range.data_block.records.declare"})
+        supported.update({"range.data_block.element.set", "range.data_block.records.declare",
+                          "range.data_block.record_list.declare"})
     return {
         "context": context,
         "rows": rows,
@@ -805,6 +806,22 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None, source
             )
     from .disk_set import file_at
     for kind, payload in actions:
+        if kind == "declare_manual_record_list":
+            from .record_lists import validate_record_list
+            from .record_arrays import record_shape
+            selected = inspected.get("selection_rows", rows)
+            layout = selected[0].get("active_data_block_layout")
+            if (command != "range.data_block.record_list.declare" or not layout
+                    or not bias <= layout['source_start'] < layout['source_end'] <= bias + owner.members[member]['size']
+                    or selected[0]['start_offset'] != layout['source_start']
+                    or selected[-1]['end_offset'] != layout['source_end']):
+                raise ValueError("record list must match the complete inspected member owner")
+            shapes = validate_record_list(payload, layout)
+            metadata = json.loads(file_at(owner.root,
+                owner.members[analysis_member]['analysis']['metadata']['path']).read_bytes())
+            for prior in metadata.get('custom_structs', ()):
+                if prior['name'] in shapes and record_shape(prior) != shapes[prior['name']]:
+                    raise ValueError('record list conflicts with an existing custom type')
         if kind == "declare_manual_record_array":
             from .record_arrays import record_shape, validate_record_array
             selected = inspected.get("selection_rows", rows)

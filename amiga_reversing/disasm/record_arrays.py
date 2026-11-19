@@ -24,6 +24,16 @@ _WIDTHS = {
 }
 
 
+def preserves_primitive_grid(shape, unit):
+    fields = shape['fields']
+    return len(fields) * unit == shape['size'] and all(
+        f['offset'] == i * unit and f['size'] == unit
+        and _WIDTHS[f['type']] == unit
+        and f.get('value_kind', 'scalar') == 'scalar'
+        for i, f in enumerate(fields)
+    )
+
+
 def _mapping(value):
     return asdict(value) if is_dataclass(value) else value
 
@@ -246,13 +256,7 @@ def _refine_primitive_array(element, shape, prior):
         or prior.get("offset") != element["offset"]
         or prior.get("width") != element["width"]
         or count * unit != element["width"]
-        or len(fields) * unit != shape["size"]
-        or any(
-            f["offset"] != i * unit or f["size"] != unit
-            or _WIDTHS[f["type"]] != unit
-            or f.get("value_kind", "scalar") != "scalar"
-            for i, f in enumerate(fields)
-        )
+        or not preserves_primitive_grid(shape, unit)
     ):
         raise ValueError("record refinement must preserve the complete primitive array grid")
     for key in ("name", "representation"):

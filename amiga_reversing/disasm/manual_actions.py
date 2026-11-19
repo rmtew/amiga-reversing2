@@ -183,6 +183,7 @@ class ManualActionKind(StrEnum):
     RESIZE_MANUAL_DATA_BLOCK_LAYOUT = "resize_manual_data_block_layout"
     REMOVE_MANUAL_DATA_BLOCK_LAYOUT = "remove_manual_data_block_layout"
     DECLARE_MANUAL_RECORD_ARRAY = "declare_manual_record_array"
+    DECLARE_MANUAL_RECORD_LIST = "declare_manual_record_list"
     SET_MANUAL_DATA_BLOCK_ELEMENT = "set_manual_data_block_element"
     RENAME_MANUAL_DATA_BLOCK_ELEMENTS = "rename_manual_data_block_elements"
     REMOVE_MANUAL_DATA_BLOCK_ELEMENT = "remove_manual_data_block_element"
@@ -2176,6 +2177,36 @@ def _project_actions(
                 raise ValueError("target_equate requires name")
             target_equates.pop(removed_target_equate_name, None)
             removed_target_equates[removed_target_equate_name] = equate
+        elif action.kind is ManualActionKind.DECLARE_MANUAL_RECORD_LIST:
+            from .record_lists import validate_record_list
+            from .record_arrays import record_shape
+            payload = dict(action.payload)
+            # Interpretation and evidence wrap the same ordinary action payload.
+            raw_elements = payload.get('data_block_elements')
+            if not isinstance(raw_elements, list) or not raw_elements:
+                raise ValueError('record list requires its ordered elements')
+            elements = [_validated_data_block_element(e, data_block_layouts)
+                        for e in raw_elements]
+            payload['data_block_elements'] = elements
+            lid = elements[0]['layout_id']
+            layout = {**data_block_layouts[lid], 'elements': [
+                value for (key, _), value in data_block_elements.items() if key == lid]}
+            shapes = validate_record_list(payload, layout)
+            for name, record in shapes.items():
+                prior = custom_structs.get(name)
+                if prior is not None and record_shape(prior) != record:
+                    raise ValueError('record list conflicts with an existing custom type')
+            for name, record in shapes.items():
+                if name not in custom_structs:
+                    record = {**record, 'bounded_record_declaration': True,
+                              'custom_struct_id': action.action_id + ':' + name}
+                    _put_by_id(custom_structs, record, 'name')
+                removed_custom_structs.pop(name, None)
+            for element in elements:
+                element['type_binding'] = {**element['type_binding'], 'owner_action_id': action.action_id}
+                key = _data_block_element_key(element)
+                removed_data_block_elements.pop(key, None)
+                data_block_elements[key] = element
         elif action.kind is ManualActionKind.DECLARE_MANUAL_RECORD_ARRAY:
             from .record_arrays import record_shape, validate_record_array
             record = dict(_action_object(action, "custom_struct"))
@@ -2788,6 +2819,7 @@ _POLICY_STORAGE_ACTION_KINDS = frozenset({
     ManualActionKind.CREATE_MANUAL_LABEL, ManualActionKind.REMOVE_MANUAL_LABEL,
     ManualActionKind.RENAME_MANUAL_LABEL, ManualActionKind.CHANGE_LABEL_SCOPE,
     ManualActionKind.DECLARE_MANUAL_RECORD_ARRAY,
+    ManualActionKind.DECLARE_MANUAL_RECORD_LIST,
     ManualActionKind.CREATE_MANUAL_CUSTOM_STRUCT, ManualActionKind.RENAME_MANUAL_CUSTOM_STRUCT,
     ManualActionKind.REMOVE_MANUAL_CUSTOM_STRUCT, ManualActionKind.CREATE_MANUAL_CUSTOM_STRUCT_FIELD,
     ManualActionKind.RENAME_MANUAL_CUSTOM_STRUCT_FIELD, ManualActionKind.REMOVE_MANUAL_CUSTOM_STRUCT_FIELD,
