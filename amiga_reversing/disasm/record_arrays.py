@@ -6,6 +6,7 @@ contract without a pointee type. Inherited and nested records remain separate.
 """
 
 import re
+from copy import deepcopy
 from collections.abc import Mapping
 from dataclasses import asdict, is_dataclass
 
@@ -192,6 +193,8 @@ def validate_record_array(element, record, layout):
         if lo >= offset + width or lo + size <= offset:
             continue
         old = prior.get("type_binding") or {}
+        if _refine_primitive_array(element, shape, prior):
+            continue
         if (
             any(
                 prior.get(k) != element.get(k)
@@ -215,4 +218,68 @@ def validate_record_array(element, record, layout):
                 element[key] = prior[key]
         # Preserve the prior binding identity and evidence on shape-preserving updates.
         element["type_binding"] = {**old, "record_contract": shape}
+        if prior.get("provenance") is not None:
+            if element.get("provenance") not in (None, prior["provenance"]):
+                raise ValueError("record array cannot replace existing provenance")
+            element["provenance"] = deepcopy(prior["provenance"])
     return shape
+
+
+def _refine_primitive_array(element, shape, prior):
+    """Regroup one complete primitive grid without changing a leaf footprint.
+
+    A plain packed array carries width and extent evidence, not record roles.
+    Keep that exact evidence in the new element's provenance and in history.
+    Partial selections, gaps, widened leaves and address interpretations are
+    different contracts and still require their existing checked operations.
+    """
+    if prior.get("kind") != "array" or prior.get("type_binding") is not None:
+        return False
+    unit = prior.get("array_stride")
+    count = prior.get("array_count")
+    fields = shape["fields"]
+    if (
+        type(unit) is not int or unit not in {1, 2, 4}
+        or type(count) is not int or count <= 0
+        or prior.get("reference_interpretation") is not None
+        or prior.get("representation") is not None
+        or prior.get("offset") != element["offset"]
+        or prior.get("width") != element["width"]
+        or count * unit != element["width"]
+        or len(fields) * unit != shape["size"]
+        or any(
+            f["offset"] != i * unit or f["size"] != unit
+            or _WIDTHS[f["type"]] != unit
+            or f.get("value_kind", "scalar") != "scalar"
+            for i, f in enumerate(fields)
+        )
+    ):
+        raise ValueError("record refinement must preserve the complete primitive array grid")
+    for key in ("name", "representation"):
+        if prior.get(key) is not None:
+            if element.get(key) not in (None, prior[key]):
+                raise ValueError("record refinement cannot replace an array annotation")
+            element[key] = prior[key]
+    provenance = deepcopy(prior.get("provenance") or {})
+    if "primitive_array_refinement" in provenance:
+        raise ValueError("primitive array already has conflicting refinement provenance")
+    provenance["primitive_array_refinement"] = deepcopy(dict(prior))
+    supplied = element.get("provenance")
+    if supplied is not None:
+        # Catalog metadata includes review/citation fields which the journal's
+        # semantic projection does not duplicate. Recheck every element contract
+        # while retaining the richer original inspected snapshot verbatim.
+        if not isinstance(supplied, Mapping):
+            raise ValueError("record refinement provenance must be an object")
+        snapshot = supplied.get("primitive_array_refinement")
+        keys = ("layout_id", "offset", "width", "kind", "array_count", "array_stride",
+                "name", "representation", "type_binding", "reference_interpretation",
+                "provenance")
+        if (not isinstance(snapshot, Mapping)
+                or any(snapshot.get(k) != prior.get(k) for k in keys)
+                or {k: v for k, v in supplied.items() if k != "primitive_array_refinement"}
+                != (prior.get("provenance") or {})):
+            raise ValueError("record refinement provenance differs from the inspected array")
+    else:
+        element["provenance"] = provenance
+    return True

@@ -930,6 +930,19 @@ source evidence and native admission checks still apply, including through a
 shared member view. This is declaration-driven rendering, not automatic record
 inference or code-entry admission.
 
+A complete unbound packed primitive ARRAY can also be regrouped by this command
+when every record field preserves exactly one existing BYTE, WORD or LONG leaf
+and the fields densely cover each record. This requires the identical full
+extent; partial selections, gaps, wider/narrower leaves, pointer interpretations
+and previously typed arrays are not refinements. Explicit display representations
+also remain rejected because a structure emits its own fields. Existing
+whole-array names survive. The exact inspected element is retained under
+`provenance.primitive_array_refinement`, and replay checks its semantic grid
+against the actual prior journal state. Original citations and history remain
+available, and undo restores the primitive array. This is an explicit evidenced
+record declaration, not inference from plausible values or a general overlap
+override.
+
 The data-role catalog also exposes `range.seed.data.opaque_data`. Scoped Restore
 accepts this only for an inspected, bounded native data span, with byte seeds
 that exactly partition that selection and do not overlap a typed layout. It
