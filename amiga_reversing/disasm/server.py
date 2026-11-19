@@ -500,6 +500,7 @@ def _annotate_listing_payload(
     comments = _project_manual_comments(manual_state)
     review_notes = _project_review_notes_from_state(manual_state)
     suppressible_seeded_items = _target_suppressible_seeded_items(project_name)
+    imported_comments = _target_imported_comments(project_name)
     window_start = int(payload.get("start") or 0)
     for relative_index, row in enumerate(payload["rows"]):
         annotations: list[str] = []
@@ -512,6 +513,7 @@ def _annotate_listing_payload(
             annotations.append(f"{prefix}: {_review_note_summary(note)}")
         annotated_row = _apply_manual_listing_projection(row, labels, comments, window_start + relative_index)
         _annotate_suppressible_seeded_items(annotated_row, suppressible_seeded_items)
+        _annotate_imported_comments(annotated_row, imported_comments)
         if annotations:
             annotated_row["view_annotations"] = annotations
         if row_issues:
@@ -527,6 +529,21 @@ def _annotate_listing_payload(
     if review_warnings:
         result["review_warnings"] = review_warnings
     return cast(ListingWindowPayload, result)
+
+
+def _target_imported_comments(project_name: str):
+    try:
+        paths = resolve_project_paths(project_name, project_root=PROJECT_ROOT)
+    except (FileNotFoundError, ValueError):
+        return ()
+    metadata = load_target_metadata(paths.target_dir)
+    return metadata.entry_comments if metadata is not None else ()
+
+
+def _annotate_imported_comments(row, comments):
+    from .imported_comments import annotate_imported_comments
+
+    annotate_imported_comments(row, comments)
 
 
 def _target_suppressible_seeded_items(project_name: str) -> list[dict[str, object]]:
@@ -2362,6 +2379,7 @@ def _resolve_command_range_locators(
     # Suppression annotations belong to the same range snapshot, too. Reloading
     # the target history per row makes large asset selections needlessly costly.
     suppressible_seeded_items = _target_suppressible_seeded_items(project_name)
+    imported_comments = _target_imported_comments(project_name)
     for locator in locators:
         try:
             if artifact is not None:
@@ -2387,6 +2405,7 @@ def _resolve_command_range_locators(
         row["stableKey"] = row.get("row_key")
         row["row_id"] = row.get("row_key")
         _annotate_suppressible_seeded_items(row, suppressible_seeded_items)
+        _annotate_imported_comments(row, imported_comments)
         rows.append(row)
     return rows, projection_hash
 
@@ -2607,6 +2626,7 @@ def _resolve_command_locator(
     row["stableKey"] = row.get("row_key")
     row["row_id"] = row.get("row_key")
     _annotate_suppressible_seeded_items(row, _target_suppressible_seeded_items(project_name))
+    _annotate_imported_comments(row, _target_imported_comments(project_name))
     return row, projection_hash
 
 

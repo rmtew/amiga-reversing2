@@ -27,6 +27,7 @@ def editable(
     absolute_alias=False,
     record_data=None,
     record_label=None,
+    entry_comments=(),
 ):
     from amiga_reversing.disasm import restoration, server
 
@@ -81,6 +82,7 @@ def editable(
     project, target, paths, manifest = fixture(tmp_path, **extra)
     metadata_path = target / manifest["members"][0]["analysis"]["metadata"]["path"]
     metadata = json.loads(metadata_path.read_bytes())
+    metadata.setdefault("entry_comments", []).extend(entry_comments)
     if record_label is not None:
         assert record_data is not None
         offset, name = record_label

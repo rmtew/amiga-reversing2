@@ -3767,6 +3767,10 @@ def _comment_parameter_schema() -> dict[str, object]:
         "type": "object",
         "properties": {
             "text": {"type": "string"},
+            "replace_imported_comment": {
+                "type": "string",
+                "description": "Exact original text of one inspected imported comment to supersede; omit for an additive comment.",
+            },
         },
         "required": ["text"],
     }
@@ -4275,6 +4279,11 @@ def _row_comment_payload(row: Mapping[str, object], params: Mapping[str, object]
         "hunk": hunk,
         "addr": addr,
     }
+    from .imported_comments import replacement_for_row
+
+    original = replacement_for_row(row, params)
+    if original is not None:
+        comment["replaces_imported_comment"] = original
     end = _optional_int(row.get("end_offset"))
     if end is not None and end > addr:
         comment["end"] = end

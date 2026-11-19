@@ -1,5 +1,23 @@
 # Restoration interfaces
 
+## Replacing an imported comment
+
+`comment.edit` remains additive by default. To supersede a specific imported
+entry comment, pass its exact text as `replace_imported_comment` alongside the
+new `text`. The inspected row exposes `imported_entry_comments` from its base
+metadata. Selection requires one matching comment at the exact source section
+and point; duplicate texts with distinct provenance are ambiguous and refused.
+Manual comments and adjacent comments cannot be selected as imported facts.
+
+The existing comment action stores the complete original metadata record as
+`replaces_imported_comment`, including its citation and source identity. Replay
+must find that exact record at the authored point before excluding it from the
+current projection. Other comments at the same point remain. The original base
+metadata and earlier journal entries are unchanged; normal undo/redo restores
+or reapplies the replacement, and a later edit can select the same immutable
+identity. Scoped members use the same catalog and projection, with their
+existing revision, ownership, candidate-build and atomic publication checks.
+
 ## Scoped source labels
 
 `target.code_label.add` accepts `scope: "local"`, a `.name` spelling, and

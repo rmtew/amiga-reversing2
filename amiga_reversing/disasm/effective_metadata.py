@@ -2620,6 +2620,9 @@ def _apply_manual_seed_projection(
     for comment in comments:
         entry_comment = _manual_comment_to_entry_comment(comment)
         if entry_comment is not None:
+            from .imported_comments import supersede_imported_comment
+
+            entry_comments = supersede_imported_comment(entry_comments, comment)
             entry_comments.append(entry_comment)
     presentation_edits = []
     edited_presentation_owners = set()

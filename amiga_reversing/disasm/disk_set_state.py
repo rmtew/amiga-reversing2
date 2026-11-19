@@ -591,6 +591,12 @@ def inspect_member(owner, member, body, *, artifact=None):
             raise ValueError("canonical row crosses the member view boundary")
         if row["kind"] == "data":
             row = _member_data_layout_row(owner, member, row)
+        from .imported_comments import annotate_imported_comments
+        from .disk_set import file_at
+
+        baseline = owner.members[analysis_member]["analysis"]["state"]["target_metadata.json"]
+        declared = json.loads(file_at(owner.root, baseline["path"]).read_bytes())
+        annotate_imported_comments(row, declared.get("entry_comments", ()))
         locator = _member_locator(owner, member, row)
         context = {"kind": "row", "locator": locator}
         commands = listing_row_action_catalog(row)
