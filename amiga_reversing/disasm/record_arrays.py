@@ -58,7 +58,7 @@ def record_shape(value):
             "bounded record declaration requires a flat non-inherited type"
         )
     if not isinstance(fields, list | tuple) or not fields:
-        raise ValueError("record requires explicit scalar or ABS32 address fields")
+        raise ValueError("record requires explicit scalar, BYTE-span or ABS32 address fields")
     result, used, cursor = [], set(), 0
     for field in fields:
         field = _mapping(field)
@@ -66,11 +66,15 @@ def record_shape(value):
             raise ValueError("record fields must be objects")
         fname, kind = _name(field.get("name")), field.get("type")
         off, width = field.get("offset"), field.get("size")
+        # Custom BYTE/UBYTE fields already use size as a bounded byte-span
+        # extent (for example a fixed keyword). Other primitive fields retain
+        # their scalar widths; this does not infer multibyte arrays.
         if (
             not isinstance(kind, str)
             or kind.upper() not in _WIDTHS
             or type(width) is not int
-            or width != _WIDTHS[kind.upper()]
+            or width <= 0
+            or (kind.upper() not in {"BYTE", "UBYTE"} and width != _WIDTHS[kind.upper()])
             or type(off) is not int
             or not 0 <= off <= size - width
         ):
@@ -97,6 +101,7 @@ def record_shape(value):
         if value_kind == "target_pointer":
             if (
                 width != 4
+                or kind.upper() not in {"LONG", "ULONG", "APTR"}
                 or not isinstance(domain, str)
                 or domain not in {"mapped_source", "runtime_only"}
             ):
@@ -126,7 +131,7 @@ def record_shape(value):
     for field in result:
         if field["offset"] < cursor:
             raise ValueError("record fields overlap")
-        if field["size"] > 1 and (field["offset"] % 2 or size % 2):
+        if _WIDTHS[field["type"]] > 1 and (field["offset"] % 2 or size % 2):
             raise ValueError("multi-byte record fields require even offsets and stride")
         cursor = field["offset"] + field["size"]
     return {"name": name, "size": size, "fields": result}
@@ -161,7 +166,7 @@ def validate_record_array(element, record, layout):
         or offset + width > end - start
     ):
         raise ValueError("record array falls outside its owner layout")
-    if (start + offset) % 2 and any(f["size"] > 1 for f in shape["fields"]):
+    if (start + offset) % 2 and any(_WIDTHS[f["type"]] > 1 for f in shape["fields"]):
         raise ValueError("record array requires aligned multi-byte fields")
     binding = element.get("type_binding") or {}
     if (

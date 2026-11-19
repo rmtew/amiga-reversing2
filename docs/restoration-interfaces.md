@@ -902,7 +902,13 @@ validators.
 inside one existing member-owned layout. Supply `record_type`, `record_size`,
 `record_count`, `record_stride`, and explicit `fields` (`name`, `type`, `offset`,
 `size`). The contract accepts flat BYTE/UBYTE, WORD/UWORD and LONG/ULONG
-scalar fields. Four-byte LONG/ULONG/APTR address fields additionally require
+scalar fields. BYTE/UBYTE fields may also describe a fixed, positive byte span:
+their `size` is the byte count, using the existing custom-field representation.
+Such a span can start at an odd byte offset and has no implied string encoding,
+terminator, immutability or pointer interpretation. WORD/LONG array fields are
+not inferred from larger sizes. Overlap and complete owner containment are still
+checked; alignment follows the primitive unit, so records with WORD/LONG fields
+still require even coordinates and stride. Four-byte LONG/ULONG/APTR address fields additionally require
 `value_kind: target_pointer` and an explicit `pointer_address_domain`:
 `mapped_source`, or `runtime_only` with a `pointer_symbol_group`. These reuse
 the existing ABS32 mapping rules; null, unmapped and ambiguous values remain
