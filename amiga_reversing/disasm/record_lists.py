@@ -95,6 +95,9 @@ def validate_record_list(payload, layout):
     modes = [(e.get('type_binding') or {}).get('record_list_field_presentation') for e in elements]
     if not (all(mode is None for mode in modes) or all(mode is True for mode in modes)):
         raise ValueError('record list must use one explicit presentation across its partition')
+    names = [(e.get('type_binding') or {}).get('record_list_preserve_scalar_names') for e in elements]
+    if not (all(mode is None for mode in names) or all(mode is True for mode in names)):
+        raise ValueError('record list scalar-name preservation must be explicit and uniform')
     prior = layout.get('elements', [])
     source = payload['source_array']
     if not isinstance(source, Mapping):
@@ -132,6 +135,7 @@ def validate_record_list(payload, layout):
     for index, (run, element) in enumerate(zip(runs, elements)):
         shape, count = shapes[run['record_type']], run['count']
         span = shape['size'] * count
+        preserve_names = (element.get('type_binding') or {}).get('record_list_preserve_scalar_names')
         presentation = (element.get('type_binding') or {}).get('record_list_field_presentation')
         if presentation is not None and presentation is not True:
             raise ValueError('record list field presentation must be explicit true or legacy absent')
@@ -161,5 +165,7 @@ def validate_record_list(payload, layout):
         # preserve that checked presentation update after shape/identity reuse.
         if presentation is True:
             element['type_binding']['record_list_field_presentation'] = True
+        if preserve_names is True:
+            element['type_binding']['record_list_preserve_scalar_names'] = True
         cursor += span
     return shapes

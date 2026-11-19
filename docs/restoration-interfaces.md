@@ -1953,3 +1953,13 @@ projection so journal snapshot validation stays exact. Re-declaring the identica
 proved list through the normal catalog records a field-presentation upgrade;
 undo restores the historical source. The existing snapshot guard is neither
 skipped nor weakened to accommodate a renderer change.
+
+New list declarations also carry `record_list_preserve_scalar_names: true`.
+A unique, independent untyped scalar name at an exact interior field address,
+width, unit and source section remains that field's source symbol; its new
+record/field type is retained separately. Partial, stronger typed or different
+section facts do not supply replacement names. Competing scalar identities fail
+with an explicit ambiguity diagnosis. This is projection of existing identity,
+not an authored rename. Historical actions without the flag retain their
+snapshot exactly; re-declaring the identical partition performs a checked name
+preservation upgrade, and undo restores the historical projection.

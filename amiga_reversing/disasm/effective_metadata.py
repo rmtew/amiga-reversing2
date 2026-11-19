@@ -1498,6 +1498,29 @@ def _data_block_custom_struct_field_entity(
     )
 
 
+def _record_list_scalar_names(entities, originals, layout):
+    """Keep a unique exact independent scalar identity on a new typed leaf.
+
+    This changes neither the field's type/role nor any ownership extent. Partial,
+    stronger typed and ambiguous facts do not supply a guessed preferred name.
+    """
+    result = []
+    for field in entities:
+        matches = {e.name for e in originals
+                   if e.name and e.type == 'data' and e.hunk == field.hunk
+                   and (e.addr, e.end, e.unit) == (field.addr, field.end, field.unit)
+                   and e.subtype is None and e.field_name is None
+                   and not any((e.struct_name, e.field_type, e.c_type,
+                                e.pointer_struct, e.value_kind, e.value_domain,
+                                e.pointer_address_domain, e.pointer_symbol_group))}
+        if field.field_name and field.addr > layout.source_start and len(matches) > 1:
+            raise ValueError('ambiguous independent scalar names require explicit reconciliation')
+        if field.field_name and field.addr > layout.source_start and len(matches) == 1:
+            field = replace(field, name=next(iter(matches)))
+        result.append(field)
+    return tuple(result)
+
+
 def _data_block_custom_struct_gap_entity(
     layout: DataBlockLayoutMetadata,
     element: DataBlockElementMetadata,
@@ -2822,6 +2845,10 @@ def _apply_manual_seed_projection(
                 (compact,) if compact is not None
                 else _data_block_bound_struct_entities(layout, element, merged_custom_structs)
             )
+            if binding.get('record_list_preserve_scalar_names') is True:
+                typed_entities_by_element[(layout.layout_id, element.offset)] = _record_list_scalar_names(
+                    typed_entities_by_element[(layout.layout_id, element.offset)], seeded_entities, layout)
+
     scalar_field_spans = {
         (entity.hunk, entity.addr, entity.end)
         for entities in typed_entities_by_element.values() for entity in entities

@@ -1307,6 +1307,7 @@ def listing_range_catalog_manual_payload(
                 'binding_kind': 'custom_struct', 'type_id': shape['name']})
             element['type_binding']['record_contract'] = shape
             element['type_binding']['record_list_field_presentation'] = True
+            element['type_binding']['record_list_preserve_scalar_names'] = True
             elements.append(element)
             cursor += width
         payload = dict(custom_structs=sorted(shapes.values(), key=lambda t: t['name']),

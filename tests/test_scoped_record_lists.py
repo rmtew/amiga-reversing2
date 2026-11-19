@@ -223,3 +223,59 @@ def test_scalar_grid_primitive_widths_round_trip(tmp_path,monkeypatch,unit,field
     assert r['verification']['media_exact'] and r['verification']['all_placement_coverage']
     after=(target/'main.s').read_bytes()
     call('regenerate',expected_revision=r['revision']);assert (target/'main.s').read_bytes()==after
+
+
+def test_exact_scalar_data_name_survives_record_field_upgrade_and_undo(tmp_path,monkeypatch):
+    from amiga_reversing.disasm import record_lists
+    _,target,_,call=editable(tmp_path,monkeypatch,
+        record_data=bytes.fromhex('0001000200030004000500060007'),
+        record_scalar_label=(6,'hardwareLowWord',2))
+    create(call,18)
+    call('interpret',**array_request(call,end=18,stride=2,count=7))
+    original=record_lists.validate_record_list
+    def historical(payload,layout):
+        for element in payload['data_block_elements']:
+            element['type_binding'].pop('record_list_preserve_scalar_names',None)
+        return original(payload,layout)
+    with monkeypatch.context() as patch:
+        patch.setattr(record_lists,'validate_record_list',historical)
+        prior=call('interpret',**request(call))
+    before=(target/'main.s').read_bytes();assert b'hardwareLowWord:'not in before
+    call('regenerate',expected_revision=prior['revision']);assert (target/'main.s').read_bytes()==before
+    upgraded=call('interpret',**request(call));after=(target/'main.s').read_bytes()
+    assert b'hardwareLowWord:'in after and upgraded['verification']['all_placement_coverage']
+    leaf,=[e for e in metadata(target)['seeded_entities']if e.get('field_name')=='y'and e['addr']==6]
+    assert leaf['name']=='hardwareLowWord'and leaf['field_type']=='WORD'
+    undone=call('rollback',expected_revision=upgraded['revision'],action_id=upgraded['actions'][0]['action_id'])
+    assert (target/'main.s').read_bytes()==before
+    call('rollback',expected_revision=undone['revision'],action_id=upgraded['actions'][0]['action_id'],redo=True)
+    assert (target/'main.s').read_bytes()==after
+
+
+@pytest.mark.parametrize('change',[
+    dict(addr=1),dict(end=6),dict(hunk=1),dict(unit='long'),
+    dict(c_type='UWORD'),dict(value_kind='target_pointer'),dict(subtype='pointer_table'),
+])
+def test_independent_name_requires_exact_untyped_scalar(change):
+    from dataclasses import replace
+    from types import SimpleNamespace
+    from amiga_reversing.disasm.effective_metadata import _record_list_scalar_names
+    from amiga_reversing.disasm.target_metadata import SeededEntityMetadata, TargetMetadataSeedOrigin, TargetMetadataReviewStatus
+    field=SeededEntityMetadata(addr=2,end=4,hunk=0,type='data',unit='word',
+        seed_origin=TargetMetadataSeedOrigin.MANUAL_ANALYSIS, review_status=TargetMetadataReviewStatus.SEEDED, citation='Synthetic exact scalar identity',
+        name='generated',field_name='value',field_type='UWORD',value_kind='scalar')
+    old=SeededEntityMetadata(addr=2,end=4,hunk=0,type='data',unit='word',seed_origin=TargetMetadataSeedOrigin.MANUAL_ANALYSIS,review_status=TargetMetadataReviewStatus.SEEDED,citation='Synthetic independent identity',name='independent')
+    assert _record_list_scalar_names((field,),[replace(old,**change)],SimpleNamespace(source_start=0))[0].name=='generated'
+
+
+def test_competing_scalar_names_are_diagnosed_without_guessing():
+    from dataclasses import replace
+    from types import SimpleNamespace
+    from amiga_reversing.disasm.effective_metadata import _record_list_scalar_names
+    from amiga_reversing.disasm.target_metadata import SeededEntityMetadata, TargetMetadataSeedOrigin, TargetMetadataReviewStatus
+    field=SeededEntityMetadata(addr=2,end=4,hunk=0,type='data',unit='word',
+        seed_origin=TargetMetadataSeedOrigin.MANUAL_ANALYSIS, review_status=TargetMetadataReviewStatus.SEEDED, citation='Synthetic exact scalar identity',
+        name='generated',field_name='value',field_type='UWORD',value_kind='scalar')
+    old=SeededEntityMetadata(addr=2,end=4,hunk=0,type='data',unit='word',seed_origin=TargetMetadataSeedOrigin.MANUAL_ANALYSIS,review_status=TargetMetadataReviewStatus.SEEDED,citation='Synthetic independent identity',name='one')
+    with pytest.raises(ValueError,match='ambiguous independent scalar names'):
+        _record_list_scalar_names((field,),[old,replace(old,name='two')],SimpleNamespace(source_start=0))
