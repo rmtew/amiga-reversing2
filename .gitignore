@@ -160,3 +160,12 @@ targets/starglider2_retail/*.s
 !targets/amiga_raw_foft_music_bank5_sps0613/hardware/
 !targets/amiga_raw_foft_music_bank5_sps0613/hardware/*.i
 !targets/amiga_raw_foft_music_bank5_sps0613/manual_actions.jsonl
+
+# Conqueror retail intake: source and receipts, never media or captures.
+!targets/amiga_disk_conqueror_sps1275/README.md
+!targets/amiga_disk_conqueror_sps1275/REFERENCES.md
+!targets/amiga_disk_conqueror_sps1275/check_grid.py
+!targets/amiga_disk_conqueror_sps1275/grid-verification.json
+!targets/amiga_disk_conqueror_sps1275/inspect_media.py
+!targets/amiga_disk_conqueror_sps1275/inventory.json
+!targets/amiga_disk_conqueror_sps1275/test_inspect_media.py

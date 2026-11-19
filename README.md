@@ -24,6 +24,8 @@ bin/            User-supplied target binaries
 resources/      External reference files (not tracked, see RESOURCES.md)
 ```
 
+The retail Conqueror disk study starts at [SPS 1275 intake](targets/amiga_disk_conqueror_sps1275/README.md). It is distinct from the separate imported DOS/ADF edition shown in the round-trip report below.
+
 For a worked graphics example, see [Faster 3D on a 68000](docs/tutorials/68000-3d-optimisation.md).
 
 ## Setup
