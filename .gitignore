@@ -185,3 +185,9 @@ targets/amiga_disk_conqueror_sps1275/*.zip
 !targets/amiga_disk_conqueror_sps1275/verify_analysis.py
 !targets/amiga_disk_conqueror_sps1275/analysis-verification.json
 !targets/amiga_disk_conqueror_sps1275/test_bootstrap_analysis.py
+
+# Reviewed renderer inputs; raw resident, generated child and captures stay local.
+targets/amiga_disk_conqueror_sps1275/targets/
+!targets/amiga_disk_conqueror_sps1275/RENDERER.md
+!targets/amiga_disk_conqueror_sps1275/renderer-manual-actions.jsonl
+!targets/amiga_disk_conqueror_sps1275/renderer-decision-journal.jsonl
