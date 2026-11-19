@@ -6,6 +6,20 @@ LLM-assisted reverse engineering of Amiga game binaries. The goal is a fully
 reassemblable, documented disassembly with named symbols, typed data, and
 cross-references.
 
+
+## Commit subjects
+
+Prefix every new commit subject with its work area:
+
+- `EXPERIMENT:` for benchmarks, prototypes and other work under experiments.
+- `GAME/FOFT:`, `GAME/SGII:`, `GAME/Conqueror:`, or `GAME/<name>:`
+  for game-specific reconstruction and supporting evidence.
+- `FRAMEWORK:` for shared restoration, analysis, tooling or repository changes.
+
+Follow the prefix with a space and a short, specific description. When a
+shared fix and a target change can stand on their own, commit them separately.
+Apply the convention to new commits only; do not rewrite existing history.
+
 ## Spec-Driven M68K Tooling
 
 All M68K tooling is generated from structured data extracted from the Motorola
