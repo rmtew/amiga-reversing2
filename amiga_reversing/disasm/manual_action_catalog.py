@@ -5297,7 +5297,9 @@ def _row_label_payload(
     name = params.get("name")
     if not isinstance(name, str) or not name.strip():
         raise ValueError("create_manual_label requires parameter name")
-    symbol = element_context.get("symbol") if isinstance(element_context, Mapping) else None
+    if isinstance(element_context, Mapping) and element_context.get("canonical_symbol_ambiguous"):
+        raise ValueError("local label has ambiguous canonical source identity")
+    symbol = (element_context.get("canonical_symbol") or element_context.get("symbol")) if isinstance(element_context, Mapping) else None
     symbol_text = symbol if isinstance(symbol, str) else ""
     parsed_symbol = _parse_generated_label_symbol(symbol_text)
     address_domain = "runtime" if parsed_symbol is not None and symbol_text.startswith("abs_") else "source"
@@ -5327,8 +5329,12 @@ def _row_label_payload(
     if end is not None and end > label['addr']:
         label["end"] = end
     if isinstance(element_context, Mapping):
+        if element_context.get("source_label_comment_ambiguous"):
+            raise ValueError("label has ambiguous source annotations")
         if isinstance(symbol, str) and symbol:
             label["previous_name"] = symbol
+        if isinstance(element_context.get("source_label_comment"), str):
+            label["comment"] = element_context["source_label_comment"]
         _copy_element_provenance(label, element_context)
     row_index = _optional_int(row.get("row_index"))
     if row_index is not None:
@@ -7140,7 +7146,7 @@ def _interaction_schema(
 
 
 def _label_validation_metadata(context: Mapping[str, object]) -> dict[str, object]:
-    symbol = str(context.get("symbol") or "")
+    symbol = str(context.get("canonical_symbol") or context.get("symbol") or "")
     return {
         "active_profile": "vasm",
         "local_labels_supported": True,

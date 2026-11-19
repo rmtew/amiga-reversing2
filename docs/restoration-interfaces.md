@@ -2117,3 +2117,34 @@ Explicit value types, semantic roles, pointer fields, overlays, gaps, partial
 fields, record-boundary crossings and mismatched cell alignment retain refusal.
 Only the aligned intersection belongs to the declared array; storage beyond
 that bounded range remains outside it. No source fact or journal is removed.
+
+## Planning explicit imported local scopes
+
+Disk-set `plan_local_scopes` is a read-only member operation. Supply the normal
+input binding and `expected_revision`, a member-relative `source_offset` for
+the existing global code owner, and optionally its new global `name`. The plan
+matches the unique immutable imported namespace to that exact source owner;
+it does not infer functions from nearest labels or admit instructions.
+
+The result contains ordinary `label.rename` entries for `interpret_batch`,
+plus retained and deferred identities. Apply those entries with the returned
+revision through the normal checked batch operation. Each local carries the
+explicit canonical owner source coordinate. A later owner rename follows that
+binding through existing journal projection; old journals are not reinterpreted.
+Missing, ambiguous, authored or out-of-member identities remain deferred or
+refused, as do non-admitted instruction boundaries. Planning carries no build
+receipt or disk verification claim. Mutation freshly checks input bytes,
+revision, ownership, replay and candidate assembly as usual.
+
+A displayed bare `.name` retains its exact declared canonical identity in the
+scoped row context. Renaming it replaces that identity rather than adding a
+second label. Matching requires section, address and spelling; ambiguous
+canonical identities or source annotations refuse. Unique imported label
+comments are retained by the new ordinary action. Displayed element IDs remain
+stable.
+
+Explicit record-field presentation also retains an imported scalar comment at
+the exact beginning of a presented field, including its source provenance.
+The original scalar fact and its extent remain intact. Interior, gap and outside
+comments are not moved; normal imported-comment replacement, replay and undo
+continue to select the immutable original identity.

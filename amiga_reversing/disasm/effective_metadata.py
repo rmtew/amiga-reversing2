@@ -1521,6 +1521,52 @@ def _record_list_scalar_names(entities, originals, layout):
     return tuple(result)
 
 
+def _record_view_comment_entries(originals, entries, layouts, layout_projections, element_projections):
+    """Keep source comments independent of a record's selected storage view.
+
+    The original scalar fact, extent and provenance stay intact. Promote only
+    comments whose source point starts an explicit presented field;
+    unknown gaps and outside bytes are not reclassified. Do this before normal
+    imported-comment replacement so its exact identity/replay checks still run.
+    """
+    comments = [e for e in originals if e.type == "data" and e.comment]
+    if not comments:
+        return entries
+    active = {layout.layout_id: layout for layout in layouts}
+    for projection in layout_projections:
+        layout = _manual_data_block_layout_to_metadata(projection, element_projections, {})
+        if layout is not None:
+            active[layout.layout_id] = layout
+    result = list(entries)
+    for layout in active.values():
+        for element in layout.elements:
+            binding = element.type_binding or {}
+            if not (binding.get("record_field_presentation") is True
+                    or binding.get("record_list_field_presentation") is True):
+                continue
+            record = binding.get("record_contract") or {}
+            fields = record.get("fields", ())
+            stride = element.array_stride or record.get("size", 0)
+            count = element.array_count or 1
+            if not fields or not stride or not count:
+                continue
+            start = layout.source_start + element.offset
+            for original in comments:
+                relative = original.addr - start
+                if (original.hunk != layout.hunk or not 0 <= relative < element.width
+                        or relative // stride >= count
+                        or not any(f["offset"] == relative % stride for f in fields)):
+                    continue
+                comment = EntryCommentMetadata(
+                    addr=original.addr, hunk=original.hunk, comment=original.comment,
+                    seed_origin=original.seed_origin, review_status=original.review_status,
+                    citation=original.citation, source_id=original.source_id,
+                    source_path=original.source_path, source_locator=original.source_locator)
+                if comment not in result:
+                    result.append(comment)
+    return result
+
+
 def _data_block_custom_struct_gap_entity(
     layout: DataBlockLayoutMetadata,
     element: DataBlockElementMetadata,
@@ -2650,6 +2696,9 @@ def _apply_manual_seed_projection(
         absolute_label = _manual_label_to_absolute_code_label(label)
         if absolute_label is not None:
             _append_manual_label_declaration(absolute_code_labels, absolute_label, label)
+    entry_comments = _record_view_comment_entries(
+        seeded_entities, entry_comments, data_block_layouts,
+        data_block_layout_projections, data_block_element_projections)
     for comment in comments:
         entry_comment = _manual_comment_to_entry_comment(comment)
         if entry_comment is not None:

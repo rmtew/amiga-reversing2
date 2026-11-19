@@ -20,6 +20,7 @@ from amiga_reversing.disasm.source_package import _json as package_manifest_byte
 
 MEMBER_OPERATIONS = (
     "inspect",
+    "plan_local_scopes",
     "verify_member",
     "regenerate",
     "interpret",
@@ -609,7 +610,26 @@ def inspect_member(owner, member, body, *, artifact=None):
 
         baseline = owner.members[analysis_member]["analysis"]["state"]["target_metadata.json"]
         declared = json.loads(file_at(owner.root, baseline["path"]).read_bytes())
-        annotate_imported_comments(row, declared.get("entry_comments", ()))
+        candidates = declared.get("entry_comments", ())
+        if any(e.get("comment") for e in declared.get("seeded_entities", ())):
+            from .effective_metadata import _record_view_comment_entries
+            from .target_metadata import DataBlockLayoutMetadata, TargetMetadata
+
+            original = TargetMetadata.from_dict(declared)
+            current = owner.members[analysis_member]["analysis"]["metadata"]
+            projected = json.loads(file_at(owner.root, current["path"]).read_bytes())
+            layouts = [DataBlockLayoutMetadata.from_dict(p) for p in projected.get("data_block_layouts", ())]
+            # Keep immutable imported identities inspectable for subsequent
+            # corrections, including scalar comments retained by record views.
+            candidates = _record_view_comment_entries(
+                original.seeded_entities, original.entry_comments, layouts, (), ())
+        annotate_imported_comments(row, candidates)
+        if row["kind"] == "label":
+            from .listing_context import annotate_source_label_identity
+
+            current = owner.members[analysis_member]["analysis"]["metadata"]
+            projected = json.loads(file_at(owner.root, current["path"]).read_bytes())
+            annotate_source_label_identity(row, projected.get("seeded_code_labels", ()))
         locator = _member_locator(owner, member, row)
         context = {"kind": "row", "locator": locator}
         commands = listing_row_action_catalog(row)
@@ -651,6 +671,78 @@ def inspect_member(owner, member, body, *, artifact=None):
             "revision": owner.revision,
             "subject_revision": owner.revision,
         }
+    finally:
+        if owns_artifact:
+            artifact.close()
+
+
+def plan_member_local_scopes(owner, member, body, *, artifact=None):
+    """Return normal checked batch entries; planning writes no target state."""
+    from .disk_set import file_at
+    from .source_local_scopes import imported_local_family
+
+    analysis_member, bias = owner.owner(member)
+    state_context(owner, analysis_member)
+    offset = body.get("source_offset")
+    if type(offset) is not int or not 0 <= offset < owner.members[member]["size"]:
+        raise ValueError("local-scope plan requires a bounded member source_offset")
+    baseline = owner.members[analysis_member]["analysis"]["state"]["target_metadata.json"]
+    projected = owner.members[analysis_member]["analysis"]["metadata"]
+    original = json.loads(file_at(owner.root, baseline["path"]).read_bytes())
+    current = json.loads(file_at(owner.root, projected["path"]).read_bytes())
+    family = imported_local_family(original, current, owner_offset=offset+bias,
+        member_start=bias, member_end=bias+owner.members[member]["size"], name=body.get("name"))
+    owns_artifact = artifact is None
+    if owns_artifact:
+        _, artifact = _artifact(owner, member, body.get("media_paths", {}), input_body=body)
+    entries = []
+    def entry(inspected, parameters, reason):
+        if "label.rename" not in {r["command_id"] for r in inspected["commands"]}:
+            raise ValueError("normal scoped label rename is unavailable")
+        row = inspected["row"]
+        from .listing_context import selected_listing_element_context
+        from .manual_action_catalog import listing_catalog_manual_payload
+
+        element = (selected_listing_element_context(row, inspected["context"])
+                   if inspected["context"]["kind"] == "element" else None)
+        listing_catalog_manual_payload(row, "label.rename", element_context=element, parameters=parameters)
+        return {"command_id": "label.rename", "context": inspected["context"],
+                "parameters": parameters, "evidence": {"reason": reason,
+                "evidence_refs": [row.get("stable_key") or row["row_key"]]}}
+    try:
+        # Inspect actual existing code boundaries. Neither source labels nor
+        # candidate-looking byte sequences may admit a new instruction.
+        if artifact.row_for_source_identity(section_index=0, offset=offset+bias, kind="instruction") is None:
+            raise ValueError("local-scope owner is not an accepted instruction boundary")
+        root = inspect_member(owner, member, {"source_offset": offset, "row_kind": "instruction"}, artifact=artifact)
+        if family["owner_name"] != family["current_owner_name"]:
+            root_label = inspect_member(owner, member, {"source_offset": offset, "row_kind": "label"}, artifact=artifact)
+            entries.append(entry(root_label, {"name": family["owner_name"]},
+                                 "Rename the inspected global source owner and retain explicit local ownership."))
+        for child in family.pop("candidates"):
+            try:
+                row = artifact.row_for_source_identity(section_index=0, offset=child["source_offset"], kind="instruction")
+            except RuntimeError as error:
+                if "canonical source identity" not in str(error):
+                    raise
+                row = None
+            if row is None:
+                family["deferred"].append({**child, "reason": "not_an_accepted_instruction_boundary"})
+                continue
+            selected = inspect_member(owner, member, {"source_offset": child["source_offset"]-bias,
+                                      "row_kind": "label"}, artifact=artifact)
+            entries.append(entry(selected, {"name": child["local_name"], "scope": "local",
+                                            "owner_offset": offset+bias},
+                "The immutable imported qualified label names the unique original source owner at this coordinate. "
+                "The current label and instruction boundary remain at the same member-owned source point; bind its "
+                "local component to that explicit source owner without changing code admission or address identity."))
+        return {"kind": "disk_set_local_scope_plan", "revision": owner.revision,
+                "expected_revision": owner.revision, "scope": root["scope"],
+                "member_id": member, "entries": entries, **family,
+                "complete": not family["deferred"], "writes_performed": False,
+                "apply_operation": "interpret_batch", "code_admission_changed": False,
+                "verification_scope": "planning_only", "media_verification": "not_performed",
+                "media_exact": None, "all_placement_coverage": None}
     finally:
         if owns_artifact:
             artifact.close()

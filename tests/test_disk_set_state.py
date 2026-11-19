@@ -29,6 +29,9 @@ def editable(
     record_label=None,
     record_scalar_label=None,
     record_legacy_text=False,
+    record_imports=(),
+    source_labels=None,
+    owner_tail=b"",
     entry_comments=(),
 ):
     from amiga_reversing.disasm import restoration, server
@@ -81,10 +84,17 @@ def editable(
         extra = {"main_data": bytes.fromhex("70074e75") + record_data,
                  "main_text": " SECTION code,code\n ORG $1000\n moveq #7,d0\n rts\n dc.b "
                  + ",".join(f"${value:02X}" for value in record_data) + "\n"}
+    if owner_tail:
+        assert owner_scope and isinstance(owner_tail, bytes)
+        extra["main_data"] += owner_tail
+        extra["main_text"] += " dc.b " + ",".join(f"${b:02X}" for b in owner_tail) + "\n"
     project, target, paths, manifest = fixture(tmp_path, **extra)
     metadata_path = target / manifest["members"][0]["analysis"]["metadata"]["path"]
     metadata = json.loads(metadata_path.read_bytes())
     metadata.setdefault("entry_comments", []).extend(entry_comments)
+    if record_imports:
+        assert record_data is not None
+        metadata.setdefault("seeded_entities", []).extend(record_imports)
     if record_label is not None:
         assert record_data is not None
         offset, name = record_label
@@ -196,6 +206,8 @@ def editable(
         metadata["seeded_entities"].append({
             "hunk": 0, "addr": 28, "end": 32, "type": "data", "unit": "long",
             "seed_origin": "manual_analysis", "review_status": "seeded", "citation": "Independent scalar"})
+    if source_labels is not None:
+        metadata["seeded_code_labels"] = source_labels
     data = json.dumps(metadata).encode()
     metadata_path.write_bytes(data)
     manifest["members"][0]["analysis"]["metadata"]["sha256"] = digest(data)

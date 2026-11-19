@@ -243,12 +243,45 @@ def _append_data_literal_context(contexts: list[dict[str, object]], row: Mapping
     contexts.append(context)
 
 
+def annotate_source_label_identity(row, declarations):
+    """Retain a declared canonical identity when source displays a bare local.
+
+    Exact section/address plus the rendered local component must select one
+    declaration. Never reconstruct ownership from the nearest preceding label.
+    """
+    if row.get("kind") != "label":
+        return
+    displayed = str(row.get("label", ""))
+    matches = [d for d in declarations
+               if d.get("hunk", 0) == row.get("section_index", 0)
+               and d["addr"] == row.get("start_offset")
+               and (d["name"].endswith("\\" + displayed) if displayed.startswith(".") else d["name"] == displayed)]
+    names = {d["name"] for d in matches}
+    if len(names) == 1:
+        row["canonical_label"] = next(iter(names))
+        comments = {d["comment"] for d in matches if d.get("comment")}
+        if len(comments) == 1:
+            row["source_label_comment"] = next(iter(comments))
+        elif len(comments) > 1:
+            row["source_label_comment_ambiguous"] = True
+    elif len(names) > 1:
+        row["canonical_label_ambiguous"] = True
+
+
 def _append_label_context(contexts: list[dict[str, object]], row: Mapping[str, object]) -> None:
     symbol = _str_or_none(row.get("label"))
     if not symbol or _str_or_none(row.get("kind")) != "label":
         return
     context = _element_base(row, "label", f"label:{symbol}")
     context["symbol"] = symbol
+    if row.get("canonical_label"):
+        context["canonical_symbol"] = row["canonical_label"]
+    if row.get("canonical_label_ambiguous"):
+        context["canonical_symbol_ambiguous"] = True
+    if row.get("source_label_comment"):
+        context["source_label_comment"] = row["source_label_comment"]
+    if row.get("source_label_comment_ambiguous"):
+        context["source_label_comment_ambiguous"] = True
     context["role"] = "definition"
     contexts.append(context)
 
