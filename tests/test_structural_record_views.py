@@ -32,6 +32,9 @@ def fixture(
     record_size=6,
     count=3,
     inspection=None,
+    unsigned=False,
+    raw_properties=None,
+    scalar_long=False,
 ):
     assembly = (
         code or " lea.l TABLE(pc),a6\n move.w 14(a6),d0\n move.w 18(a6),d1\n rts\n"
@@ -65,7 +68,7 @@ def fixture(
 
     for name in ["Point", "Other"]:
         fields = [
-            {"name": n, "type": "WORD", "offset": i * 2, "size": 2}
+            {"name": n, "type": "UWORD" if unsigned else "WORD", "offset": i * 2, "size": 2}
             for i, n in enumerate(["x", "y", "z"])
         ]
         if record_size == 4:
@@ -79,11 +82,13 @@ def fixture(
                     "pointer_address_domain": "mapped_source",
                 }
             ]
+        if record_size == 4 and scalar_long:
+            fields = [{"name": "value", "type": "ULONG" if unsigned else "LONG", "offset": 0, "size": 4}]
         if record_size == 18:
             fields += [
-                {"name": "w" + str(i), "type": "WORD", "offset": i * 2, "size": 2}
+                {"name": "w" + str(i), "type": "UWORD" if unsigned else "WORD", "offset": i * 2, "size": 2}
                 for i in range(3, 7)
-            ] + [{"name": "relative", "type": "LONG", "offset": 14, "size": 4}]
+            ] + [{"name": "relative", "type": "ULONG" if unsigned else "LONG", "offset": 14, "size": 4}]
         add(
             "target.custom_struct.add",
             {"name": name, "size": record_size, "fields": fields},
@@ -140,6 +145,8 @@ def fixture(
                 "citation": "synthetic retained primitive view",
             }
         )
+    if raw and raw_properties:
+        metadata["seeded_entities"][-1].update(raw_properties)
     if conflict:
         metadata["seeded_entities"].append(
             {

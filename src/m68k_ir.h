@@ -1459,6 +1459,11 @@ typedef struct M68kWordIndexAccessIR {
   uint8_t has_mask_domain;
   uint16_t known_bits_mask, known_bits_value;
   uint16_t index_lower, index_upper;
+  /* Display address anchor over complete scalar leaves, not one loaded field.
+   * The ordinary single-field/value resolver never requests this extension. */
+  uint8_t primitive_span_field_count;
+  uint8_t primitive_span_field_sizes[4];
+  uint16_t primitive_span_field_offsets[4];
 } M68kWordIndexAccessIR;
 
 static inline int m68k_word_index_access_has_domain(const M68kWordIndexAccessIR *index) {

@@ -2452,7 +2452,16 @@ static int static_array_record_supported(const M68kAnalysisCustomStruct *record)
 /* A raw container may coexist with its subsequently typed fields. It carries
  * storage/presentation only, never a conflicting table or pointer contract. */
 static int static_data_item_is_raw_container(const M68kAnalysisStructuredDataItem *item) {
-  return !item->table_conflicted && !item->semantic_role_flags && !item->source_pattern_id &&
+  /* The existing provenance classifier distinguishes preliminary imported
+   * opaque bytes from authored/validated/evidence-owned interpretations. It
+   * supplies no record coverage: all declared leaves must still match. */
+  int weak_opaque_bytes = item->kind == M68K_ANALYSIS_STRUCTURED_DATA_BYTES &&
+    item->metadata_precedence == M68K_METADATA_PRECEDENCE_LEGACY_OPAQUE &&
+    item->semantic_role_flags == M68K_ANALYSIS_STRUCTURED_DATA_ROLE_OPAQUE_DATA &&
+    (!item->semantic_role[0] || !strcmp(item->semantic_role, "opaque_data")) &&
+    !item->has_constant_value && !item->c_type[0] && !item->value_domain[0] &&
+    !item->constant_name[0] && !item->has_consumer;
+  return !item->table_conflicted && (!item->semantic_role_flags || weak_opaque_bytes) && !item->source_pattern_id &&
     item->table_kind_id == M68K_ANALYSIS_TABLE_KIND_UNKNOWN && !item->struct_name[0] &&
     !item->field_name[0] &&
     (!item->field_type[0] ||
@@ -2464,8 +2473,10 @@ static int static_data_item_is_raw_container(const M68kAnalysisStructuredDataIte
 }
 
 /* A primitive view is compatible only when every complete primitive cell is
- * an identically sized scalar field of the record. This preserves the view,
- * names and provenance; it does not discard an interpretation or owner. */
+ * an identically sized scalar field of the record. An untyped WORD/LONG
+ * directive specifies storage width, not a signed-value interpretation; the
+ * explicit type/value/semantic exclusions below remain mandatory. Preserve
+ * the view, names and provenance, never discard an interpretation or owner. */
 static int static_array_primitive_view_matches(const M68kAnalysisPolicy *policy,
     const M68kAnalysisStructuredDataItem *root, uint16_t struct_id,
     const M68kAnalysisStructuredDataItem *item) {
@@ -2490,7 +2501,8 @@ static int static_array_primitive_view_matches(const M68kAnalysisPolicy *policy,
       const M68kAnalysisCustomStructField *field = &record->fields[i];
       if (field->offset == offset && field->size == width &&
           field->value_kind == M68K_ANALYSIS_STRUCT_FIELD_VALUE_SCALAR &&
-          m68k_ascii_equal_ci(field->type_name, width == 2U ? "WORD" : "LONG")) break;
+          (m68k_ascii_equal_ci(field->type_name, width == 2U ? "WORD" : "LONG") ||
+           m68k_ascii_equal_ci(field->type_name, width == 2U ? "UWORD" : "ULONG"))) break;
     }
     if (i == record->field_count) return 0;
   }
@@ -4663,6 +4675,7 @@ static int typed_resolve_word_index_field(const M68kRenderLookup *lookup,
     const M68kRenderTypedState *state, const M68kRenderPlatformState *platform_state,
     const M68kInstructionIR *instruction, uint8_t operand_index, uint8_t base_reg,
     uint16_t struct_id, uint16_t struct_size, int32_t displacement, int32_t base_cursor,
+    int allow_primitive_span,
     M68kWordIndexAccessIR *out_evidence, M68kRenderResolvedStructField *out_field, int32_t *out_array_addend);
 
 static int typed_independent_auto_update_cursor(const M68kRenderLookup *,
@@ -4687,7 +4700,7 @@ static uint16_t typed_pointer_struct_id_for_field_read(const M68kRenderLookup *l
     if (!base->known || base->type_conflicted || !typed_resolve_word_index_field(lookup, state,
         platform_state, instruction, operand_index, operand->value.ea_reg, base->struct_id,
         lookup_policy_struct_size_by_id(lookup->policy, base->struct_id), encoded, base->byte_cursor,
-        &evidence, &field, &array_addend) || evidence.access_width != 4U || field.size != 4U ||
+        0, &evidence, &field, &array_addend) || evidence.access_width != 4U || field.size != 4U ||
         evidence.value_count != 1U)
       return AMIGA_OS_STRUCT_ID_NONE;
     for (size_t i = 0U; i < evidence.value_count; ++i) {
@@ -5447,10 +5460,63 @@ static int typed_word_index_mask_domain(const M68kRenderPlatformState *platform,
   return 1;
 }
 
+/* A wider primitive copy may name its first complete field as an address.
+ * It must cover complete, adjacent scalar leaves in the same declared owner.
+ * This does not load one wider field, infer a pointer or change the layout. */
+static int typed_resolve_index_address_anchor(const M68kRenderLookup *lookup,
+    uint16_t struct_id, int16_t displacement, uint8_t width, int allow_span,
+    M68kRenderResolvedStructField *field, M68kWordIndexAccessIR *evidence) {
+  if (!lookup_policy_resolve_struct_field(lookup->policy, struct_id,
+      displacement, width, field) || !field->field_expr[0] || displacement < field->offset) return 0;
+  if ((uint32_t)(displacement - field->offset) + width <= field->size) return 1;
+  if (!allow_span || displacement != field->offset) return 0;
+  const M68kAnalysisCustomStruct *root = lookup_policy_custom_struct_by_id(lookup->policy, struct_id);
+  const M68kAnalysisCustomStruct *span_owner = NULL;
+  uint32_t cursor = (uint32_t)displacement, end = cursor + width;
+  uint16_t offsets[4] = {0}; uint8_t sizes[4] = {0}, count = 0U;
+  if (!root || end > root->size) return 0;
+  while (cursor < end) {
+    const M68kAnalysisCustomStruct *owner = NULL;
+    const M68kAnalysisCustomStructField *leaf = m68k_analysis_policy_custom_struct_field_at(
+      lookup->policy, root, cursor, 0U, &owner);
+    if (!leaf || leaf->offset != cursor || count == 4U || !owner ||
+        (span_owner && span_owner != owner) || leaf->size > end - cursor ||
+        leaf->value_kind != M68K_ANALYSIS_STRUCT_FIELD_VALUE_SCALAR ||
+        leaf->struct_name[0] || leaf->pointer_struct[0] || leaf->named_base[0] ||
+        leaf->pointer_address_domain || leaf->pointer_symbol_group[0] ||
+        !((leaf->size == 1U && (!strcmp(leaf->type_name, "BYTE") || !strcmp(leaf->type_name, "UBYTE"))) ||
+          (leaf->size == 2U && (!strcmp(leaf->type_name, "WORD") || !strcmp(leaf->type_name, "UWORD"))))) return 0;
+    /* A declared overlay is not a unique primitive partition. Keep it out
+     * even when the first-match field lookup would choose this leaf. */
+    const M68kAnalysisCustomStruct *scan = root;
+    for (uint16_t depth = 0U; scan && depth <= lookup->policy->custom_struct_count; ++depth) {
+      if (scan->field_count > M68K_ANALYSIS_CUSTOM_STRUCT_FIELD_LIMIT) return 0;
+      for (uint16_t i = 0U; i < scan->field_count; ++i) {
+        const M68kAnalysisCustomStructField *other = &scan->fields[i];
+        if (other != leaf && other->size && other->offset < cursor + leaf->size &&
+            (uint64_t)other->offset + other->size > cursor) return 0;
+      }
+      scan = m68k_analysis_policy_custom_struct_parent(lookup->policy, scan);
+    }
+    span_owner = owner; offsets[count] = (uint16_t)cursor; sizes[count++] = (uint8_t)leaf->size;
+    cursor += leaf->size;
+  }
+  if (count < 2U) return 0;
+  if (evidence->primitive_span_field_count &&
+      (evidence->primitive_span_field_count != count ||
+       memcmp(evidence->primitive_span_field_offsets, offsets, sizeof(offsets)) ||
+       memcmp(evidence->primitive_span_field_sizes, sizes, sizeof(sizes)))) return 0;
+  evidence->primitive_span_field_count = count;
+  memcpy(evidence->primitive_span_field_offsets, offsets, sizeof(offsets));
+  memcpy(evidence->primitive_span_field_sizes, sizes, sizeof(sizes));
+  return 1;
+}
+
 static int typed_resolve_word_index_field(const M68kRenderLookup *lookup,
     const M68kRenderTypedState *state, const M68kRenderPlatformState *platform_state,
     const M68kInstructionIR *instruction, uint8_t operand_index, uint8_t base_reg,
     uint16_t struct_id, uint16_t struct_size, int32_t displacement, int32_t base_cursor,
+    int allow_primitive_span,
     M68kWordIndexAccessIR *out_evidence, M68kRenderResolvedStructField *out_field, int32_t *out_array_addend) {
   const M68kOperandIR *operand = &instruction->operands[operand_index];
   const M68kSimFormMetadata *metadata = m68k_sim_metadata_for_instruction(instruction);
@@ -5496,17 +5562,17 @@ static int typed_resolve_word_index_field(const M68kRenderLookup *lookup,
     uint16_t residue = (uint16_t)((encoded + evidence.known_bits_value) & residue_mask);
     if ((struct_size & residue_mask) || (evidence.known_bits_mask & residue_mask) != residue_mask ||
         first < 0 || last + width > total || first > last ||
-        !lookup_policy_resolve_struct_field(lookup->policy, struct_id,
-          (int16_t)residue, width, &selected_field) || !selected_field.field_expr[0] ||
-        width > struct_size - residue || residue < selected_field.offset ||
-        (uint32_t)residue - selected_field.offset + width > selected_field.size) return 0;
+        width > struct_size - residue ||
+        !typed_resolve_index_address_anchor(lookup, struct_id, (int16_t)residue,
+          width, allow_primitive_span, &selected_field, &evidence)) return 0;
   }
   for (index = 0U; index < evidence.value_count; ++index) {
     int64_t effective = encoded + evidence.byte_offsets[index];
     M68kRenderResolvedStructField actual;
     if (effective < 0 || effective + width > total || effective % struct_size > INT16_MAX ||
-        !lookup_policy_resolve_struct_field(lookup->policy, struct_id, (int16_t)(effective % struct_size), width, &actual) ||
-        !actual.field_expr[0]) return 0;
+        width > struct_size - effective % struct_size ||
+        !typed_resolve_index_address_anchor(lookup, struct_id, (int16_t)(effective % struct_size),
+          width, allow_primitive_span, &actual, &evidence)) return 0;
     if (!index) selected_field = actual;
     else if (strcmp(actual.field_expr, selected_field.field_expr) || actual.offset != selected_field.offset ||
         actual.size != selected_field.size) return 0;
@@ -5530,7 +5596,7 @@ static int typed_record_word_index_access(M68kRenderLookup *lookup, size_t secti
   M68kRenderResolvedStructField selected_field = {0};
   int32_t array_addend;
   if (!typed_resolve_word_index_field(lookup, state, platform_state, instruction, operand_index, base_reg,
-      struct_id, struct_size, displacement, base_cursor, &evidence, &selected_field, &array_addend)) return 0;
+      struct_id, struct_size, displacement, base_cursor, 1, &evidence, &selected_field, &array_addend)) return 0;
   size_t before_count = lookup->typed_access_count;
   if (render_lookup_add_typed_access_by_names(lookup, section_index, offset, operand_index, base_reg,
       (int16_t)displacement, struct_size, (int16_t)array_addend, base_cursor,

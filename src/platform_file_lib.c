@@ -15231,12 +15231,38 @@ int platform_file_facts_v2_listing_artifact_query_json_alloc(PlatformFileListing
         const char *root = m68k_platform_name_ref_display_text(&a->root_struct_ref, a->root_struct_name);
         const char *owner = m68k_platform_name_ref_display_text(&a->owner_struct_ref, a->owner_struct_name);
         const char *field = m68k_platform_name_ref_display_text(&a->field_ref, a->field_name);
-        if (!COORD(sec->section_index, a->offset) || (has_field && field_offset != a->field_offset) ||
+        if (!COORD(sec->section_index, a->offset) ||
             (*struct_name && (!root || strcmp(struct_name, root)) && (!owner || strcmp(struct_name, owner)))) continue;
-        PAGE(); ID(sec->section_index, a->offset); STR("root_struct_name", root); STR("owner_struct_name", owner); STR("field_name", field);
-        Q(json_builder_appendf(&b, ",\"field_offset\":%d,\"operand_index\":%u,\"field_size\":%u,\"provenance\":{\"kind\":%u,\"section_index\":%u,\"source_offset\":%u}}",
-          (int)a->field_offset, (unsigned)a->operand_index, (unsigned)a->field_size,
-          (unsigned)a->type_provenance_kind, (unsigned)a->type_provenance_section_index, (unsigned)a->type_provenance_offset));
+        uint8_t components = a->word_index.primitive_span_field_count;
+        if (components > 4U) goto failure;
+        const M68kAnalysisCustomStruct *declaration = NULL;
+        if (components) {
+          for (uint16_t t = 0U; t < artifact->policy.custom_struct_count; ++t)
+            if (owner && !strcmp(artifact->policy.custom_structs[t].name, owner)) {
+              declaration = &artifact->policy.custom_structs[t]; break;
+            }
+          if (!declaration) goto failure;
+        }
+        for (uint8_t part = 0U; part < (components ? components : 1U); ++part) {
+          int32_t at = components ? a->word_index.primitive_span_field_offsets[part] : a->field_offset;
+          uint16_t size = components ? a->word_index.primitive_span_field_sizes[part] : a->field_size;
+          const char *name = field;
+          if (has_field && field_offset != at) continue;
+          if (components) {
+            const M68kAnalysisCustomStructField *leaf = m68k_analysis_policy_custom_struct_field_at(
+              &artifact->policy, declaration, (uint32_t)at, 0U, NULL);
+            if (!leaf || leaf->offset != (uint32_t)at || leaf->size != size) goto failure;
+            name = leaf->name;
+          }
+          PAGE(); ID(sec->section_index, a->offset); STR("root_struct_name", root); STR("owner_struct_name", owner); STR("field_name", name);
+          Q(json_builder_appendf(&b, ",\"field_offset\":%d,\"operand_index\":%u,\"field_size\":%u,\"provenance\":{\"kind\":%u,\"section_index\":%u,\"source_offset\":%u}",
+            (int)at, (unsigned)a->operand_index, (unsigned)size,
+            (unsigned)a->type_provenance_kind, (unsigned)a->type_provenance_section_index, (unsigned)a->type_provenance_offset));
+          Q(source_file_word_index_access_append_json(&b, &a->word_index));
+          if (components) Q(json_builder_appendf(&b,
+            ",\"component_of_primitive_span\":true,\"address_anchor_field_offset\":%d", (int)a->field_offset));
+          Q(json_builder_append(&b, "}"));
+        }
       }
       for (j = 0; j < sec->recovered_platform_unresolved_typed_access_count; ++j) {
         const M68kRecoveredPlatformUnresolvedTypedAccessIR *a = &sec->recovered_platform_unresolved_typed_accesses[j];

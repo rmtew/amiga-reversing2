@@ -285,6 +285,43 @@ sign-extension rule in analysis.
 Regressions: `tests/test_typed_index_symbol_compensation.py` and native
 `logical_immediate_uses_generated_signedness`.
 
+## Indexed primitive-copy address anchors
+
+The existing bounded WORD-index proof may name the start address of a copy that
+covers multiple complete primitive fields. This is distinct from resolving the
+copy as one scalar or pointer field. `word_index.address_anchor_only: true`
+marks the distinction; `primitive_span_fields` and `primitive_span` retain each
+covered field's root-relative offset and byte size. Listing and instruction
+queries preserve that witness. Field-use queries enumerate each component and
+identify its common `address_anchor_field_offset`, so the second WORD is not
+lost from field lookups or pagination. The operand keeps its live
+index and exact encoded displacement. Its symbol names the first field only
+as an address anchor; the original instruction width still describes the copy.
+
+All existing incoming-state, index-domain, whole-array, per-record extent,
+base-update and ownership checks apply. The added partition must cover complete
+adjacent BYTE/UBYTE/WORD/UWORD fields under the same declaration owner, with no
+gap, partial field, overlay, nested or pointer-bearing component. The span
+never supplies a pointee, a wider loaded-field type, a callback target or new
+code admission. Pointer-value recovery continues to use the single-field path.
+Finite index sets use the same partition check as bounded bit-mask domains;
+an unproved neighboring field cannot be borrowed from the first matching leaf.
+Unknown array roots, clobbered indexes and cross-record accesses remain raw.
+An otherwise untyped retained WORD/LONG view can match UWORD/ULONG record
+leaves at the same complete physical cell width. Explicit C types, constants,
+value domains, pointer interpretations, semantic roles and alignment/overlap
+conflicts remain exclusions; no signed-value interpretation is discarded.
+The original primitive view and its provenance remain intact.
+The source-array coverage sweep also reuses the existing `LEGACY_OPAQUE`
+provenance distinction for preliminary imported BYTE remainders. Such a span
+adds no coverage and is not removed; every record byte must still be supplied
+by compatible declared leaves. Authored, named, validated, commented or
+evidence-owned opaque interpretations, and all pointer/table/value contracts,
+remain conflicts. This aligns array-root derivation with existing rendering
+precedence without inventing a new owner or dropping the inherited facts.
+This is derived analysis over existing record declarations, not another manual
+reference or an inferred array extent from an AND/shift sequence.
+
 ## Known indirect jump destinations
 
 Typed flow consumes the same accepted, source-bound, same-section indirect-JUMP
