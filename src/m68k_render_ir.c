@@ -3532,7 +3532,7 @@ static uint8_t resolve_owned_source_pointer_expression(const M68kRenderLookup *l
 
 static uint8_t resolve_mapped_source_pointer_expression(const M68kRenderLookup *lookup,
     const M68kDecodeIR *decode, uint8_t *const *accepted_start,
-    uint8_t *const *accepted_bytes, int data_table,
+    uint8_t *const *accepted_bytes, int data_table, int declared_field,
     uint32_t value, M68kRenderPlannedExpression *expression) {
   uint32_t section = 0U, offset = 0U, logical = 0U;
   int resolution = m68k_analysis_policy_resolve_pointer_address(lookup->policy, value, &section, &offset);
@@ -3543,12 +3543,12 @@ static uint8_t resolve_mapped_source_pointer_expression(const M68kRenderLookup *
   }
   uint8_t outcome = resolve_owned_source_pointer_expression(lookup, decode, accepted_start,
     value, section, offset, 0, expression);
-  if (outcome != M68K_RENDER_PLANNED_EXPRESSION_NUMERIC || !data_table ||
+  if (outcome != M68K_RENDER_PLANNED_EXPRESSION_NUMERIC || (!data_table && !declared_field) ||
       strcmp(expression->reason, "missing_source_owner") != 0) return outcome;
-  /* A declared data-table field may need a new data anchor. Use the shared
-   * planned-declaration path used by absolute LONG tables, after unique source
-   * mapping. Do not introduce code starts, split accepted instructions, or
-   * displace an existing named/typed owner. */
+  /* A declared data table or explicit mapped address field may need a source
+   * anchor. Use the shared planned-declaration path after unique mapping. This
+   * names bytes, not a pointee or callable set: never introduce code starts,
+   * split accepted instructions, or displace an existing named/typed owner. */
   for (size_t index = 0U; decode && accepted_bytes && index < decode->section_count; ++index) {
     const M68kDecodeSectionIR *target = &decode->sections[index];
     M68kRenderRangeOwnershipView ownership;
@@ -3570,7 +3570,8 @@ static uint8_t resolve_mapped_source_pointer_expression(const M68kRenderLookup *
     expression->requires_declaration = 1U;
     expression->outcome = M68K_RENDER_PLANNED_EXPRESSION_SYMBOLIC;
     snprintf(expression->expression, sizeof(expression->expression), "%s", expression->target_symbol);
-    snprintf(expression->reason, sizeof(expression->reason), "resolved_data_table_target");
+    snprintf(expression->reason, sizeof(expression->reason), "%s",
+      data_table ? "resolved_data_table_target" : "resolved_pointer_field_target");
     return expression->outcome;
   }
   return outcome;
@@ -3638,7 +3639,10 @@ static uint8_t resolve_rendered_data_pointer_expression(const M68kRenderLookup *
   }
   if (item != NULL && item->pointer_address_domain == M68K_ANALYSIS_POINTER_DOMAIN_MAPPED_SOURCE)
     return resolve_mapped_source_pointer_expression(lookup, decode, accepted_start, accepted_bytes,
-      item->table_kind_id == M68K_ANALYSIS_TABLE_KIND_POINTER, value, out_expression);
+      item->table_kind_id == M68K_ANALYSIS_TABLE_KIND_POINTER,
+      item->kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS && item->size == 4U &&
+        item->is_pointer && item->struct_name[0] && item->field_name[0] && !item->table_conflicted,
+      value, out_expression);
   if (bounded_typed_table) {
     uint32_t owner_offset;
     /* A bounded typed owner can name an interior local-offset target even

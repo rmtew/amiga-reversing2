@@ -995,8 +995,21 @@ inference or code-entry admission.
 A complete unbound packed primitive ARRAY can also be regrouped by this command
 when every record field preserves exactly one existing BYTE, WORD or LONG leaf
 and the fields densely cover each record. This requires the identical full
-extent; partial selections, gaps, wider/narrower leaves, pointer interpretations
-and previously typed arrays are not refinements. Explicit display representations
+extent; partial selections, gaps, wider/narrower leaves and previously typed
+arrays are not refinements. An intact LONG grid may additionally acquire
+explicit four-byte LONG/ULONG/APTR `target_pointer` fields in the `mapped_source`
+domain. Scalar LONG columns stay scalar; all fields must still densely preserve
+one original four-byte cell each. The prior ARRAY and annotations remain in the
+same refinement provenance. Runtime-only domains, missing domains, separate
+pointer-table contracts and conflicting prior references remain rejected. This
+neutral source-address interpretation can name already recognized code or data,
+but neither admits code at an unrecognized target nor closes writable callback
+values. At uniquely mapped bytes without an existing source owner, an explicit
+mapped address field can request a source anchor through the shared render-plan
+declaration path. The existing instruction-byte, relocation-payload and
+named/typed-owner checks still apply. The anchor gives no allocation, pointee
+type or code entry. It is not the separate data-target-only pointer-table declaration.
+Explicit display representations
 also remain rejected because a structure emits its own fields. Existing
 whole-array names survive. The exact inspected element is retained under
 `provenance.primitive_array_refinement`, and replay checks its semantic grid

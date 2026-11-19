@@ -6,8 +6,8 @@ contract without a pointee type. Inherited and nested records remain separate.
 """
 
 import re
-from copy import deepcopy
 from collections.abc import Mapping
+from copy import deepcopy
 from dataclasses import asdict, is_dataclass
 
 from .pointer_domains import validate_pointer_domain
@@ -31,6 +31,31 @@ def preserves_primitive_grid(shape, unit):
         and _WIDTHS[f['type']] == unit
         and f.get('value_kind', 'scalar') == 'scalar'
         for i, f in enumerate(fields)
+    )
+
+
+def _preserves_mapped_long_grid(shape, unit):
+    """Explicit ABS32 roles may refine intact LONG cells, not other domains.
+
+    This is a source-address interpretation only. It neither makes the loaded
+    values constant nor declares pointees, callback closure or code entries.
+    Keep the scalar-only predicate separate for heterogeneous record lists.
+    """
+    fields = shape["fields"]
+    return (
+        unit == 4
+        and len(fields) * 4 == shape["size"]
+        and any(f.get("value_kind") == "target_pointer" for f in fields)
+        and all(
+            f["offset"] == i * 4 and f["size"] == 4 and _WIDTHS[f["type"]] == 4
+            and (
+                f.get("value_kind", "scalar") == "scalar"
+                or (f.get("value_kind") == "target_pointer"
+                    and f.get("pointer_address_domain") == "mapped_source"
+                    and f.get("pointer_symbol_group") is None)
+            )
+            for i, f in enumerate(fields)
+        )
     )
 
 
@@ -251,14 +276,14 @@ def _refine_primitive_array(element, shape, prior):
 
     A plain packed array carries width and extent evidence, not record roles.
     Keep that exact evidence in the new element's provenance and in history.
-    Partial selections, gaps, widened leaves and address interpretations are
-    different contracts and still require their existing checked operations.
+    Explicit mapped ABS32 fields can interpret complete LONG cells through the
+    existing address-domain validator. Partial selections, gaps, widened leaves
+    and other address domains remain different contracts.
     """
     if prior.get("kind") != "array" or prior.get("type_binding") is not None:
         return False
     unit = prior.get("array_stride")
     count = prior.get("array_count")
-    fields = shape["fields"]
     if (
         type(unit) is not int or unit not in {1, 2, 4}
         or type(count) is not int or count <= 0
@@ -267,7 +292,8 @@ def _refine_primitive_array(element, shape, prior):
         or prior.get("offset") != element["offset"]
         or prior.get("width") != element["width"]
         or count * unit != element["width"]
-        or not preserves_primitive_grid(shape, unit)
+        or not (preserves_primitive_grid(shape, unit)
+                or _preserves_mapped_long_grid(shape, unit))
     ):
         raise ValueError("record refinement must preserve the complete primitive array grid")
     for key in ("name", "representation"):
