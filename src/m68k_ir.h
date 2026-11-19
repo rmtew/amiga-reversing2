@@ -1465,7 +1465,17 @@ static inline int m68k_word_index_access_has_domain(const M68kWordIndexAccessIR 
   return index && (index->value_count || index->loop_domain.state || index->has_mask_domain);
 }
 
+/* Structural accesses through a translated record cursor, not a WORD index.
+ * Valid for this body only; it confers no post-loop receiver or lifetime. */
+typedef struct M68kRecordCursorLoopIR {
+  M68kAffineLoopDomainIR domain;
+  int32_t first_offset;
+  uint16_t record_count;
+  uint16_t base_record_index;
+} M68kRecordCursorLoopIR;
+
 typedef struct M68kRecoveredPlatformTypedAccessIR {
+  M68kRecordCursorLoopIR cursor_loop;
   M68kWordIndexAccessIR word_index;
   uint32_t offset;
   uint8_t operand_index;

@@ -52,6 +52,7 @@ typedef struct M68kLoopRangeRow {
  * These rows retain the former only; they do not bypass the table-content
  * stability and canonical pointee binding used by source value domains. */
 typedef struct M68kLoopFieldRow {
+  M68kRecordCursorLoopIR cursor_loop;
   uint32_t offset;
   uint8_t operand, reg;
   int16_t displacement, array_addend;
@@ -213,6 +214,42 @@ static int counter_loop_field_row(const M68kRenderLookup *lookup,
   row->index.loop_index_first = (int32_t)first_index;
   row->index.loop_domain = (M68kAffineLoopDomainIR){header, tail, iterations,
     (int32_t)index_stride, width, 1U, counter, M68K_APP_SLOT_ACCESS_READ, 0U};
+  return 1;
+}
+
+/* Reuse the full counter/merge/translation proof. Entry type coordinates
+ * describe storage, while affine offsets describe the changing receiver.
+ * Every visit must select the same complete field inside the admitted array. */
+static int counter_loop_cursor_field_row(const M68kRenderLookup *lookup,
+    const M68kRenderTypedRegValue *base, const M68kRenderTypedFlowNode *node,
+    size_t operand, uint8_t reg, int16_t displacement, uint8_t width, uint8_t access,
+    int32_t translation, int32_t stride, uint32_t iterations, uint8_t counter,
+    uint32_t header, uint32_t tail, M68kLoopFieldRow *row) {
+  uint16_t size = lookup_policy_struct_size_by_id(lookup->policy, base->struct_id);
+  int64_t first = (int64_t)base->array_element_index * size + base->byte_cursor + translation + displacement;
+  int64_t last = first + (int64_t)stride * (iterations - 1U);
+  int64_t lo = first < last ? first : last, hi = first > last ? first : last;
+  int64_t cursor, relative;
+  if (!base->known || base->type_conflicted || !size || !base->array_element_count ||
+      base->array_element_index >= base->array_element_count || stride % size || lo < 0 ||
+      hi + width > (int64_t)base->array_element_count * size || first % size > INT16_MAX ||
+      (int64_t)translation + displacement < INT32_MIN || (int64_t)translation + displacement > INT32_MAX ||
+      (access != M68K_APP_SLOT_ACCESS_READ && access != M68K_APP_SLOT_ACCESS_WRITE &&
+       access != M68K_APP_SLOT_ACCESS_READ_WRITE) ||
+      !lookup_policy_resolve_struct_field(lookup->policy, base->struct_id, (int16_t)(first % size), width, &row->field) ||
+      row->field.size != width || !row->field.field_expr[0]) return 0;
+  cursor = ((int64_t)base->byte_cursor + translation) % size;
+  if (cursor < 0) cursor += size;
+  relative = cursor + displacement;
+  if (relative < 0 || relative / size > INT16_MAX) return 0;
+  row->offset = node->candidate->offset; row->operand = (uint8_t)operand; row->reg = reg;
+  row->displacement = displacement; row->struct_size = size; row->base_cursor = (int32_t)cursor;
+  row->array_addend = (int16_t)(relative / size); row->provenance = base->provenance;
+  row->table_origin = base->table_origin;
+  row->cursor_loop.domain = (M68kAffineLoopDomainIR){header, tail, iterations, stride, width, 1U, counter, access, 0U};
+  row->cursor_loop.first_offset = translation + displacement;
+  row->cursor_loop.record_count = base->array_element_count;
+  row->cursor_loop.base_record_index = base->array_element_index;
   return 1;
 }
 
@@ -696,6 +733,22 @@ static int counter_loop_prove(M68kRenderLookup *lookup, const M68kDecodeIR *deco
           fields[field_count++] = field;
         }
       }
+      if (!indexed && count == 1U && root->source == 1U && root->kind == M68K_LOOP_ROOT_ADDRESS) {
+        M68kLoopFieldRow field = {0};
+        if (counter_loop_cursor_field_row(lookup, &entry.typed.addr_regs[root->reg], node,
+            operand, reg, displacement, width, access, value->offset, root->stride, iterations,
+            candidate->counter, graph->nodes[candidate->header].candidate->offset,
+            graph->nodes[candidate->tail].candidate->offset, &field)) {
+          if (field_count == field_capacity) {
+            size_t capacity = field_capacity ? field_capacity * 2U : 16U;
+            M68kLoopFieldRow *grown;
+            if (capacity < field_capacity || capacity > SIZE_MAX / sizeof(*grown)) goto allocation;
+            grown = realloc(fields, capacity * sizeof(*grown)); if (!grown) goto allocation;
+            fields = grown; field_capacity = capacity;
+          }
+          fields[field_count++] = field;
+        }
+      }
       if (root->source == 1U) {
         const M68kAnalysisStructuredDataItem *table;
         if (source_call || access != M68K_APP_SLOT_ACCESS_READ || width != 4U || count != 1U ||
@@ -749,6 +802,16 @@ static int counter_loop_prove(M68kRenderLookup *lookup, const M68kDecodeIR *deco
         field->operand, field->reg, field->displacement, field->struct_size, field->array_addend,
         field->base_cursor, 0U, &field->field, &field->provenance, &field->table_origin,
         &field->index) != 0) goto allocation;
+    if (field->cursor_loop.domain.state) {
+      for (size_t j = 0U; j < lookup->typed_access_count; ++j) {
+        M68kRenderTypedAccess *access = &lookup->typed_accesses[j];
+        if (access->section_index == section->section_index && access->offset == field->offset &&
+            access->operand_index == field->operand && access->base_reg == field->reg &&
+            access->displacement == field->displacement && !strcmp(access->field_expr, field->field.field_expr)) {
+          access->cursor_loop = field->cursor_loop; break;
+        }
+      }
+    }
   }
   for (size_t i = 0U; i < row_count; ++i) {
     const M68kLoopRangeRow *row = &rows[i];

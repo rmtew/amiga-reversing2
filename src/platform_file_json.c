@@ -24,6 +24,18 @@ static int append_unresolved_operand_evidence_json(JsonBuilder *builder,
   return access->source_zero_write ? json_builder_append(builder, ",\"source_zero_write\":true") : 0;
 }
 
+static int append_record_cursor_loop_json(JsonBuilder *builder, const M68kRecordCursorLoopIR *cursor) {
+  const M68kAffineLoopDomainIR *domain = &cursor->domain;
+  if (!domain->state) return 0;
+  return json_builder_appendf(builder,
+    ",\"record_cursor_loop\":{\"header_offset\":%u,\"tail_offset\":%u,\"iteration_count\":%u,"
+    "\"iteration_stride\":%d,\"access_width\":%u,\"counter_register\":%u,\"access_kind\":%u,"
+    "\"first_offset\":%d,\"record_count\":%u,\"base_record_index\":%u,\"body_only\":true}",
+    domain->header_offset, domain->tail_offset, domain->iteration_count, domain->iteration_stride,
+    domain->access_width, domain->counter_register, domain->access_kind, cursor->first_offset,
+    cursor->record_count, cursor->base_record_index);
+}
+
 static int append_word_index_access_json(JsonBuilder *builder, const M68kWordIndexAccessIR *index) {
   size_t value;
   if (!m68k_word_index_access_has_domain(index)) return 0;
@@ -3517,7 +3529,8 @@ static int append_source_analysis_memory_layout_records_json(JsonBuilder *builde
         return -1;
       if (json_builder_append_json_string(builder, type_provenance_kind_name(access->type_provenance_kind)) != 0)
         return -1;
-      if (append_word_index_access_json(builder, &access->word_index) != 0) return -1;
+      if (append_word_index_access_json(builder, &access->word_index) != 0 ||
+          append_record_cursor_loop_json(builder, &access->cursor_loop) != 0) return -1;
       if (json_builder_appendf(builder,
           ",\"owner_range_start\":%lld,\"owner_range_size\":%u,\"owner_range_end\":%lld",
           (long long)owner_range_start, (unsigned)owner_range_size,
@@ -5991,7 +6004,8 @@ static int source_analysis_to_json_impl(const M68kSourceAnalysisIR *source_analy
             (unsigned)access->type_provenance_operand_index) != 0)
           goto oom;
       }
-      if (append_word_index_access_json(&builder, &access->word_index) != 0) goto oom;
+      if (append_word_index_access_json(&builder, &access->word_index) != 0 ||
+          append_record_cursor_loop_json(&builder, &access->cursor_loop) != 0) goto oom;
       if (access->has_table_origin != 0U &&
           json_builder_appendf(&builder,
             ",\"table_origin\":{\"table_section\":%u,\"table_start_offset\":%u,\"consumer_section\":%u,\"consumer_offset\":%u,\"address_expression_id\":%u,\"entry_index\":%u,\"index_min\":%u,\"index_max\":%u,\"selection_kind_id\":%u,\"terminal_kind_id\":%u}",
@@ -7077,6 +7091,7 @@ static int append_listing_typed_accesses_json(JsonBuilder *builder, const M68kSt
         json_builder_appendf(builder, ",\"type_provenance_section\":%u,\"type_provenance_offset\":%u",
           (unsigned)access->type_provenance_section_index, (unsigned)access->type_provenance_offset) != 0)
       return -1;
+    if (append_record_cursor_loop_json(builder, &access->cursor_loop) != 0) return -1;
     if (json_builder_append(builder, "}") != 0) return -1;
     emitted = 1;
   }

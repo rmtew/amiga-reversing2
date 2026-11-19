@@ -571,6 +571,7 @@ typedef struct M68kRenderTypedFlowNode {
 } M68kRenderTypedFlowNode;
 
 typedef struct M68kRenderTypedAccess {
+  M68kRecordCursorLoopIR cursor_loop;
   M68kWordIndexAccessIR word_index;
   uint16_t index_symbol_equate;
   size_t section_index;
@@ -780,6 +781,8 @@ typedef struct M68kRenderStaticRecordArray {
   uint32_t size;
   uint16_t struct_id;
   uint16_t element_count;
+  uint16_t source_owner_count;
+  uint8_t compact_only;
 } M68kRenderStaticRecordArray;
 
 /* Sparse immutable descriptors. Handles travel in the existing value packets;

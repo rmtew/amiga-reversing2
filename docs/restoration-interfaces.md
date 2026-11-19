@@ -1999,3 +1999,22 @@ the same displacement, extent, conflict and one-past checks as a non-self LEA.
 Backward record-stride expressions preserve their sign in the rendered operand.
 This does not create a register seed, extend an owner or establish a counted-loop
 bound: ambiguous/clobbered values and unsupported loop joins stay untyped.
+
+### Structural record views and counted cursors
+
+Native record receiver reasoning validates flat expanded leaves and compact
+record owners. A retained untyped WORD/LONG span is compatible only where every
+complete cell in its intersection has the same width and scalar field type.
+Its out-of-owner bytes, annotations and provenance remain untouched. Gaps,
+partial cells and conflicting typed/pointer interpretations reject the view.
+Adjacent fully validated owners of the same record can supply one structural
+address view; their source owners and lifetimes remain separate. Such a view
+does not create a cross-owner pointer collection.
+
+The existing DBF/affine induction can publish `record_cursor_loop` field facts
+when a converged entry count, unchanged counter/stack and common cursor stride
+prove all visits inside an admitted source array. Inspection and cloning retain
+the body-only witness separately from WORD-index domains. It proves field
+addresses, not loaded values, callback closure, constness or a post-loop type.
+Unknown/unequal entries, clobbers, incomplete analysis and out-of-bounds visits
+do not supply that witness; a one-past exit is not promoted into a record.

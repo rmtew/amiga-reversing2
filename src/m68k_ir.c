@@ -5918,6 +5918,15 @@ int m68k_ir_source_analysis_append_section(M68kSourceAnalysisIR *source_analysis
       m68k_ir_section_analysis_destroy(&copy);
       return -1;
     }
+    /* The append above preserves names and checks the field contract. The
+     * independent body-only cursor witness must survive deep cloning too. */
+    for (size_t j = 0U; access->cursor_loop.domain.state && j < copy.recovered_platform_typed_access_count; ++j) {
+      M68kRecoveredPlatformTypedAccessIR *row = &copy.recovered_platform_typed_accesses[j];
+      if (row->offset == access->offset && row->operand_index == access->operand_index &&
+          row->base_reg == access->base_reg && row->displacement == access->displacement) {
+        row->cursor_loop = access->cursor_loop; break;
+      }
+    }
   }
   for (index = 0; index < section_analysis->recovered_platform_unresolved_typed_access_count; ++index) {
     const M68kRecoveredPlatformUnresolvedTypedAccessIR *access =
