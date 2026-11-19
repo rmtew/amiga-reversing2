@@ -2472,8 +2472,51 @@ static int static_data_item_is_raw_container(const M68kAnalysisStructuredDataIte
     item->pointer_address_domain == M68K_ANALYSIS_POINTER_DOMAIN_LEGACY;
 }
 
+/* Storage views and wider address anchors share the same lossless partition
+ * proof. Every covered byte belongs to one complete primitive scalar leaf in
+ * one declaration owner. This establishes neither a value type nor a pointer. */
+static int typed_resolve_primitive_partition(const M68kAnalysisPolicy *policy,
+    uint16_t struct_id, uint32_t offset, uint8_t width,
+    uint16_t offsets[4], uint8_t sizes[4], uint8_t *out_count) {
+  const M68kAnalysisCustomStruct *root = lookup_policy_custom_struct_by_id(policy, struct_id);
+  const M68kAnalysisCustomStruct *span_owner = NULL;
+  uint32_t cursor = offset, end = cursor + width;
+  uint8_t count = 0U;
+  if (!root || root->size > UINT16_MAX || !width || width > 4U || end > root->size) return 0;
+  while (cursor < end) {
+    const M68kAnalysisCustomStruct *owner = NULL;
+    const M68kAnalysisCustomStructField *leaf = m68k_analysis_policy_custom_struct_field_at(
+      policy, root, cursor, 0U, &owner);
+    if (!leaf || leaf->offset != cursor || count == 4U || !owner ||
+        (span_owner && span_owner != owner) || leaf->size > end - cursor ||
+        leaf->value_kind != M68K_ANALYSIS_STRUCT_FIELD_VALUE_SCALAR ||
+        leaf->struct_name[0] || leaf->pointer_struct[0] || leaf->named_base[0] ||
+        leaf->pointer_address_domain || leaf->pointer_symbol_group[0] ||
+        !((leaf->size == 1U && (m68k_ascii_equal_ci(leaf->type_name, "BYTE") || m68k_ascii_equal_ci(leaf->type_name, "UBYTE"))) ||
+          (leaf->size == 2U && (m68k_ascii_equal_ci(leaf->type_name, "WORD") || m68k_ascii_equal_ci(leaf->type_name, "UWORD"))) ||
+          (leaf->size == 4U && (m68k_ascii_equal_ci(leaf->type_name, "LONG") ||
+           m68k_ascii_equal_ci(leaf->type_name, "ULONG"))))) return 0;
+    /* A declared overlay is not a unique primitive partition. Keep it out
+     * even when the first-match field lookup would choose this leaf. */
+    const M68kAnalysisCustomStruct *scan = root;
+    for (uint16_t depth = 0U; scan && depth <= policy->custom_struct_count; ++depth) {
+      if (scan->field_count > M68K_ANALYSIS_CUSTOM_STRUCT_FIELD_LIMIT) return 0;
+      for (uint16_t i = 0U; i < scan->field_count; ++i) {
+        const M68kAnalysisCustomStructField *other = &scan->fields[i];
+        if (other != leaf && other->size && other->offset < cursor + leaf->size &&
+            (uint64_t)other->offset + other->size > cursor) return 0;
+      }
+      scan = m68k_analysis_policy_custom_struct_parent(policy, scan);
+    }
+    span_owner = owner; offsets[count] = (uint16_t)cursor; sizes[count++] = (uint8_t)leaf->size;
+    cursor += leaf->size;
+  }
+  *out_count = count;
+  return count != 0U;
+}
+
 /* A primitive view is compatible only when every complete primitive cell is
- * an identically sized scalar field of the record. An untyped WORD/LONG
+ * a complete unique scalar partition of the record. An untyped WORD/LONG
  * directive specifies storage width, not a signed-value interpretation; the
  * explicit type/value/semantic exclusions below remain mandatory. Preserve
  * the view, names and provenance, never discard an interpretation or owner. */
@@ -2496,15 +2539,9 @@ static int static_array_primitive_view_matches(const M68kAnalysisPolicy *policy,
   if ((start - item->offset) % width || (start - root->offset) % width || (end - start) % width) return 0;
   for (uint64_t at = start; at < end; at += width) {
     uint32_t offset = (uint32_t)((at - root->offset) % record->size);
-    size_t i;
-    for (i = 0U; i < record->field_count; ++i) {
-      const M68kAnalysisCustomStructField *field = &record->fields[i];
-      if (field->offset == offset && field->size == width &&
-          field->value_kind == M68K_ANALYSIS_STRUCT_FIELD_VALUE_SCALAR &&
-          (m68k_ascii_equal_ci(field->type_name, width == 2U ? "WORD" : "LONG") ||
-           m68k_ascii_equal_ci(field->type_name, width == 2U ? "UWORD" : "ULONG"))) break;
-    }
-    if (i == record->field_count) return 0;
+    uint16_t offsets[4] = {0}; uint8_t sizes[4] = {0}, count = 0U;
+    if (!typed_resolve_primitive_partition(policy, struct_id, offset,
+        (uint8_t)width, offsets, sizes, &count)) return 0;
   }
   return 1;
 }
@@ -5470,37 +5507,9 @@ static int typed_resolve_index_address_anchor(const M68kRenderLookup *lookup,
       displacement, width, field) || !field->field_expr[0] || displacement < field->offset) return 0;
   if ((uint32_t)(displacement - field->offset) + width <= field->size) return 1;
   if (!allow_span || displacement != field->offset) return 0;
-  const M68kAnalysisCustomStruct *root = lookup_policy_custom_struct_by_id(lookup->policy, struct_id);
-  const M68kAnalysisCustomStruct *span_owner = NULL;
-  uint32_t cursor = (uint32_t)displacement, end = cursor + width;
   uint16_t offsets[4] = {0}; uint8_t sizes[4] = {0}, count = 0U;
-  if (!root || end > root->size) return 0;
-  while (cursor < end) {
-    const M68kAnalysisCustomStruct *owner = NULL;
-    const M68kAnalysisCustomStructField *leaf = m68k_analysis_policy_custom_struct_field_at(
-      lookup->policy, root, cursor, 0U, &owner);
-    if (!leaf || leaf->offset != cursor || count == 4U || !owner ||
-        (span_owner && span_owner != owner) || leaf->size > end - cursor ||
-        leaf->value_kind != M68K_ANALYSIS_STRUCT_FIELD_VALUE_SCALAR ||
-        leaf->struct_name[0] || leaf->pointer_struct[0] || leaf->named_base[0] ||
-        leaf->pointer_address_domain || leaf->pointer_symbol_group[0] ||
-        !((leaf->size == 1U && (!strcmp(leaf->type_name, "BYTE") || !strcmp(leaf->type_name, "UBYTE"))) ||
-          (leaf->size == 2U && (!strcmp(leaf->type_name, "WORD") || !strcmp(leaf->type_name, "UWORD"))))) return 0;
-    /* A declared overlay is not a unique primitive partition. Keep it out
-     * even when the first-match field lookup would choose this leaf. */
-    const M68kAnalysisCustomStruct *scan = root;
-    for (uint16_t depth = 0U; scan && depth <= lookup->policy->custom_struct_count; ++depth) {
-      if (scan->field_count > M68K_ANALYSIS_CUSTOM_STRUCT_FIELD_LIMIT) return 0;
-      for (uint16_t i = 0U; i < scan->field_count; ++i) {
-        const M68kAnalysisCustomStructField *other = &scan->fields[i];
-        if (other != leaf && other->size && other->offset < cursor + leaf->size &&
-            (uint64_t)other->offset + other->size > cursor) return 0;
-      }
-      scan = m68k_analysis_policy_custom_struct_parent(lookup->policy, scan);
-    }
-    span_owner = owner; offsets[count] = (uint16_t)cursor; sizes[count++] = (uint8_t)leaf->size;
-    cursor += leaf->size;
-  }
+  if (!typed_resolve_primitive_partition(lookup->policy, struct_id,
+      (uint32_t)displacement, width, offsets, sizes, &count)) return 0;
   if (count < 2U) return 0;
   if (evidence->primitive_span_field_count &&
       (evidence->primitive_span_field_count != count ||

@@ -2104,3 +2104,16 @@ the body-only witness separately from WORD-index domains. It proves field
 addresses, not loaded values, callback closure, constness or a post-loop type.
 Unknown/unequal entries, clobbers, incomplete analysis and out-of-bounds visits
 do not supply that witness; a one-past exit is not promoted into a record.
+
+### Retained primitive storage over record leaves
+
+An untyped storage WORD or LONG may coexist with a checked source-record array
+when each complete cell partitions into complete, adjacent primitive scalar
+fields in one declaration owner. Thus an imported raw LONG can retain its
+original bytes and provenance while two authored WORD fields remain available
+to record readers. This uses the same partition proof as indexed compound-copy
+address anchors; it does not reinterpret the LONG as a pointer or scalar value.
+Explicit value types, semantic roles, pointer fields, overlays, gaps, partial
+fields, record-boundary crossings and mismatched cell alignment retain refusal.
+Only the aligned intersection belongs to the declared array; storage beyond
+that bounded range remains outside it. No source fact or journal is removed.

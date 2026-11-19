@@ -220,9 +220,10 @@ def test_structural_view_crosses_compatible_owners_without_merging_them(
         (130, 2, "word"),
         (126, 24, "word"),
         (144, 8, "word"),
+        (128, 4, "long"),
     ],
 )
-def test_compatible_retained_word_views_preserve_record_coverage(tmp_path, raw):
+def test_compatible_retained_primitive_views_preserve_record_coverage(tmp_path, raw):
     text, _ = fixture(tmp_path, raw=raw)
     assert "Point_y+2*Point_SIZEOF(a6)" in text
     if raw[0] != 128:
@@ -234,7 +235,7 @@ def test_compatible_retained_word_views_preserve_record_coverage(tmp_path, raw):
     [
         {"split": True, "gap": 2},
         {"raw": (129, 2, "word")},
-        {"raw": (128, 4, "long")},
+        {"raw": (128, 8, "long")},
         {"conflict": True},
     ],
 )
