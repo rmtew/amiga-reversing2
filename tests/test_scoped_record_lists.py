@@ -97,13 +97,14 @@ def test_normalization_keeps_equivalent_run_and_type_orders_identical():
     assert a==b
 
 
-def test_shared_member_list_uses_owner_scope_and_rejects_outside_extent(tmp_path,monkeypatch):
+@pytest.mark.parametrize('source_kind', ['array', 'scalar'])
+def test_shared_member_list_uses_owner_scope_and_rejects_outside_extent(tmp_path,monkeypatch,source_kind):
     import json
     from amiga_reversing.disasm.disk_codecs import digest
     from amiga_reversing.disasm.disk_set import compose_source_package
     from amiga_reversing.disasm.source_package_publish import publish_source_package
     from tests.test_disk_set import packages_for
-    target,call=setup(tmp_path,monkeypatch)
+    target,call=(scalar_setup if source_kind == 'scalar' else setup)(tmp_path,monkeypatch)
     path=target/'manifest.json';manifest=json.loads(path.read_bytes())
     manifest['members'].append(dict(id='list_view',kind='data',size=14,
         sha256=digest(bytes.fromhex('0001000200030004000500060007')),
@@ -164,3 +165,61 @@ def test_legacy_projection_snapshot_upgrades_through_normal_journal(tmp_path,mon
     assert all(e['type_binding']['record_list_field_presentation'] is True for e in elements)
     call('rollback',expected_revision=upgraded['revision'],action_id=upgraded['actions'][0]['action_id'])
     assert (target/'main.s').read_bytes()==compact
+
+
+def scalar_setup(tmp_path, monkeypatch):
+    _,target,_,call=editable(tmp_path,monkeypatch,
+        record_data=bytes.fromhex('0001000200030004000500060007'),
+        record_label=(10,'sharedInteriorWord'))
+    create(call,18)
+    for at in range(4,18,2):
+        i=call('inspect',source_offset=at,end_offset=at+2,row_kind='data')
+        call('interpret',**data_request(i,'range.data_block.element.set',dict(kind='scalar',width=2)))
+    return target,call
+
+
+def test_scalar_grid_keeps_every_cell_provenance_and_history(tmp_path,monkeypatch):
+    target,call=scalar_setup(tmp_path,monkeypatch)
+    prior=metadata(target)['data_block_layouts'][-1]['elements'];before=(target/'main.s').read_bytes()
+    result=call('interpret',**request(call));after=(target/'main.s').read_bytes()
+    assert result['verification']['all_placement_coverage'] and b'sharedInteriorWord:' in after
+    elements=metadata(target)['data_block_layouts'][-1]['elements']
+    assert all(e['provenance']['record_list_source_array']['provenance']['record_list_scalar_elements']==prior for e in elements)
+    assert b'; x'in after and b'; c'in after
+    call('regenerate',expected_revision=result['revision']);assert (target/'main.s').read_bytes()==after
+    repeated=call('interpret',**request(call));assert (target/'main.s').read_bytes()==after
+    # Undo the repeated declaration, then the original grouping.
+    r=call('rollback',expected_revision=repeated['revision'],action_id=repeated['actions'][0]['action_id'])
+    r=call('rollback',expected_revision=r['revision'],action_id=result['actions'][0]['action_id'])
+    assert (target/'main.s').read_bytes()==before
+    call('rollback',expected_revision=r['revision'],action_id=result['actions'][0]['action_id'],redo=True)
+    assert (target/'main.s').read_bytes()==after
+
+
+@pytest.mark.parametrize('change',[
+    dict(name='keepMe'),dict(representation='hex'),dict(type_binding={'binding_kind':'builtin'}),
+    dict(reference_interpretation={'reference_kind':'absolute'}),dict(provenance={'prior':'evidence'}),
+    dict(offset=3),dict(width=4),dict(array_count=1),dict(offset=True),
+])
+def test_scalar_grid_rejects_contract_loss_and_forgery(change):
+    from amiga_reversing.disasm.record_lists import scalar_grid_source
+    layout=dict(layout_id='L',source_start=0,source_end=4,elements=[
+        dict(layout_id='L',kind='scalar',offset=i,width=2)for i in [0,2]])
+    layout['elements'][1].update(change)
+    with pytest.raises(ValueError):scalar_grid_source(layout)
+
+
+@pytest.mark.parametrize('unit,field_type',[(1,'UBYTE'),(2,'UWORD'),(4,'ULONG')])
+def test_scalar_grid_primitive_widths_round_trip(tmp_path,monkeypatch,unit,field_type):
+    _,target,_,call=editable(tmp_path,monkeypatch,record_data=bytes(range(16)))
+    create(call,20)
+    for at in range(4,20,unit):
+        i=call('inspect',source_offset=at,end_offset=at+unit,row_kind='data')
+        call('interpret',**data_request(i,'range.data_block.element.set',dict(kind='scalar',width=unit)))
+    i=call('inspect',source_offset=4,end_offset=20,row_kind='data')
+    r=call('interpret',**data_request(i,'range.data_block.record_list.declare',dict(
+        record_types=[dict(name='PrimitiveCell',size=unit,fields=[dict(name='value',type=field_type,offset=0,size=unit)])],
+        runs=[dict(record_type='PrimitiveCell',count=16//unit)])))
+    assert r['verification']['media_exact'] and r['verification']['all_placement_coverage']
+    after=(target/'main.s').read_bytes()
+    call('regenerate',expected_revision=r['revision']);assert (target/'main.s').read_bytes()==after

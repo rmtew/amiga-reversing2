@@ -1278,7 +1278,7 @@ def listing_range_catalog_manual_payload(
             for subrange_rows in _range_action_subrange_rows(action, rows_list)
         ]
     if action.get("action") == "declare_manual_record_list":
-        from .record_lists import record_list_plan, validate_record_list
+        from .record_lists import record_list_plan, validate_record_list, scalar_grid_source
         subranges = _range_action_subrange_rows(action, rows_list)
         if len(subranges) != 1 or set(user_params) != {"record_types", "runs"}:
             raise ValueError("record list requires one owner, explicit record_types and runs")
@@ -1289,8 +1289,10 @@ def listing_range_catalog_manual_payload(
             raise ValueError("record list requires the complete inspected owner")
         shapes, runs, list_id = record_list_plan(params['record_types'], params['runs'], owner)
         prior = owner.get('elements', [])
-        if len(prior) == 1 and prior[0].get('type_binding') is None:
+        if len(prior) == 1 and prior[0].get('kind') == 'array' and prior[0].get('type_binding') is None:
             source = prior[0]
+        elif prior and all(e.get('kind') == 'scalar' for e in prior):
+            source = scalar_grid_source(owner)
         elif prior and (prior[0].get('provenance') or {}).get('record_list_id') == list_id:
             source = prior[0]['provenance']['record_list_source_array']
         else:

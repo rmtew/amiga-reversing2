@@ -2202,6 +2202,11 @@ def _project_actions(
                               'custom_struct_id': action.action_id + ':' + name}
                     _put_by_id(custom_structs, record, 'name')
                 removed_custom_structs.pop(name, None)
+            # The validated list consumes this owner exactly. Scalar-grid
+            # refinement replaces its old cells atomically; replay/undo retain
+            # their original actions and the list's complete provenance witness.
+            for key in [key for key in data_block_elements if key[0] == lid]:
+                del data_block_elements[key]
             for element in elements:
                 element['type_binding'] = {**element['type_binding'], 'owner_action_id': action.action_id}
                 key = _data_block_element_key(element)

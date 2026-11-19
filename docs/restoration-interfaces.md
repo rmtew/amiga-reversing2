@@ -1929,7 +1929,14 @@ not automatic variable-length parsing or inference from numeric values.
 One `declare_manual_record_list` journal action owns the complete partition and
 any newly introduced flat types. It projects ordinary bound record arrays into
 the existing renderer. The original array remains verbatim in each run's
-`provenance.record_list_source_array`, linked by `record_list_id` and run index.
+`provenance.record_list_source_array`, linked by `record_list_id` and run index. A complete uniform grid of unannotated
+BYTE/WORD/LONG scalar cells is also accepted. The normalized primitive witness
+retains every original scalar under
+`source_array.provenance.record_list_scalar_elements`; replay replaces only the
+fully validated owner's cells atomically, and undo restores their original
+annotations. Named, interpreted, typed, represented or previously regrouped
+scalars, mixed widths, gaps and partial owners are rejected. This does not
+flatten a record's fields or infer a terminator/extent from its values.
 Its name continues to anchor the list start; the full original extent and
 annotations remain in the source snapshot and layout. Existing independent
 labels and interior references retain their physical addresses. A shared view

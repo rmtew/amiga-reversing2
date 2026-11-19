@@ -1,4 +1,4 @@
-"""Lossless heterogeneous record presentation over one packed primitive owner.
+"""Lossless heterogeneous records over a packed primitive array or scalar grid.
 
 An explicit ordered type schedule reuses ordinary bound record arrays. This is
 not a byte parser, type inference, pointer interpretation or overlap override.
@@ -56,6 +56,37 @@ def record_list_plan(types, runs, layout):
     return shapes, normalized, list_id
 
 
+def scalar_grid_source(layout):
+    """Normalize only a complete, unannotated uniform scalar grid.
+
+    Every original element (including citation/review provenance) travels in the
+    witness. Names, interpretations, typed cells and gaps require a different
+    contract; they must never be silently flattened.
+    """
+    prior = layout.get('elements', [])
+    width = layout['source_end'] - layout['source_start']
+    if not prior:
+        raise ValueError('record list needs an existing primitive grid')
+    unit = prior[0].get('width')
+    if type(unit) is not int or unit not in {1, 2, 4}:
+        raise ValueError('scalar record grid requires one primitive width')
+    for index, cell in enumerate(prior):
+        if (cell.get('layout_id') != layout['layout_id']
+                or cell.get('kind') != 'scalar'
+                or type(cell.get('offset')) is not int or cell['offset'] != index * unit
+                or type(cell.get('width')) is not int or cell['width'] != unit
+                or any(cell.get(k) is not None for k in
+                       ('array_count', 'array_stride', 'name', 'type_binding',
+                        'representation', 'reference_interpretation', 'provenance'))):
+            raise ValueError('scalar record grid cannot replace an existing cell contract')
+    if len(prior) * unit != width:
+        raise ValueError('scalar record grid must consume its complete owner')
+    return dict(layout_id=layout['layout_id'], offset=0, width=width, kind='array',
+                array_count=len(prior), array_stride=unit, name=None,
+                representation=None, type_binding=None, reference_interpretation=None,
+                provenance={'record_list_scalar_elements': deepcopy(prior)})
+
+
 def validate_record_list(payload, layout):
     shapes, runs, list_id = record_list_plan(payload['custom_structs'], payload['runs'], layout)
     elements = payload['data_block_elements']
@@ -77,8 +108,22 @@ def validate_record_list(payload, layout):
             or any(source.get(k) is not None for k in ('type_binding', 'reference_interpretation', 'representation'))
             or layout.get('pointer_table')):
         raise ValueError('record list requires one complete unbound primitive array')
-    primitive = len(prior) == 1 and prior[0].get('type_binding') is None
-    if primitive:
+    scalar_witness = (source.get('provenance') or {}).get('record_list_scalar_elements')
+    scalar_prior = bool(prior) and all(e.get('kind') == 'scalar' for e in prior)
+    if scalar_witness is not None:
+        expected = scalar_grid_source({**layout, 'elements': scalar_witness})
+        same_cells = (len(prior) == len(scalar_witness) and all(
+            all(actual.get(k) == claimed.get(k) for k in _ELEMENT_KEYS)
+            and ('citation' not in actual or actual['citation'] == claimed.get('citation'))
+            for actual, claimed in zip(prior, scalar_witness)))
+        if source != expected or (scalar_prior and not same_cells):
+            raise ValueError('scalar record grid provenance differs from actual prior state')
+    primitive = len(prior) == 1 and prior[0].get('kind') == 'array' and prior[0].get('type_binding') is None
+    if scalar_prior:
+        if scalar_witness is None:
+            raise ValueError('scalar record grid requires its original elements')
+        primitive = True
+    elif primitive:
         if any(prior[0].get(k) != source.get(k) for k in _ELEMENT_KEYS):
             raise ValueError('record list primitive provenance differs from actual prior state')
     elif len(prior) != len(elements):
