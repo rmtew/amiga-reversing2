@@ -9095,8 +9095,21 @@ static void typed_state_update_after_instruction(M68kRenderTypedState *state, M6
       M68kRenderTypedAppAddressValue source_app_base = {0};
       size_t target_section_index = 0U;
       uint32_t target_offset = 0U;
-      if (operand_is_address_memory_local(&instruction->operands[0], &source_base_reg, &source_displacement) &&
-          source_base_reg < 8U) source_app_base = state->app_addr_regs[source_base_reg];
+      M68kRenderTypedRegValue source_reg_value = {0};
+      M68kRenderTypedMemoryBaseValue source_memory_base = {0};
+      uint16_t source_nested_struct = AMIGA_OS_STRUCT_ID_NONE;
+      int has_source_base = operand_is_address_memory_local(&instruction->operands[0],
+        &source_base_reg, &source_displacement) && source_base_reg < 8U;
+      /* LEA reads its old base before replacing the destination, including
+       * LEA displacement(An),An. Snapshot only that operand's facts so the
+       * existing extent/cursor and conflict checks see the real input. */
+      if (has_source_base) {
+        source_app_base = state->app_addr_regs[source_base_reg];
+        source_reg_value = state->addr_regs[source_base_reg];
+        source_memory_base = state->memory_base_regs[source_base_reg];
+        if (source_reg_value.known && source_displacement)
+          source_nested_struct = typed_nested_struct_id_for_field_address(lookup, state, &instruction->operands[0]);
+      }
       typed_state_clear_reg(state, 2U, dest_reg);
       source_struct_id = AMIGA_OS_STRUCT_ID_NONE;
       if (typed_app_address_operand_info(lookup, platform_state, &instruction->operands[0],
@@ -9106,29 +9119,29 @@ static void typed_state_update_after_instruction(M68kRenderTypedState *state, M6
         typed_state_set_app_address(state, dest_reg, source_app_displacement, source_struct_id, &app_provenance,
           source_app_base_evidence_kind);
       } else if (operand_is_address_memory_local(&instruction->operands[0], &source_base_reg,
-          &source_displacement) && source_base_reg < 8U && state->addr_regs[source_base_reg].known) {
+          &source_displacement) && source_base_reg < 8U && source_reg_value.known) {
         if (source_displacement == 0) {
-          source_struct_id = state->addr_regs[source_base_reg].struct_id;
-          if (state->app_addr_regs[source_base_reg].known) {
-            typed_state_set_app_address(state, dest_reg, state->app_addr_regs[source_base_reg].displacement,
-              source_struct_id, &state->addr_regs[source_base_reg].provenance,
-              state->app_addr_regs[source_base_reg].base_evidence_kind);
+          source_struct_id = source_reg_value.struct_id;
+          if (source_app_base.known) {
+            typed_state_set_app_address(state, dest_reg, source_app_base.displacement,
+              source_struct_id, &source_reg_value.provenance,
+              source_app_base.base_evidence_kind);
           } else if (source_struct_id != AMIGA_OS_STRUCT_ID_NONE) {
             typed_state_set_reg_struct_id_array(state, 2U, dest_reg, source_struct_id,
-              state->addr_regs[source_base_reg].array_element_count,
-              state->addr_regs[source_base_reg].array_element_index,
-              &state->addr_regs[source_base_reg].provenance);
-            state->addr_regs[dest_reg].byte_cursor = state->addr_regs[source_base_reg].byte_cursor;
-            typed_state_set_reg_origin(state, 2U, dest_reg, &state->addr_regs[source_base_reg].origin);
+              source_reg_value.array_element_count,
+              source_reg_value.array_element_index,
+              &source_reg_value.provenance);
+            state->addr_regs[dest_reg].byte_cursor = source_reg_value.byte_cursor;
+            typed_state_set_reg_origin(state, 2U, dest_reg, &source_reg_value.origin);
           }
         } else {
-          source_struct_id = typed_nested_struct_id_for_field_address(lookup, state, &instruction->operands[0]);
+          source_struct_id = source_nested_struct;
           if (source_struct_id != AMIGA_OS_STRUCT_ID_NONE) {
             M68kRenderTypedProvenance field_provenance =
               typed_provenance_make(M68K_PLATFORM_TYPE_PROVENANCE_FIELD_ADDRESS, section_index, offset);
             typed_state_set_reg_struct_id(state, 2U, dest_reg, source_struct_id, &field_provenance);
           } else {
-            const M68kRenderTypedRegValue *source_value = &state->addr_regs[source_base_reg];
+            const M68kRenderTypedRegValue *source_value = &source_reg_value;
             uint16_t source_struct_size = lookup_policy_struct_size_by_id(lookup->policy,
               source_value->struct_id);
             int64_t source_relative_offset = (int64_t)source_value->byte_cursor + source_displacement;
@@ -9203,9 +9216,9 @@ static void typed_state_update_after_instruction(M68kRenderTypedState *state, M6
           }
         }
       } else if (operand_is_address_memory_local(&instruction->operands[0], &source_base_reg,
-          &source_displacement) && source_base_reg < 8U && state->memory_base_regs[source_base_reg].known) {
+          &source_displacement) && source_base_reg < 8U && source_memory_base.known) {
         M68kRenderTypedMemoryBaseValue derived_base;
-        if (typed_memory_base_with_displacement(&state->memory_base_regs[source_base_reg], source_displacement,
+        if (typed_memory_base_with_displacement(&source_memory_base, source_displacement,
             &derived_base)) {
           state->memory_base_regs[dest_reg] = derived_base;
           typed_memory_base_bind_pointer_table(&state->memory_base_regs[dest_reg], lookup);

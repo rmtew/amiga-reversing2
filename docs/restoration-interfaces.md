@@ -1989,3 +1989,13 @@ with an explicit ambiguity diagnosis. This is projection of existing identity,
 not an authored rename. Historical actions without the flag retain their
 snapshot exactly; re-declaring the identical partition performs a checked name
 preservation upgrade, and undo restores the historical projection.
+
+### Address-register cursor transfer
+
+Native typed receiver propagation reads a LEA source before replacing its
+address-register destination, including `LEA displacement(An),An`. The old
+source's record cursor, memory base and application address facts go through
+the same displacement, extent, conflict and one-past checks as a non-self LEA.
+Backward record-stride expressions preserve their sign in the rendered operand.
+This does not create a register seed, extend an owner or establish a counted-loop
+bound: ambiguous/clobbered values and unsupported loop joins stay untyped.
