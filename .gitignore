@@ -169,3 +169,7 @@ targets/starglider2_retail/*.s
 !targets/amiga_disk_conqueror_sps1275/inspect_media.py
 !targets/amiga_disk_conqueror_sps1275/inventory.json
 !targets/amiga_disk_conqueror_sps1275/test_inspect_media.py
+!targets/amiga_disk_conqueror_sps1275/RESIDENT.md
+!targets/amiga_disk_conqueror_sps1275/decode_resident.py
+!targets/amiga_disk_conqueror_sps1275/resident-verification.json
+!targets/amiga_disk_conqueror_sps1275/test_decode_resident.py
