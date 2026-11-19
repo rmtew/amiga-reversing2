@@ -173,3 +173,15 @@ targets/starglider2_retail/*.s
 !targets/amiga_disk_conqueror_sps1275/decode_resident.py
 !targets/amiga_disk_conqueror_sps1275/resident-verification.json
 !targets/amiga_disk_conqueror_sps1275/test_decode_resident.py
+
+# Conqueror gameplay: reproducible bootstrap, never local materialization.
+targets/amiga_disk_conqueror_sps1275/.project.json
+targets/amiga_disk_conqueror_sps1275/source_binary.json
+targets/amiga_disk_conqueror_sps1275/target_metadata.json
+targets/amiga_disk_conqueror_sps1275/*.s
+targets/amiga_disk_conqueror_sps1275/*.zip
+!targets/amiga_disk_conqueror_sps1275/ANALYSIS.md
+!targets/amiga_disk_conqueror_sps1275/bootstrap_analysis.py
+!targets/amiga_disk_conqueror_sps1275/verify_analysis.py
+!targets/amiga_disk_conqueror_sps1275/analysis-verification.json
+!targets/amiga_disk_conqueror_sps1275/test_bootstrap_analysis.py
