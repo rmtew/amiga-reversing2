@@ -125,6 +125,62 @@ def frame_inventory(rows):
             'count_equality_or_runtime_reachability_proved':False}
 
 
+def body_work_chain(rows):
+    """Check the ordered copy protocol; no virtual CPU or inferred callback."""
+    def memory(row, index, base, access, update=0, *, displacement=0, indexed=False):
+        p = row['operand_facts'][index]
+        expected = {'memory': True, 'base_register': base, 'access': access,
+                    'ea_update': update, 'displacement': displacement,
+                    'displacement_known': True, 'indexed': indexed, 'width_bytes': 4}
+        if any(p.get(k) != v for k, v in expected.items()):
+            raise ValueError('body copy operand differs')
+        if indexed and (p.get('index_register') != 'D0' or
+                        p.get('index_width_bytes') != 2 or p.get('index_scale') != 1):
+            raise ValueError('body copy index differs')
+
+    swaps = window(rows, 0xF4F0, 0xF526)
+    if len(swaps) != 27:
+        raise ValueError('body exchange length differs')
+    for i in range(9):
+        load, first, second = swaps[3*i:3*i+3]
+        for r in (load, first, second):
+            operation(r, 'move')
+        memory(load, 0, 'A0', 'memory_read')
+        operand(load, 1, register='D1', width=4)
+        memory(first, 0, 'A1', 'memory_read')
+        memory(first, 1, 'A0', 'memory_write', 1)
+        operand(second, 0, register='D1', width=4)
+        memory(second, 1, 'A1', 'memory_write', 1)
+    removes = window(rows, 0xF582, 0xF5A2)
+    if len(removes) != 8:
+        raise ValueError('body removal length differs')
+    for r in removes:
+        operation(r, 'move')
+        memory(r, 0, 'A0', 'memory_read', displacement=32, indexed=True)
+        memory(r, 1, 'A0', 'memory_write', 1)
+    draw = window(rows, 0xF52C, 0xF56C)
+    inputs = []
+    for r in draw:
+        operation(r, 'move')
+        src = r['operand_facts'][0]
+        if (src.get('base_register') != 'A0' or not src.get('memory') or
+                src.get('indexed') or src.get('ea_update') or
+                src.get('access') != 'memory_read'):
+            raise ValueError('body draw source differs')
+        inputs.append((src['displacement'], src['width_bytes']))
+    expected = [(6, 2), (8, 2), (10, 2), (12, 4), (16, 4), (20, 4), (24, 4), (28, 4)]
+    if inputs != expected:
+        raise ValueError('body draw extent differs')
+    return {'exchange_long_count': 9, 'exchange_bytes': 36,
+            'removal_long_count': 8, 'row_stride_bytes': 32,
+            'draw_inputs': [{'offset': a, 'size': b} for a, b in inputs],
+            'draw_input_extent': [6, 32],
+            'selected_row_contract': 'positive row index; selection and lifetime proofs remain separate',
+            'extra_exchange_span': [32, 36],
+            'adjacent_exchange_overlap_bytes': 4,
+            'intent_or_global_alias_closure': False}
+
+
 def audit(payload, rows):
     if len(payload) != 489472 or hashlib.sha256(payload).hexdigest() != MAIN_SHA256:
         raise ValueError('main member identity differs')
@@ -171,6 +227,7 @@ def collect(artifact, payload, *, full=False):
             if payload[at:at+row['size']].hex() != row['bytes'].lower():
                 raise ValueError('frame instruction bytes differ')
         result['frame_inventory'] = frame_inventory(complete)
+        result['body_work_chain'] = body_work_chain(complete)
     return result
 
 
