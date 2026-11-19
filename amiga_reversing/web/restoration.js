@@ -37,13 +37,18 @@ async function restorationRun(operation, parameters = {}) {
   }
   const scope = panel.querySelector("#restoration-scope");
   if (operation !== "state" && scope) {
+    const mode = scope.querySelector?.("#restoration-input-mode")?.value || "media";
+    const memberPath = scope.querySelector?.("#restoration-member-path")?.value.trim();
     const paths = [...scope.querySelectorAll("[data-restore-media]")];
-    if (!restorationView.member?.analysis_owner || paths.some(input => !input.value.trim())) {
-      restorationMessage("Select an analysis member and supply its disk set’s local media paths.", true);
+    if (!restorationView.member?.analysis_owner || (mode === "member"
+      ? !memberPath : paths.some(input => !input.value.trim()))) {
+      restorationMessage("Select an analysis member and supply the selected local input files.", true);
       throw new Error("Incomplete disk set bindings.");
     }
     parameters = {...parameters, member_id: restorationView.member.id,
-      media_paths: Object.fromEntries(paths.map(input => [input.dataset.restoreMedia, input.value.trim()]))};
+      ...(mode === "member" ? {input_mode: "member",
+        member_paths: {[restorationView.member.analysis_owner]: memberPath}}
+        : {media_paths: Object.fromEntries(paths.map(input => [input.dataset.restoreMedia, input.value.trim()]))})};
   }
   panel.setAttribute("aria-busy", "true");
   if (scope) scope.inert = true;
@@ -89,9 +94,11 @@ async function openRestorationPanel(memberId = null) {
     ${diskSet ? `<div id="restoration-scope">
       <label>Member <select id="restoration-member" disabled></select></label>
       <p id="restoration-member-owner"></p>
-      <fieldset><legend>Local original media paths</legend>
+      <label>Input <select id="restoration-input-mode"><option value="media">Original disk set</option><option value="member">Hash-verified member only</option></select></label>
+      <p>Member-only mode verifies source bytes. Original media is required to verify disk placements.</p>
+      <fieldset id="restoration-media-inputs"><legend>Local original media paths</legend>
       ${diskSet.media.map(media => `<label>${escapeHtml(media.id)} <input type="text" data-restore-media="${escapeHtml(media.id)}" autocomplete="off"></label>`).join("")}
-      </fieldset></div>` : ""}
+      </fieldset><label id="restoration-member-input" hidden>Complete analysis-owner file <input id="restoration-member-path" type="text" autocomplete="off"></label></div>` : ""}
     <nav><button type="button" id="restoration-refresh">Refresh state</button><button type="button" id="restoration-selected">Inspect selected source</button><button type="button" id="restoration-history">History</button><button type="button" id="restoration-pointer-exceptions">Pointer exceptions</button></nav>
     <form id="restoration-search"><label>Explore <select name="kind">${["gaps", "symbols", "functions", "references", "fields", "edges", "instructions", "expressions", "typed_pointers", "memory_regions", "memory_layouts"].map(x => `<option value="${x}">${x === "typed_pointers" ? "pointer exceptions" : x === "expressions" ? "typed source references" : x}</option>`).join("")}</select></label><label>Name / symbol / type <input name="query" type="search"></label><button>Search</button></form>
     <div id="restoration-results"></div><button id="restoration-next" type="button" hidden>Next page</button>
@@ -109,6 +116,9 @@ async function openRestorationPanel(memberId = null) {
   const safe = fn => async event => { try { await fn(event); } catch (_) { /* status above retains refusal */ } };
   const memberSelect = panel.querySelector("#restoration-member");
   const setMember = member => {
+    if (restorationView.member?.analysis_owner !== member?.analysis_owner) {
+      panel.querySelector("#restoration-member-path").value = "";
+    }
     restorationView.member = member;
     restorationView.query = restorationView.page = restorationView.inspected = null;
     restorationView.verificationId = restorationView.probeId = null;
@@ -147,11 +157,19 @@ async function openRestorationPanel(memberId = null) {
     return result;
   };
   if (diskSet) {
+    panel.querySelector("#restoration-input-mode").onchange = event => {
+      const memberOnly = event.target.value === "member";
+      panel.querySelector("#restoration-media-inputs").hidden = memberOnly;
+      panel.querySelector("#restoration-member-input").hidden = !memberOnly;
+      panel.querySelector("#restoration-verify").textContent = memberOnly
+        ? "Verify member source only" : "Regenerate and verify exact bytes";
+      setMember(restorationView.member);
+    };
     for (const id of ["restoration-selected", "restoration-pointer-exceptions", "restoration-memory", "restoration-probe"]) {
       panel.querySelector(`#${id}`).hidden = true;
     }
     panel.querySelector("#restoration-scope").addEventListener("input", event => {
-      if (event.target.matches("[data-restore-media]")) setMember(restorationView.member);
+      if (event.target.matches("[data-restore-media], #restoration-member-path")) setMember(restorationView.member);
     });
     panel.querySelector("#restoration-member-inspect").onsubmit = safe(async event => {
       event.preventDefault();
@@ -195,7 +213,8 @@ async function openRestorationPanel(memberId = null) {
       restorationMessage("Enter a fresh private output directory for verification.", true);
       return;
     }
-    const result = await restorationRun("verify", {expected_revision: restorationView.revision, ...(diskSet ? {output} : {})});
+    const memberOnly = diskSet && panel.querySelector("#restoration-input-mode").value === "member";
+    const result = await restorationRun(memberOnly ? "verify_member" : "verify", {expected_revision: restorationView.revision, ...(diskSet ? {output} : {})});
     const proof = result.verification || result;
     restorationView.verificationId = proof.receipt_id;
     panel.querySelector("#restoration-verification").textContent = restorationValue(proof);

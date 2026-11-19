@@ -1,8 +1,8 @@
 """One target owns a disk set, scoped analysis members and exact image builds.
 
-This first common slice supports sealed imports, read-only native member
-queries and independent source builds. Interactive member-state mutation is
-deliberately refused until the journal/command layer is member-aware.
+Scoped journals and source builds can use freshly hash-verified owner members.
+Authenticating physical placements and whole-image equality separately requires
+the original media; member-only analysis never certifies those properties.
 """
 
 from __future__ import annotations
@@ -592,6 +592,45 @@ class DiskSet:
                 raise ValueError("embedded member byte identity differs")
         return values, images, receipts
 
+    def analysis_values(self, member_id, body):
+        """Resolve real input bytes; member hashes never certify disk placement."""
+        mode = body.get("input_mode", "media")
+        if mode == "media":
+            if body.get("member_paths"):
+                raise ValueError("member_paths require input_mode member")
+            return self.recover(body.get("media_paths", {}))[0]
+        if mode != "member" or body.get("media_paths"):
+            raise ValueError("select exactly one input_mode: media or member")
+        owner, _ = self.owner(member_id)
+        paths = body.get("member_paths")
+        if not isinstance(paths, dict) or set(paths) != {owner}:
+            raise ValueError("supply exactly the selected analysis owner's member bytes")
+        value = paths[owner]
+        if not isinstance(value, (str, Path)) or not value:
+            raise ValueError("member input requires a readable byte-bearing file")
+        path = Path(value).resolve()
+        if path.is_relative_to(self.root.resolve()):
+            raise ValueError("private member input cannot be inside the owned source directory")
+        record = self.members[owner]
+        if not path.is_file():
+            raise ValueError("member input file is unavailable")
+        try:
+            with path.open("rb") as stream:
+                data = stream.read(record["size"] + 1)
+        except OSError as exc:
+            raise ValueError("member input file is unavailable") from exc
+        if len(data) != record["size"] or digest(data) != record["sha256"]:
+            raise ValueError("member input length or SHA-256 differs from manifest")
+        values = {owner: data}
+        for name, member in self.members.items():
+            linked_owner, offset = self.owner(name)
+            if name != owner and linked_owner == owner:
+                child = data[offset:offset + member["size"]]
+                if len(child) != member["size"] or digest(child) != member["sha256"]:
+                    raise ValueError("embedded member identity differs")
+                values[name] = child
+        return values
+
     def _analysis_input(self, member_id, values):
         from amiga_reversing.disasm.binary_source import (
             BinarySourceKind,
@@ -702,7 +741,9 @@ class DiskSet:
             ):
                 raise ValueError("instruction query outside member view")
             filters.update(source_offset=lo + bias, end_offset=hi + bias)
-        values, _, _ = self.recover(media_paths)
+        from .disk_set_state import _input_values
+
+        values = _input_values(self, member_id, {**body, "media_paths": media_paths})
         source, metadata = self._analysis_input(member_id, values)
         _, _, artifact = build_listing_artifact_profile_from_binary_source(
             source, metadata_path=metadata, project_root=self.project_root
@@ -747,16 +788,19 @@ class DiskSet:
 
     def regenerate(self, media_paths):
         """Compare native member projections with the one owned source bundle."""
+        values, _, _ = self.recover(media_paths)
+        return self._regenerate_values(values, set(self.members))
+
+    def _regenerate_values(self, values, selected):
         from amiga_reversing.disasm.c_backend import (
             listing_artifact_source_projection_with_c_backend_profile,
         )
         from amiga_reversing.disasm.source_package import collect_package_includes
 
-        values, _, _ = self.recover(media_paths)
         expected = validate_source_package(self.package)
         results = {}
         for member, m in self.members.items():
-            if m["source"] is None:
+            if member not in selected or m["source"] is None:
                 continue
             if m["analysis"] is None:
                 results[member] = {
@@ -808,12 +852,7 @@ class DiskSet:
             results[member] = {"files": len(files), "whole_source_package_exact": True}
         return results
 
-    def build(self, output, media_paths, *, vasm):
-        from amiga_reversing.disasm.c_backend import (
-            assemble_platform_source_path_with_c_backend,
-        )
-
-        values, images, _ = self.recover(media_paths)
+    def _private_build_output(self, output):
         output = Path(output).absolute()
         allowed = [
             Path("/tmp"),
@@ -834,12 +873,19 @@ class DiskSet:
         ):
             raise ValueError("disk-set output must be fresh private storage")
         output.mkdir(mode=0o700, parents=True, exist_ok=False)
+        return output
+
+    def _assemble_members(self, output, values, selected, *, vasm):
+        from amiga_reversing.disasm.c_backend import (
+            assemble_platform_source_path_with_c_backend,
+        )
+
         built, builds = {}, {}
         with tempfile.TemporaryDirectory(prefix="disk-set-source-only-") as tmp:
             stage = Path(tmp)
             materialize_source_package(self.package, stage)
             for name, member in self.members.items():
-                if member["source"] is None:
+                if name not in selected or member["source"] is None:
                     continue
                 source = stage / member["source"]
                 native, _ = assemble_platform_source_path_with_c_backend(
@@ -885,7 +931,7 @@ class DiskSet:
                     "source": member["source"],
                 }
         for name in self.members:
-            if name not in built:
+            if name not in built and self.owner(name)[0] in selected:
                 owner, offset = self.owner(name)
                 size = self.members[name]["size"]
                 built[name] = built[owner][offset : offset + size]
@@ -899,6 +945,35 @@ class DiskSet:
                     "sha256": digest(built[name]),
                     "separate_analysis_owner": False,
                 }
+        return built, builds
+
+    def build_member(self, member_id, output, body, *, vasm):
+        """Source-only proof for one owner, deliberately without media claims."""
+        if body.get("input_mode") != "member":
+            raise ValueError("member source verification requires input_mode member")
+        owner, _ = self.owner(member_id)
+        values = self.analysis_values(member_id, body)
+        output = self._private_build_output(output)
+        _, builds = self._assemble_members(output, values, {owner}, vasm=vasm)
+        if self.analysis_values(member_id, body) != values:
+            raise ValueError("member input changed during build")
+        if DiskSet.load(self.root, project_root=self.project_root).revision != self.revision:
+            raise ValueError("disk-set state changed during member build")
+        receipt = {
+            "kind": "disk_set_member_source_build",
+            "target": self.manifest["id"], "revision": self.revision,
+            "analysis_member_id": owner, "members": builds,
+            "verification_scope": "member", "input_mode": "member",
+            "media_verification": "not_performed", "media_exact": None,
+            "all_placement_coverage": None, "runtime": "not tested",
+        }
+        (output / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
+        return receipt
+
+    def build(self, output, media_paths, *, vasm):
+        values, images, _ = self.recover(media_paths)
+        output = self._private_build_output(output)
+        built, builds = self._assemble_members(output, values, set(self.members), vasm=vasm)
         media_receipts, direct_placements, embedded_placements = {}, [], []
         for m in self.manifest["media"]:
             recipe = json.loads(checked_file(self.root, m["recipe"]))
@@ -1012,11 +1087,20 @@ def execute_owner(root, body, *, project_root):
         owner = DiskSet.load(root, project_root=project_root)
         current = {"revision": owner.revision, "subject_revision": owner.revision}
         operation = body.get("operation")
+        mode = body.get("input_mode", "media")
+        if not isinstance(mode, str) or mode not in {"media", "member"}:
+            raise ValueError("input_mode must be media or member")
+        if ((mode == "member" and body.get("media_paths"))
+                or (mode == "media" and body.get("member_paths"))):
+            raise ValueError("select exactly one input_mode: media or member")
+        if operation in {"build", "verify"} and mode != "media":
+            raise ValueError("disk build/verify requires media input_mode and original media")
         if (
             operation
             in {
                 "build",
                 "verify",
+                "verify_member",
                 "interpret",
                 "interpret_batch",
                 "regenerate",
@@ -1037,6 +1121,9 @@ def execute_owner(root, body, *, project_root):
                 **current,
                 "ready": True,
                 "kind": "disk_set",
+                "analysis_input_modes": ["media", "member"],
+                "disk_verification_operation": "verify",
+                "member_verification_operation": "verify_member",
                 "members": members,
                 "analysis_owner_count": len(
                     {
@@ -1050,10 +1137,13 @@ def execute_owner(root, body, *, project_root):
                     (m["analysis"] or {}).get("state") for m in owner.members.values()
                 ),
                 "unknowns": [
-                    "Only declared editable members expose scoped label/comment interpretation; other members remain sealed.",
+                    "Only declared editable members expose scoped Restore commands; other members remain sealed.",
                     "Exact source/media builds do not prove natural boot or playback.",
                 ],
             }
+        if operation == "verify_member":
+            from amiga_reversing.disasm.disk_set_state import verify_member_source
+            return verify_member_source(owner, body.get("member_id"), body)
         if operation in MEMBER_OPERATIONS:
             from amiga_reversing.disasm.disk_set_state import (
                 edit_member,

@@ -21,7 +21,10 @@ let resolveRequest;
 let busy = null;
 let current = 'r1';
 const media = [{value: '/tmp/synthetic.adf', dataset: {restoreMedia: 'disk'}}];
-const scope = {querySelectorAll: () => media};
+const inputMode = {value: 'media'};
+const memberPath = {value: ''};
+const scope = {querySelectorAll: () => media,
+  querySelector: id => id === '#restoration-input-mode' ? inputMode : memberPath};
 const proofDisplay = {textContent: 'old receipt'};
 const panel = {
   isConnected: true,
@@ -58,9 +61,23 @@ function fetchJson(url, options) {
   assert.equal(calls[2].body.member_id, 'overlay');
   await restorationRun('state');
   assert.deepEqual(calls[3].body, {operation: 'state'});
+  inputMode.value = 'member';
+  memberPath.value = '/tmp/extracted-overlay.bin';
   media[0].value = '';
+  await restorationRun('inspect', {source_offset: 0});
+  assert.deepEqual(calls[4].body, {
+    operation: 'inspect', source_offset: 0, member_id: 'overlay',
+    input_mode: 'member', member_paths: {overlay: '/tmp/extracted-overlay.bin'},
+  });
+  await restorationRun('verify_member', {expected_revision: 'r2', output: '/tmp/proof'});
+  assert.equal(calls[5].body.operation, 'verify_member');
+  assert.equal(calls[5].body.media_paths, undefined);
+  memberPath.value = '';
+  await assert.rejects(restorationRun('inspect'), /Incomplete disk set bindings/);
+  assert.equal(calls.length, 6);
+  inputMode.value = 'media';
   await assert.rejects(restorationRun('review'), /Incomplete disk set bindings/);
-  assert.equal(calls.length, 4);
+  assert.equal(calls.length, 6);
   media[0].value = '/tmp/synthetic.adf';
   resolveRequest = () => { panel.isConnected = false; return {revision: 'late'}; };
   await assert.rejects(restorationRun('history'), /Restore view closed/);

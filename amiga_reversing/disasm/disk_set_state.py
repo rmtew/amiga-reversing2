@@ -20,6 +20,7 @@ from amiga_reversing.disasm.source_package import _json as package_manifest_byte
 
 MEMBER_OPERATIONS = (
     "inspect",
+    "verify_member",
     "regenerate",
     "interpret",
     "interpret_batch",
@@ -179,14 +180,25 @@ def state_context(owner, member):
 
 
 def verify_journal_snapshots(owner, media_paths):
+    values, _, _ = owner.recover(media_paths)
+    return _verify_snapshot_values(owner, values, set(owner.members))
+
+
+def _input_values(owner, member, body):
+    values = owner.analysis_values(member, body)
+    if body.get("input_mode", "media") == "member":
+        _verify_snapshot_values(owner, values, {owner.owner(member)[0]})
+    return values
+
+
+def _verify_snapshot_values(owner, values, selected):
     from amiga_reversing.disasm.decision_journal import read_decision_journal
     from amiga_reversing.disasm.effective_metadata import effective_metadata_text
     from amiga_reversing.disasm.manual_actions import load_manual_projection
 
-    values, _, _ = owner.recover(media_paths)
     results = {}
     for member, m in owner.members.items():
-        if not (m["analysis"] or {}).get("state"):
+        if member not in selected or not (m["analysis"] or {}).get("state"):
             continue
         source, metadata = owner._analysis_input(member, values)
         with state_context(owner, member):
@@ -217,7 +229,7 @@ def history_member(owner, member, body):
     from amiga_reversing.disasm.restoration import _envelope, _page, _pagination
 
     analysis_member, _ = owner.owner(member)
-    values, _, _ = owner.recover(body.get("media_paths", {}))
+    values = _input_values(owner, member, body)
     source, _ = owner._analysis_input(member, values)
     with state_context(owner, analysis_member):
         records = _member_records(owner.root)
@@ -250,12 +262,12 @@ def history_member(owner, member, body):
     }
 
 
-def _artifact(owner, member, media_paths):
+def _artifact(owner, member, media_paths, *, input_body=None):
     from amiga_reversing.disasm.c_backend import (
         build_listing_artifact_profile_from_binary_source,
     )
 
-    values, _, _ = owner.recover(media_paths)
+    values = _input_values(owner, member, input_body or {"media_paths": media_paths})
     source, metadata = owner._analysis_input(member, values)
     _, _, artifact = build_listing_artifact_profile_from_binary_source(
         source, metadata_path=metadata, project_root=owner.project_root
@@ -567,7 +579,7 @@ def inspect_member(owner, member, body, *, artifact=None):
         raise ValueError("inspect requires a bounded data range of at most 65536 bytes")
     owns_artifact = artifact is None
     if owns_artifact:
-        _, artifact = _artifact(owner, member, body.get("media_paths", {}))
+        _, artifact = _artifact(owner, member, body.get("media_paths", {}), input_body=body)
     try:
         if end is not None:
             return _inspect_member_data_range(owner, member, body, artifact)
@@ -592,8 +604,8 @@ def inspect_member(owner, member, body, *, artifact=None):
             raise ValueError("canonical row crosses the member view boundary")
         if row["kind"] == "data":
             row = _member_data_layout_row(owner, member, row)
-        from .imported_comments import annotate_imported_comments
         from .disk_set import file_at
+        from .imported_comments import annotate_imported_comments
 
         baseline = owner.members[analysis_member]["analysis"]["state"]["target_metadata.json"]
         declared = json.loads(file_at(owner.root, baseline["path"]).read_bytes())
@@ -807,8 +819,8 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None, source
     from .disk_set import file_at
     for kind, payload in actions:
         if kind == "declare_manual_record_list":
-            from .record_lists import validate_record_list
             from .record_arrays import record_shape
+            from .record_lists import validate_record_list
             selected = inspected.get("selection_rows", rows)
             layout = selected[0].get("active_data_block_layout")
             if (command != "range.data_block.record_list.declare" or not layout
@@ -1072,7 +1084,7 @@ def edit_member_batch(owner, member, body):
         raise ValueError("interpret_batch requires a nonempty entries list")
     if any(
         not isinstance(entry, dict)
-        or set(entry) & {"operation", "expected_revision", "member_id", "media_paths"}
+        or set(entry) & {"operation", "expected_revision", "member_id", "media_paths", "member_paths", "input_mode"}
         for entry in entries
     ):
         raise ValueError(
@@ -1089,7 +1101,7 @@ def _edit_member_entries(owner, member, body, entries):
 
     analysis_member, _ = owner.owner(member)
     state_context(owner, analysis_member)  # Refuse sealed imports before media access.
-    source, artifact = _artifact(owner, member, body.get("media_paths", {}))
+    source, artifact = _artifact(owner, member, body.get("media_paths", {}), input_body=body)
     try:
         prepared = [
             action
@@ -1235,6 +1247,40 @@ def persist_member_verification(owner, analysis_member, build, regeneration):
     )
 
 
+def verify_member_source(owner, member, body):
+    """Verify source only. Authentic disk verification remains a separate operation."""
+    from .restoration_verification import _persist
+
+    if body.get("input_mode") != "member":
+        raise ValueError("verify_member requires input_mode member")
+    if not isinstance(member, str):
+        raise ValueError("member source verification requires explicit member_id")
+    analysis_member, _ = owner.owner(member)
+    state_context(owner, analysis_member)
+    output = body.get("output")
+    if not isinstance(output, (str, Path)) or not output:
+        raise ValueError("member verification requires fresh private output")
+    values = _input_values(owner, member, body)
+    regeneration = owner._regenerate_values(values, {analysis_member})
+    result = owner.build_member(member, output, body,
+        vasm=owner.project_root / "tools/vasmm68k_mot.exe")
+    proof = result["members"][analysis_member]
+    if not (regeneration[analysis_member].get("whole_source_package_exact") is True
+            and proof.get("native_exact") is True and proof.get("vasm_exact") is True):
+        raise ValueError("member source verification is not exact")
+    result["regeneration"] = regeneration
+    result["verification"] = _persist(owner.manifest["id"], {
+        "kind": "disk_set_member_source_verification",
+        "target_id": owner.manifest["id"], "subject_revision": owner.revision,
+        "member_subject": subject(owner.manifest, analysis_member),
+        "source_package_sha256": owner.package["sha256"],
+        "verification_scope": "member", "exact": True,
+        "media_verification": "not_performed", "member_build": proof,
+    }, project_root=owner.project_root)
+    (Path(output) / "receipt.json").write_text(json.dumps(result, indent=2) + "\n")
+    return result
+
+
 def review_member(owner, member, body):
     from amiga_reversing.disasm.decision_journal import (
         append_decision_records,
@@ -1269,7 +1315,11 @@ def review_member(owner, member, body):
         except FileNotFoundError as exc:
             raise ValueError("member verification receipt was not found") from exc
         if (
-            verification.get("kind") != "disk_set_member_verification"
+            verification.get("kind") not in (
+                {"disk_set_member_verification", "disk_set_member_source_verification"}
+                if body.get("input_mode", "media") == "member"
+                else {"disk_set_member_verification"}
+            )
             or verification.get("exact") is not True
             or verification.get("subject_revision") != owner.revision
             or verification.get("member_subject")
@@ -1324,9 +1374,12 @@ def review_member(owner, member, body):
 
 def regenerate_member(owner, member, body):
     """Refresh derived source after a renderer change, preserving every journal."""
-    verify_journal_snapshots(owner, body.get("media_paths", {}))
+    if body.get("input_mode", "media") == "media":
+        verify_journal_snapshots(owner, body.get("media_paths", {}))
+    else:
+        _input_values(owner, member, body)
     return _apply_member_change(
-        owner, member, body, lambda root, source: {}, regenerate_all=True
+        owner, member, body, lambda root, source: {}, regenerate_all=body.get("input_mode", "media") == "media"
     )
 
 
@@ -1338,7 +1391,7 @@ def _apply_member_change(owner, member, body, append, *, regenerate_all=False):
 
     analysis_member, _ = owner.owner(member)
     state_context(owner, analysis_member)
-    values, _, _ = owner.recover(body.get("media_paths", {}))
+    values = _input_values(owner, member, body)
     source, _ = owner._analysis_input(member, values)
     with tempfile.TemporaryDirectory(prefix="disk-set-edit-") as tmp:
         root = Path(tmp) / owner.root.name
@@ -1407,11 +1460,17 @@ def _apply_member_change(owner, member, body, append, *, regenerate_all=False):
             json.dumps(candidate.manifest, indent=2) + "\n"
         )
         candidate = DiskSet.load(root, project_root=owner.project_root)
-        proof = candidate.build(
-            Path(tmp) / "verified",
-            body.get("media_paths", {}),
-            vasm=owner.project_root / "tools/vasmm68k_mot.exe",
-        )
+        if body.get("input_mode", "media") == "member":
+            proof = candidate.build_member(
+                member, Path(tmp) / "verified", body,
+                vasm=owner.project_root / "tools/vasmm68k_mot.exe",
+            )
+        else:
+            proof = candidate.build(
+                Path(tmp) / "verified",
+                body.get("media_paths", {}),
+                vasm=owner.project_root / "tools/vasmm68k_mot.exe",
+            )
         if (
             DiskSet.load(owner.root, project_root=owner.project_root).revision
             != owner.revision
@@ -1467,12 +1526,17 @@ def _apply_member_change(owner, member, body, append, *, regenerate_all=False):
                 else:
                     write_file(p, data)
             raise
-    return {
-        **mutation,
-        "revision": result.revision,
-        "subject_revision": result.revision,
-        "scope": {**subject(owner.manifest, analysis_member), "member_id": member},
-        "verification": {
+    if body.get("input_mode", "media") == "member":
+        verification = {
+            "member_sources_exact": True,
+            "verified_analysis_members": [analysis_member],
+            "verification_scope": "member", "input_mode": "member",
+            "media_verification": "not_performed", "media_exact": None,
+            "all_placement_coverage": None,
+            "members": proof["members"], "runtime": "not tested",
+        }
+    else:
+        verification = {
             "member_sources_exact": True,
             "all_placement_coverage": proof["coverage"]["complete"],
             "media_exact": True,
@@ -1481,5 +1545,11 @@ def _apply_member_change(owner, member, body, append, *, regenerate_all=False):
             "direct_placements": len(proof["coverage"]["direct_placements"]),
             "embedded_placements": len(proof["coverage"]["embedded_placements"]),
             "runtime": "not tested",
-        },
+        }
+    return {
+        **mutation,
+        "revision": result.revision,
+        "subject_revision": result.revision,
+        "scope": {**subject(owner.manifest, analysis_member), "member_id": member},
+        "verification": verification,
     }

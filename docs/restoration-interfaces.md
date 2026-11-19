@@ -1,5 +1,41 @@
 # Restoration interfaces
 
+## Hash-verified disk members without mounted media
+
+Disk-set Restore defaults to its existing full-media mode. For offline analysis
+of an already available member, explicitly supply `input_mode: "member"` and
+`member_paths: {"<analysis-owner-id>": "<private-file>"}` instead of `media_paths`.
+The selected `member_id` retains its manifest address context and ownership.
+A linked view requires its complete analysis owner's file, not a separate copy
+of that view. Exactly one owner binding is accepted. The file is read afresh,
+bounded by the manifest length, and its actual SHA-256 and length must match the
+pinned member. A supplied digest, an existing cache, a filename, or equal file
+size is not evidence of the bytes. Private input paths are not journal facts.
+
+This mode supports normal inspect/query, scoped interpretation, history,
+regeneration, review and undo/redo. Existing revision, source-window, owner,
+journal replay and effective-metadata snapshot checks still apply. Candidate
+changes regenerate the selected owner's source and require both native and
+independent vasm output to equal the verified member. Other owners remain
+unchanged; shared member slices retain their single analysis owner. These checks
+establish member-byte equality, not media extraction provenance.
+
+Use the separate `verify_member` operation with `member_id`, `input_mode:
+"member"`, `member_paths`, the current `expected_revision` and a fresh private
+`output` directory. It checks deterministic member regeneration and both
+assemblers, and persists a `disk_set_member_source_verification` receipt bound
+to the owner, current revision and source package. Member-mode review accepts
+that source-only proof. The result explicitly reports `verification_scope:
+"member"`, `media_verification: "not_performed"`, and null `media_exact` and
+`all_placement_coverage`; it contains no disk coverage or image-equality claim.
+
+The existing `build` and `verify` operations remain **disk-mode operations**.
+They require original `media_paths` and reject member mode. Only their original
+decode/reinsert/independent-redecode path authenticates physical placements,
+unknown/special tracks and whole-image byte equality. A member-only receipt
+cannot certify disk-mode review. Supplying both kinds of bindings is refused;
+there is no automatic fallback from unavailable media to member mode.
+
 ## Explicit field presentation for a bounded record
 
 `range.data_block.records.declare` accepts optional `field_presentation: true`.
