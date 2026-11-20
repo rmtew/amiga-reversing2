@@ -214,6 +214,35 @@ def audit(payload, rows):
             'matrix_shape_is_not_value_identity':True}
 
 
+def fixed_point_receiver(rows):
+    """Recheck existing native body-only witnesses; never create a receiver."""
+    expected = [(0x1AB12, 'position0', 0), (0x1AB14, 'position1', 2),
+                (0x1AB16, 'position2', 4), (0x1AB18, 'planeFlagWord', 6)]
+    result = []
+    for runtime, name, offset in expected:
+        selected = [r for r in rows if r['source_offset'] + 0x800 == runtime]
+        if len(selected) != 1 or selected[0].get('provenance') != 'accepted_instruction':
+            raise ValueError('point receiver requires its accepted native source instruction')
+        facts = [f for f in selected[0].get('typed_accesses', ())
+                 if f.get('root_struct_name') == 'ProjectedPointInput' and f.get('operand_index') == 0]
+        if len(facts) != 1:
+            raise ValueError('point receiver native field witness is missing or ambiguous')
+        field = facts[0]
+        domain = {'header_offset': 0x1A312, 'tail_offset': 0x1A41A,
+                  'iteration_count': 150, 'iteration_stride': 8, 'access_width': 2,
+                  'counter_register': 5, 'access_kind': 1, 'first_offset': offset,
+                  'record_count': 150, 'base_record_index': 0, 'body_only': True}
+        if (field.get('record_cursor_loop') != domain or field.get('base_register') != 'A6'
+                or field.get('field_name') != name or field.get('field_offset') != offset
+                or field.get('struct_size') != 8 or field.get('field_size') != 2
+                or field.get('word_index')):
+            raise ValueError('point receiver native field/extent contract differs')
+        result.append({'runtime': runtime, 'field': name, 'offset': offset,
+                       'last_access_end': 149 * 8 + offset + 2})
+    return {'fields': result, 'rows': 150, 'stride': 8, 'bytes': 1200,
+            'body_only': True, 'pointee_or_value_closure': False}
+
+
 def collect(artifact, payload, *, full=False):
     rows = []
     for lo, hi in [(0xF16E, 0xF2EA), (0xFC24, 0xFC92)]:
@@ -249,6 +278,7 @@ def collect(artifact, payload, *, full=False):
         result['frame_inventory'] = frame_inventory(complete)
         result['body_work_chain'] = body_work_chain(complete)
         result['glyph_stream_inventory'] = glyph_stream_inventory(complete)
+        result['fixed_point_receiver'] = fixed_point_receiver(complete)
     return result
 
 
