@@ -455,13 +455,16 @@ typedef struct M68kFactsV2StackSlot {
   M68kFactsV2TraceValue value;
 } M68kFactsV2StackSlot;
 
-#define M68K_RECEIVER_VALUE_LIMIT 64U
+#define M68K_RECEIVER_VALUE_LIMIT M68K_CONTROL_POINTER_READ_CELL_LIMIT
 typedef struct M68kRuntimeAddressSpace M68kRuntimeAddressSpace;
 typedef struct M68kReceiverContext M68kReceiverContext;
 typedef struct M68kReceiverValues { uint32_t count, offsets[M68K_RECEIVER_VALUE_LIMIT], definitions[M68K_RECEIVER_VALUE_LIMIT]; } M68kReceiverValues;
 static M68kReceiverContext *receiver_context_create(const M68kDecodeSectionIR *, const M68kFactIR *,
   const M68kRuntimeAddressSpace *, const M68kAnalysisPolicy *, const uint8_t *, Arena *);
+static void receiver_context_set_source_reads(M68kReceiverContext *,const M68kControlPointerReadProof *,size_t,const M68kControlWordSelectorProof *,size_t);
 static int receiver_field_slots(M68kReceiverContext *, const M68kDecodeCandidate *, size_t, M68kReceiverValues *);
+static int receiver_field_slot_entry_witness(M68kReceiverContext *,const M68kDecodeCandidate *,size_t,M68kReceiverValues *);
+static int receiver_proven_source_slots(M68kReceiverContext *,const M68kDecodeCandidate *,size_t,M68kReceiverValues *);
 static int receiver_control_slots(M68kReceiverContext *, const M68kDecodeCandidate *, M68kReceiverValues *);
 static int receiver_store_values(M68kReceiverContext *, const M68kDecodeCandidate *, M68kReceiverValues *);
 static int receiver_value_owner_slots(M68kReceiverContext *, const M68kDecodeCandidate *, uint32_t, M68kReceiverValues *);
@@ -475,6 +478,8 @@ typedef struct M68kFactsV2CallbackFieldTarget {
   M68kFactsV2TraceValue target;
 } M68kFactsV2CallbackFieldTarget;
 
+typedef struct M68kCallbackConsumedCell {size_t section_index;uint32_t offset;} M68kCallbackConsumedCell;
+
 typedef struct M68kFactsV2CallbackFieldTargets {
   M68kFactsV2CallbackFieldTarget *items;
   size_t count;
@@ -482,6 +487,8 @@ typedef struct M68kFactsV2CallbackFieldTargets {
   uint8_t **entry_boundaries;
   M68kReceiverContext **receivers;
   const M68kAnalysisPolicy *policy;
+  M68kCallbackConsumedCell *consumed;
+  size_t consumed_count,consumed_capacity;
 } M68kFactsV2CallbackFieldTargets;
 
 typedef struct M68kFactsV2TraceState {
@@ -8145,9 +8152,8 @@ static int trace_callback_site_linear_state(const M68kFactsV2RelocationLookup *,
     const M68kDecodeSectionIR *, const M68kDecodeCandidate *, const uint8_t *,
     Arena *, M68kFactsV2TraceState *);
 
-static int callback_fragment_index(const M68kDecodeCandidate *,size_t,uint8_t *,uint8_t *,int32_t *);
 static int collect_callback_fragment_targets(Arena *,M68kFactsV2CallbackFieldTargets *,
-    size_t,const M68kDecodeCandidate *,int,int32_t);
+    size_t,const M68kDecodeCandidate *,const M68kFactsV2RelocationLookup *,uint8_t **,uint8_t **);
 
 static int collect_receiver_callback_targets(M68kDecodeIR *decode, const M68kRuntimeAddressSpace *runtime,
     Arena *arena, M68kFactsV2CallbackFieldTargets *targets, uint8_t **accepted_start, uint8_t **accepted_bytes,
@@ -8156,16 +8162,27 @@ static int collect_receiver_callback_targets(M68kDecodeIR *decode, const M68kRun
   M68kReceiverValues slots, values;
   M68kReceiverContext *ctx=targets->receivers[section_index];
   const M68kDecodeSectionIR *s=&decode->sections[section_index];
-  if(store.mnemonic_id!=M68K_ASM_MNEMONIC_MOVE || store.size_suffix!='l' || store.operand_count!=2U ||
-      !receiver_field_slots(ctx,&store,1U,&slots)) return 0;
+  if(store.mnemonic_id!=M68K_ASM_MNEMONIC_MOVE || store.size_suffix!='l' || store.operand_count!=2U) return 0;
+  int destination_witness=0;
+  if(!receiver_field_slots(ctx,&store,1U,&slots)) {
+    M68kReceiverValues proven_source;
+    if(!receiver_proven_source_slots(ctx,&store,0U,&proven_source) ||
+        !receiver_field_slot_entry_witness(ctx,&store,1U,&slots)) return 0;
+    destination_witness=1;
+  }
   uint8_t source_reg;uint32_t immediate;
   int register_source=operand_is_address_register_direct(&store.operands[0],&source_reg);
   int immediate_source=operand_immediate_value(store.operand_kinds[0],&store.operands[0],&immediate);
-  if(!receiver_store_values(ctx,&store,&values)) {
+  int initial_resolved=receiver_store_values(ctx,&store,&values);
+  if(!initial_resolved) memset(&values,0,sizeof(values));
+  if(!register_source && !immediate_source) {
     M68kReceiverValues from;
-    if(slots.count!=1U || !receiver_field_slots(ctx,&store,0U,&from)) return 0;
-    memset(&values,0,sizeof(values));
-    for(uint32_t n=0U;n<from.count;++n) for(size_t v=0U;v<targets->count;++v) {
+    if(slots.count!=1U) return 0;
+    int source_slots=receiver_proven_source_slots(ctx,&store,0U,&from);
+    if(!source_slots) source_slots=receiver_field_slots(ctx,&store,0U,&from);
+    /* Mutable source cells also carry independently validated stored values.
+     * Neither these nor initial-image candidates imply writer order/constness. */
+    if(source_slots) for(uint32_t n=0U;n<from.count;++n) for(size_t v=0U;v<targets->count;++v) {
       const M68kFactsV2CallbackFieldTarget *known=&targets->items[v];
       if(known->section_index==section_index && known->storage_offset==from.offsets[n] &&
           known->target.kind==M68K_FACTS_V2_TRACE_SOURCE_OFFSET) {
@@ -8176,8 +8193,8 @@ static int collect_receiver_callback_targets(M68kDecodeIR *decode, const M68kRun
         values.offsets[values.count]=at;values.definitions[values.count++]=store.offset;
       }
     }
-    if(!values.count) return 0;
-  } else if(!register_source && !immediate_source && slots.count!=1U) return 0;
+  }
+  if(!values.count) return 0;
   /* Validate the complete selected initial set before adding any store links. */
   for(uint32_t n=0U;n<values.count;++n) {
     uint32_t at=values.offsets[n],conflict;
@@ -8195,7 +8212,10 @@ static int collect_receiver_callback_targets(M68kDecodeIR *decode, const M68kRun
   }
   for(uint32_t n=0U;n<values.count;++n) {
     M68kReceiverValues owners;
-    if(!receiver_value_owner_slots(ctx,&store,values.definitions[n],&owners)) continue;
+    if(destination_witness) {
+      if(values.definitions[n]!=store.offset) continue;
+      owners=slots;
+    } else if(!receiver_value_owner_slots(ctx,&store,values.definitions[n],&owners)) continue;
     for(uint32_t k=0U;k<owners.count;++k) {
       if((owners.offsets[k]&1U) || owners.offsets[k]>s->size || s->size-owners.offsets[k]<4U) continue;
       M68kFactsV2CallbackFieldTarget target;memset(&target,0,sizeof(target));
@@ -8214,18 +8234,8 @@ static int collect_callback_field_target_from_store(M68kDecodeIR *decode,
     uint8_t **accepted_bytes, uint8_t max_cpu, size_t section_index, const M68kDecodeSectionIR *section,
     const M68kDecodeCandidate *store_candidate) {
   if (!store_candidate) return 0;
-  uint8_t fragment_base,fragment_index;int32_t fragment_disp;
-  if(store_candidate->mnemonic_id==M68K_ASM_MNEMONIC_MOVE && store_candidate->size_suffix=='l' &&
-      store_candidate->operand_count==2U &&
-      callback_fragment_index(store_candidate,0U,&fragment_base,&fragment_index,&fragment_disp)) {
-    M68kFactsV2TraceState fragment_state;
-    int fragment_traced=trace_callback_site_linear_state(relocation_lookup,runtime_addresses,
-      accepted_start,accepted_bytes,section_index,section,store_candidate,
-      targets->entry_boundaries[section_index],arena,&fragment_state);
-    int fragment_known=fragment_traced && (fragment_state.d_low16_known & (1U<<fragment_index));
-    if(collect_callback_fragment_targets(arena,targets,section_index,store_candidate,fragment_known,
-        fragment_known ? (int16_t)fragment_state.d_low16[fragment_index] : 0)!=0) return -1;
-  }
+  if(collect_callback_fragment_targets(arena,targets,section_index,store_candidate,
+      relocation_lookup,accepted_start,accepted_bytes)!=0) return -1;
   M68kDecodeCandidate stable=*store_candidate;
   store_candidate=&stable;
   if(collect_receiver_callback_targets(decode,runtime_addresses,arena,targets,accepted_start,accepted_bytes,
@@ -8275,7 +8285,8 @@ static int collect_callback_field_targets_for_accepted(M68kDecodeIR *decode, con
     const M68kAnalysisPolicy *policy,
     const M68kFactsV2RelocationLookup *relocation_lookup, const M68kRuntimeAddressSpace *runtime_addresses,
     Arena *arena, uint8_t **accepted_start, uint8_t **accepted_bytes, uint8_t max_cpu,
-    M68kFactsV2CallbackFieldTargets *out_targets) {
+    const M68kControlPointerReadProof *source_reads,size_t source_read_count,
+    const M68kControlWordSelectorProof *selectors,size_t selector_count,M68kFactsV2CallbackFieldTargets *out_targets) {
   size_t section_index;
   if (decode == NULL || relocation_lookup == NULL || runtime_addresses == NULL || arena == NULL ||
       accepted_start == NULL || accepted_bytes == NULL || out_targets == NULL) {
@@ -8294,6 +8305,7 @@ static int collect_callback_field_targets_for_accepted(M68kDecodeIR *decode, con
     out_targets->receivers[section_index] = receiver_context_create(&decode->sections[section_index], facts,
       runtime_addresses, policy, accepted_start[section_index], arena);
     if (!out_targets->receivers[section_index]) return -1;
+    receiver_context_set_source_reads(out_targets->receivers[section_index],source_reads,source_read_count,selectors,selector_count);
     out_targets->entry_boundaries[section_index] = arena_calloc(arena, size ? size : 1U, 1U);
     if (!out_targets->entry_boundaries[section_index]) return -1;
   }
@@ -8303,22 +8315,51 @@ static int collect_callback_field_targets_for_accepted(M68kDecodeIR *decode, con
         f->section_index < decode->section_count && f->offset < decode->sections[f->section_index].size)
       out_targets->entry_boundaries[f->section_index][f->offset] = 1U;
   }
-  for (unsigned pass=0U;pass<8U;++pass) {
-  size_t previous=out_targets->count;
-  for (section_index = 0U; section_index < decode->section_count; ++section_index) {
-    const M68kDecodeSectionIR *section = &decode->sections[section_index];
-    size_t candidate_index;
-    if (accepted_start[section_index] == NULL || accepted_bytes[section_index] == NULL) return -1;
-    for (candidate_index = 0U; candidate_index < section->candidate_count; ++candidate_index) {
-      const M68kDecodeCandidate *candidate = &section->candidates[candidate_index];
-      if (candidate->offset >= section->size || !accepted_start[section_index][candidate->offset]) continue;
-      if (collect_callback_field_target_from_store(decode, relocation_lookup, runtime_addresses, arena,
-          out_targets, accepted_start, accepted_bytes, max_cpu, section_index, section, candidate) != 0) {
-        return -1;
+  /* Copy demands come only from accepted indirect-control receivers. A
+   * copied field is not invented merely because another integer looks like a
+   * pointer. Aggregate sites dynamically; the per-query bound is unchanged. */
+  for(section_index=0U;section_index<decode->section_count;++section_index) {
+    const M68kDecodeSectionIR *section=&decode->sections[section_index];
+    for(size_t n=0U;n<section->candidate_count;++n) {
+      const M68kDecodeCandidate *c=&section->candidates[n];M68kReceiverValues cells;
+      if(!accepted_start[section_index][c->offset] ||
+          !receiver_control_slots(out_targets->receivers[section_index],c,&cells)) continue;
+      for(uint32_t k=0U;k<cells.count;++k) {
+        size_t d;
+        for(d=0U;d<out_targets->consumed_count;++d)
+          if(out_targets->consumed[d].section_index==section_index && out_targets->consumed[d].offset==cells.offsets[k]) break;
+        if(d<out_targets->consumed_count) continue;
+        if(out_targets->consumed_count==out_targets->consumed_capacity) {
+          size_t capacity=out_targets->consumed_capacity ? 2U*out_targets->consumed_capacity : 16U;
+          if(capacity<out_targets->consumed_capacity || capacity>SIZE_MAX/sizeof(*out_targets->consumed)) return -1;
+          M68kCallbackConsumedCell *grown=arena_realloc_copy(arena,out_targets->consumed,
+            out_targets->consumed_capacity*sizeof(*grown),capacity*sizeof(*grown));
+          if(!grown) return -1;
+          out_targets->consumed=grown;out_targets->consumed_capacity=capacity;
+        }
+        out_targets->consumed[out_targets->consumed_count++]=(M68kCallbackConsumedCell){section_index,cells.offsets[k]};
       }
     }
   }
-  if (out_targets->count==previous) break;
+  /* Append deduplicates (section, storage cell, complete target). The
+   * accepted store/copy sites and in-image cells/targets are finite, so this
+   * monotone set has a fixed point. A pass count is not a value-flow proof. */
+  for (;;) {
+    size_t previous=out_targets->count;
+    for (section_index = 0U; section_index < decode->section_count; ++section_index) {
+      const M68kDecodeSectionIR *section = &decode->sections[section_index];
+      size_t candidate_index;
+      if (accepted_start[section_index] == NULL || accepted_bytes[section_index] == NULL) return -1;
+      for (candidate_index = 0U; candidate_index < section->candidate_count; ++candidate_index) {
+        const M68kDecodeCandidate *candidate = &section->candidates[candidate_index];
+        if (candidate->offset >= section->size || !accepted_start[section_index][candidate->offset]) continue;
+        if (collect_callback_field_target_from_store(decode, relocation_lookup, runtime_addresses, arena,
+            out_targets, accepted_start, accepted_bytes, max_cpu, section_index, section, candidate) != 0) {
+          return -1;
+        }
+      }
+    }
+    if (out_targets->count==previous) break;
   }
   return 0;
 }
@@ -8441,7 +8482,8 @@ static int seed_callback_field_indirect_targets(M68kDecodeIR *decode, const M68k
     const M68kFactsV2RelocationLookup *relocation_lookup, M68kFactsV2WorkQueue *queue,
     const M68kRuntimeAddressSpace *runtime_addresses, Arena *scratch_arena,
     uint8_t **accepted_start, uint8_t **accepted_bytes, M68kFactsV2Profile *profile,
-    uint8_t max_cpu, uint32_t *out_seeded_count) {
+    uint8_t max_cpu,const M68kControlPointerReadProof *source_reads,size_t source_read_count,
+    const M68kControlWordSelectorProof *selectors,size_t selector_count,uint32_t *out_seeded_count) {
   ArenaMark mark;
   M68kFactsV2CallbackFieldTargets targets;
   size_t section_index;
@@ -8455,7 +8497,7 @@ static int seed_callback_field_indirect_targets(M68kDecodeIR *decode, const M68k
   before_queue_cursor = (uint32_t)queue->count;
   mark = arena_mark(scratch_arena);
   if (collect_callback_field_targets_for_accepted(decode, facts, policy, relocation_lookup, runtime_addresses,
-      scratch_arena, accepted_start, accepted_bytes, max_cpu, &targets) != 0) {
+      scratch_arena, accepted_start, accepted_bytes, max_cpu, source_reads, source_read_count, selectors,selector_count,&targets) != 0) {
     arena_rewind(scratch_arena, mark);
     return -1;
   }
@@ -11409,6 +11451,49 @@ static int facts_v2_has_asm_source_failures(const M68kFactsV2Profile *profile) {
     profile->source_quality_blockers != 0U);
 }
 
+static int collect_control_read_proofs(const M68kObject *object,const M68kDecodeIR *decode,
+    const M68kFactIR *facts,const M68kAnalysisPolicy *policy,uint8_t **accepted_start,uint8_t **accepted_bytes,
+    const M68kAnalysisLabelPoint *labels,size_t label_count,M68kControlPointerReadProof **out,size_t *count,
+    M68kControlWordSelectorProof **words,size_t *word_count) {
+  int eligible=0,indexed=0,indirect=0;*out=NULL;*count=0U;*words=NULL;*word_count=0U;
+  /* Eligibility is only a cost gate. Bounds and source-cell ownership must
+   * still be independently established by the shared native analysis. */
+  if(policy) for(size_t n=0U;n<policy->custom_struct_count;++n) {
+    const M68kAnalysisCustomStruct *r=&policy->custom_structs[n];
+    if(r->size==4U && r->field_count==1U && !strcmp(r->fields[0].type_name,"APTR") &&
+        r->fields[0].value_kind==M68K_ANALYSIS_STRUCT_FIELD_VALUE_TARGET_POINTER &&
+        r->fields[0].pointer_address_domain==M68K_ANALYSIS_POINTER_DOMAIN_MAPPED_SOURCE) eligible=1;
+  }
+  if(!eligible) for(size_t s=0U;s<decode->section_count;++s) for(size_t n=0U;n<decode->sections[s].candidate_count;++n) {
+    const M68kDecodeCandidate *c=&decode->sections[s].candidates[n];uint8_t reg;
+    if(!accepted_start[s][c->offset]) continue;
+    if(candidate_indirect_control_address_register(c,&reg)) indirect=1;
+    if(c->size_suffix=='l' && (c->mnemonic_id==M68K_ASM_MNEMONIC_MOVE || c->mnemonic_id==M68K_ASM_MNEMONIC_MOVEA)) {
+      M68kInstructionIR i;int32_t displacement;
+      if(m68k_decode_candidate_to_instruction(c,&i)==0)
+        for(size_t op=0U;op<i.operand_count;++op)
+          if(m68k_ir_operand_brief_index_displacement(&i.operands[op],&displacement)) indexed=1;
+    }
+  }
+  if(!eligible && !(indexed && indirect)) return 0;
+  M68kRenderLookup lookup;memset(&lookup,0,sizeof(lookup));
+  int result=m68k_render_lookup_build(&lookup,object,decode,facts,policy,accepted_start,labels,label_count);
+  if(!result) result=m68k_analysis_render_lookup_run_platform_passes(&lookup,decode,accepted_start,accepted_bytes,NULL);
+  if(!result) result=m68k_analysis_render_lookup_collect_control_pointer_reads(&lookup,decode,out,count);
+  if(!result && lookup.control_word_selector_count) {
+    if(lookup.control_word_selector_count>SIZE_MAX/sizeof(**words)) result=-1;
+    else {
+      *words=malloc(lookup.control_word_selector_count*sizeof(**words));
+      if(!*words) result=-1;
+      else {memcpy(*words,lookup.control_word_selectors,lookup.control_word_selector_count*sizeof(**words));
+        *word_count=lookup.control_word_selector_count;}
+    }
+  }
+  m68k_render_lookup_destroy(&lookup);
+  if(result) {free(*out);free(*words);*out=NULL;*words=NULL;*count=*word_count=0U;}
+  return result;
+}
+
 static int facts_v2_collect_profile_internal(const M68kObject *object, const M68kAnalysisPolicy *policy,
     M68kFactsV2Profile *out_profile, int force_asm_source, int collect_asm_source_text,
     int allow_env_asm_source, int fail_on_asm_refused, int mark_source_blockers, char **out_asm_source,
@@ -11632,11 +11717,17 @@ static int facts_v2_collect_profile_internal(const M68kObject *object, const M68
   for (;;) {
     uint32_t callback_field_entry_seeds = 0U;
     uint32_t callback_field_accepted = 0U;
-    fail_stage = "callback field indirect target seeding";
-    if (seed_callback_field_indirect_targets(&decode, policy, &facts, &relocation_lookup, &queue, &runtime_addresses,
-        workflow.arena, accepted_start, accepted_bytes, out_profile, max_cpu, &callback_field_entry_seeds) != 0) {
-      goto fail;
-    }
+    M68kControlPointerReadProof *reads=NULL;size_t read_count=0U;
+    M68kControlWordSelectorProof *selectors=NULL;size_t selector_count=0U;
+    fail_stage="converged control selector proofs";
+    if(collect_control_read_proofs(object,&decode,&facts,policy,accepted_start,accepted_bytes,
+        label_lookup.points,label_lookup.point_count,&reads,&read_count,&selectors,&selector_count)!=0) goto fail;
+    fail_stage="callback field indirect target seeding";
+    int seeded=seed_callback_field_indirect_targets(&decode,policy,&facts,&relocation_lookup,&queue,
+      &runtime_addresses,workflow.arena,accepted_start,accepted_bytes,out_profile,max_cpu,
+      reads,read_count,selectors,selector_count,&callback_field_entry_seeds);
+    free(reads);free(selectors);
+    if(seeded!=0) goto fail;
     if (!callback_field_entry_seeds) break;
     if (callback_field_entry_seeds != 0U) {
       fail_stage = "callback field indirect target reachable fixed point";

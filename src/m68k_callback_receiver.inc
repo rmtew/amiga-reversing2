@@ -2,6 +2,11 @@
  * Continuations cross helpers only after a bounded no-write / ordinary-return
  * proof for the tracked register. Stack receivers and unknown ABIs stay out. */
 typedef struct ReceiverPred { uint32_t source, next; uint8_t kind; } ReceiverPred;
+typedef struct ReceiverValueCacheEntry {
+  uint32_t at;int32_t delta;
+  uint8_t reg,field_mode,recursion,entry_path_witness,occupied,result;
+  M68kReceiverValues values;
+} ReceiverValueCacheEntry;
 struct M68kReceiverContext {
   const M68kDecodeSectionIR *section;
   const M68kRuntimeAddressSpace *runtime;
@@ -12,7 +17,38 @@ struct M68kReceiverContext {
   uint32_t count, capacity;
   struct { uint32_t entry; uint8_t reg, value; } cache[256];
   uint32_t cache_count;
+  const M68kControlPointerReadProof *source_reads;
+  size_t source_read_count;
+  const M68kControlWordSelectorProof *selectors;
+  size_t selector_count;
+  Arena *arena;
+  ReceiverValueCacheEntry *value_cache;
+  uint32_t value_cache_count,value_cache_capacity;
 };
+
+static void receiver_context_set_source_reads(M68kReceiverContext *ctx,
+    const M68kControlPointerReadProof *reads,size_t count,
+    const M68kControlWordSelectorProof *selectors,size_t selector_count) {
+  ctx->source_reads=reads;ctx->source_read_count=count;ctx->selectors=selectors;ctx->selector_count=selector_count;
+}
+
+static int receiver_selector_allows(const M68kReceiverContext *ctx,uint32_t offset,uint8_t op,
+    uint8_t index,int16_t selected) {
+  for(size_t n=0U;n<ctx->selector_count;++n) {
+    const M68kControlWordSelectorProof *p=&ctx->selectors[n];
+    if(p->section_index!=ctx->section->section_index || p->offset!=offset || p->operand_index!=op || p->index_reg!=index) continue;
+    const M68kHardwareWordSet *w=&p->words;uint16_t value=(uint16_t)selected;
+    if(w->count) {
+      uint8_t k;for(k=0U;k<w->count && w->values[k]!=value;++k) {}
+      if(k==w->count) return 0;
+    } else {
+      if((value&w->known_bits_mask)!=(w->known_bits_value&w->known_bits_mask)) return 0;
+      if(w->has_bounds && (w->lower_bound<=w->upper_bound ?
+          value<w->lower_bound || value>w->upper_bound : value<w->lower_bound && value>w->upper_bound)) return 0;
+    }
+  }
+  return 1;
+}
 
 static int receiver_direct_target(const M68kReceiverContext *ctx, const M68kDecodeCandidate *c,
     uint32_t *target) {
@@ -47,7 +83,7 @@ static M68kReceiverContext *receiver_context_create(const M68kDecodeSectionIR *s
   if (facts->fact_count>=UINT32_MAX || s->candidate_count>(UINT32_MAX-facts->fact_count-1U)/3U) return NULL;
   M68kReceiverContext *ctx=arena_calloc(arena,1U,sizeof(*ctx));
   if (!ctx) return NULL;
-  ctx->section=s;ctx->runtime=runtime;ctx->policy=policy;ctx->accepted=accepted;
+  ctx->section=s;ctx->runtime=runtime;ctx->policy=policy;ctx->accepted=accepted;ctx->arena=arena;
   ctx->capacity=(uint32_t)(s->candidate_count*3U+facts->fact_count+1U);ctx->count=1U;
   ctx->heads=arena_calloc(arena,s->size ? s->size : 1U,sizeof(*ctx->heads));
   ctx->preds=arena_calloc(arena,ctx->capacity,sizeof(*ctx->preds));
@@ -139,21 +175,21 @@ static int receiver_values_add(M68kReceiverValues *out,uint32_t value) {
   return receiver_values_add_origin(out,value,UINT32_MAX);
 }
 
-static int receiver_register_values(M68kReceiverContext *ctx,uint32_t at,uint8_t reg,int32_t delta,
-    int field_mode,M68kReceiverValues *out,unsigned recursion) {
+static int receiver_register_values_impl(M68kReceiverContext *ctx,uint32_t at,uint8_t reg,int32_t delta,
+    int field_mode,M68kReceiverValues *out,unsigned recursion,int entry_path_witness) {
   enum { LIMIT=4096 };
-  typedef struct Query { uint32_t at;int32_t delta;uint8_t reg,depth; } Query;
+  typedef struct Query { uint32_t at;int32_t delta;uint8_t reg,depth;uint32_t parent; } Query;
   Query nodes[LIMIT];uint32_t count=1U;
   memset(out,0,sizeof(*out));
   if(reg>=7U || at>=ctx->section->size || recursion>1U) return 0;
-  memset(nodes,0,sizeof(nodes));nodes[0]=(Query){at,delta,reg,0U};
+  memset(nodes,0,sizeof(nodes));nodes[0]=(Query){at,delta,reg,0U,0U};
   for(uint32_t q=0U;q<count;++q) {
     Query current=nodes[q];
     for(uint32_t e=ctx->heads[current.at];e;e=ctx->preds[e].next) {
       const ReceiverPred *edge=&ctx->preds[e];
       const M68kDecodeCandidate *c=m68k_decode_ir_find_candidate_at_offset(ctx->section,edge->source);
       if(!c) continue;
-      Query next={c->offset,current.delta,current.reg,current.depth};
+      Query next={c->offset,current.delta,current.reg,current.depth,q+1U};
       if(edge->kind==1U) { if(current.depth==3U) continue;next.depth++; }
       else if(edge->kind==2U) {
         uint32_t target;
@@ -162,7 +198,7 @@ static int receiver_register_values(M68kReceiverContext *ctx,uint32_t at,uint8_t
         uint8_t base,dest;int32_t displacement;uint32_t root,value;
         if(field_mode==1 && !current.delta && candidate_loads_callback_field_to_control_register(c,current.reg,&base,&displacement)) {
           M68kReceiverValues slots;
-          if(receiver_register_values(ctx,c->offset,base,displacement,0,&slots,recursion+1U))
+          if(receiver_register_values_impl(ctx,c->offset,base,displacement,0,&slots,recursion+1U,0))
             for(uint32_t n=0U;n<slots.count;++n) if(!receiver_values_add(out,slots.offsets[n])) goto overflow;
           continue;
         }
@@ -171,6 +207,7 @@ static int receiver_register_values(M68kReceiverContext *ctx,uint32_t at,uint8_t
             int64_t value=(int64_t)root+current.delta;
             if(value>=0 && value<ctx->section->size && !receiver_values_add_origin(out,(uint32_t)value,field_mode==2 ? c->offset : UINT32_MAX)) goto overflow;
           }
+          if(entry_path_witness && out->count) return 1;
           continue;
         }
         if(c->mnemonic_id==M68K_ASM_MNEMONIC_MOVEA && c->size_suffix=='l' && c->operand_count==2U &&
@@ -189,6 +226,7 @@ static int receiver_register_values(M68kReceiverContext *ctx,uint32_t at,uint8_t
             int64_t address=(int64_t)root+current.delta;
             if(address>=0 && address<ctx->section->size && !receiver_values_add_origin(out,(uint32_t)address,field_mode==2 ? c->offset : UINT32_MAX)) goto overflow;
           }
+          if(entry_path_witness && out->count) return 1;
           continue;
         } else if(field_mode!=1 && c->operand_count==2U &&
             (c->mnemonic_id==M68K_ASM_MNEMONIC_ADDA || c->mnemonic_id==M68K_ASM_MNEMONIC_ADDQ || c->mnemonic_id==M68K_ASM_MNEMONIC_SUBQ) &&
@@ -218,6 +256,18 @@ static int receiver_register_values(M68kReceiverContext *ctx,uint32_t at,uint8_t
         } else continue;
       }
       if(next.reg>=7U) continue;
+      if(entry_path_witness) {
+        /* Acyclic accepted entry paths witness an initial store address.
+         * Changed loop deltas remain unknown, not additional concrete values.
+         * This mode is never used for a load, alias or post-loop receiver. */
+        uint32_t parent=q+1U;int cycle=0;
+        while(parent) {
+          const Query *ancestor=&nodes[parent-1U];
+          if(ancestor->at==next.at && ancestor->reg==next.reg && ancestor->depth==next.depth) {cycle=1;break;}
+          parent=ancestor->parent;
+        }
+        if(cycle) continue;
+      }
       uint32_t n;
       for(n=0U;n<count;++n)
         if(nodes[n].at==next.at && nodes[n].delta==next.delta && nodes[n].reg==next.reg && nodes[n].depth==next.depth) break;
@@ -229,6 +279,52 @@ static int receiver_register_values(M68kReceiverContext *ctx,uint32_t at,uint8_t
   return out->count!=0U;
 overflow:
   out->count=0U;return 0;
+}
+
+static uint32_t receiver_value_hash(uint32_t at,int32_t delta,uint8_t reg,uint8_t field_mode,
+    uint8_t recursion,uint8_t witness) {
+  return at*UINT32_C(2654435761) ^ (uint32_t)delta*UINT32_C(2246822519) ^
+    ((uint32_t)reg | ((uint32_t)field_mode<<4U) | ((uint32_t)recursion<<8U) | ((uint32_t)witness<<12U))*UINT32_C(3266489917);
+}
+
+/* A context's accepted CFG, source-read proofs and ABI predicates are immutable
+ * during store-value convergence. Reuse complete query results, including
+ * unknowns. New accepted entries create a fresh context, never a stale cache. */
+static int receiver_register_values_cached(M68kReceiverContext *ctx,uint32_t at,uint8_t reg,int32_t delta,
+    int field_mode,M68kReceiverValues *out,unsigned recursion,int witness) {
+  memset(out,0,sizeof(*out));
+  if(!ctx->value_cache_capacity || ctx->value_cache_count>=ctx->value_cache_capacity/2U) {
+    uint32_t capacity=ctx->value_cache_capacity ? ctx->value_cache_capacity*2U : 256U;
+    if(!capacity || capacity<ctx->value_cache_capacity || SIZE_MAX/(size_t)capacity<sizeof(*ctx->value_cache)) return 0;
+    ReceiverValueCacheEntry *grown=arena_calloc(ctx->arena,capacity,sizeof(*grown));
+    if(!grown) return 0;
+    for(uint32_t n=0U;n<ctx->value_cache_capacity;++n) {
+      const ReceiverValueCacheEntry *old=&ctx->value_cache[n];
+      if(!old->occupied) continue;
+      uint32_t k=receiver_value_hash(old->at,old->delta,old->reg,old->field_mode,old->recursion,old->entry_path_witness)&(capacity-1U);
+      while(grown[k].occupied) k=(k+1U)&(capacity-1U);
+      grown[k]=*old;
+    }
+    ctx->value_cache=grown;ctx->value_cache_capacity=capacity;
+  }
+  uint32_t k=receiver_value_hash(at,delta,reg,(uint8_t)field_mode,(uint8_t)recursion,(uint8_t)witness)&(ctx->value_cache_capacity-1U);
+  while(ctx->value_cache[k].occupied) {
+    const ReceiverValueCacheEntry *e=&ctx->value_cache[k];
+    if(e->at==at && e->delta==delta && e->reg==reg && e->field_mode==field_mode &&
+        e->recursion==recursion && e->entry_path_witness==witness) {*out=e->values;return e->result;}
+    k=(k+1U)&(ctx->value_cache_capacity-1U);
+  }
+  int result=receiver_register_values_impl(ctx,at,reg,delta,field_mode,out,recursion,witness);
+  ReceiverValueCacheEntry *e=&ctx->value_cache[k];
+  e->at=at;e->delta=delta;e->reg=reg;e->field_mode=(uint8_t)field_mode;
+  e->recursion=(uint8_t)recursion;e->entry_path_witness=(uint8_t)witness;e->occupied=1U;
+  e->result=(uint8_t)result;e->values=*out;++ctx->value_cache_count;
+  return result;
+}
+
+static int receiver_register_values(M68kReceiverContext *ctx,uint32_t at,uint8_t reg,int32_t delta,
+    int field_mode,M68kReceiverValues *out,unsigned recursion) {
+  return receiver_register_values_cached(ctx,at,reg,delta,field_mode,out,recursion,0);
 }
 
 static int receiver_base_field(const M68kDecodeCandidate *c,size_t op,uint8_t *base,int32_t *displacement) {
@@ -255,6 +351,44 @@ static int receiver_field_slots(M68kReceiverContext *ctx,const M68kDecodeCandida
   return 1;
 }
 
+/* A separate existential address witness for a proof-backed callback store.
+ * Not a unique address, an alias fact, an iteration count or a returned cursor. */
+static int receiver_field_slot_entry_witness(M68kReceiverContext *ctx,const M68kDecodeCandidate *c,
+    size_t op,M68kReceiverValues *out) {
+  uint8_t base;int32_t displacement;
+  memset(out,0,sizeof(*out));
+  if(!receiver_base_field(c,op,&base,&displacement) ||
+      !receiver_register_values_cached(ctx,c->offset,base,displacement,0,out,0U,1) || out->count!=1U ||
+      (out->offsets[0]&1U) || out->offsets[0]>ctx->section->size || ctx->section->size-out->offsets[0]<4U) {
+    out->count=0U;return 0;
+  }
+  return 1;
+}
+
+static int receiver_proven_source_slots(M68kReceiverContext *ctx,const M68kDecodeCandidate *c,
+    size_t op,M68kReceiverValues *out) {
+  memset(out,0,sizeof(*out));
+  M68kInstructionIR i;int32_t displacement;
+  if(m68k_decode_candidate_to_instruction(c,&i)!=0 || op>=i.operand_count ||
+      !m68k_ir_operand_brief_index_displacement(&i.operands[op],&displacement)) return 0;
+  for(size_t n=0U;n<ctx->source_read_count;++n) {
+    const M68kControlPointerReadProof *proof=&ctx->source_reads[n];
+    if(proof->section_index!=ctx->section->section_index || proof->offset!=c->offset || proof->operand_index!=op) continue;
+    M68kReceiverValues bases;
+    if(!receiver_register_values(ctx,c->offset,i.operands[op].value.ea_reg,displacement,0,&bases,0U) ||
+        bases.count!=1U || bases.offsets[0]!=proof->source_owner_start ||
+        proof->source_owner_start>ctx->section->size ||
+        proof->source_owner_size>ctx->section->size-proof->source_owner_start) return 0;
+    for(uint8_t k=0U;k<proof->cell_count;++k) {
+      uint32_t cell=proof->cells[k];
+      if(cell<proof->source_owner_start || (uint64_t)cell+4U>(uint64_t)proof->source_owner_start+proof->source_owner_size ||
+          !receiver_values_add(out,cell)) {out->count=0U;return 0;}
+    }
+    return out->count!=0U;
+  }
+  return 0;
+}
+
 static int receiver_control_slots(M68kReceiverContext *ctx,const M68kDecodeCandidate *c,M68kReceiverValues *out) {
   uint8_t reg;
   if(!candidate_indirect_control_address_register(c,&reg)) return 0;
@@ -266,6 +400,16 @@ static int receiver_table_values(M68kReceiverContext *ctx,const M68kDecodeCandid
   if(m68k_decode_candidate_to_instruction(c,&i)!=0 || op>=i.operand_count ||
       !m68k_ir_operand_brief_index_displacement(&i.operands[op],&displacement) ||
       i.operands[op].value.index_is_address || i.operands[op].value.scale>1U) return 0;
+  M68kReceiverValues source_cells;
+  if(receiver_proven_source_slots(ctx,c,op,&source_cells)) {
+    memset(out,0,sizeof(*out));
+    for(uint32_t k=0U;k<source_cells.count;++k) {
+      uint32_t raw=m68k_read_u32be(ctx->section->data+source_cells.offsets[k]),at;
+      if(!raw || (raw&1U) || !record_absolute_pointer_source(ctx->runtime,ctx->section->section_index,
+          ctx->section->size,raw,&at) || !receiver_values_add(out,at)) {out->count=0U;return 0;}
+    }
+    return out->count!=0U;
+  }
   uint8_t index=i.operands[op].value.index_reg;
   uint32_t multiple=1U,cursor=c->offset,selector=0U;int known_selector=0;
   for(unsigned n=0U;n<48U;++n) {

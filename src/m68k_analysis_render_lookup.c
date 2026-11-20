@@ -18633,6 +18633,42 @@ static int typed_prune_resolved_indexed_diagnostics(M68kRenderLookup *lookup) {
   return 0;
 }
 
+/* Loan the converged scalar packets before loop diagnostics reuse node
+ * storage. A declaration is not a selector bound; this records only the shared
+ * native WORD solver's facts, independently of typed-field presentation. */
+static int collect_control_word_selectors(M68kRenderLookup *lookup,const M68kDecodeIR *decode,
+    const M68kRenderTypedFlowWorkflow *workflow) {
+  size_t capacity=0U;lookup->control_word_selector_count=0U;
+  if(!workflow->graphs) return 0;
+  for(size_t s=0U;s<workflow->section_count;++s) {
+    if(workflow->graphs[s].node_count>(SIZE_MAX-capacity)/2U) return -1;
+    capacity+=2U*workflow->graphs[s].node_count;
+  }
+  if(capacity>SIZE_MAX/sizeof(*lookup->control_word_selectors)) return -1;
+  lookup->control_word_selectors=capacity ? render_lookup_calloc(lookup,capacity,sizeof(*lookup->control_word_selectors)) : NULL;
+  if(capacity && !lookup->control_word_selectors) return -1;
+  for(size_t s=0U;s<workflow->section_count;++s) for(size_t n=0U;n<workflow->graphs[s].node_count;++n) {
+    const M68kRenderTypedFlowNode *node=&workflow->graphs[s].nodes[n];
+    const M68kDecodeCandidate *c=node->candidate;M68kInstructionIR i;
+    if(!node->has_in || !node->word_proof_ready || !c || c->size_suffix!='l' ||
+        (c->mnemonic_id!=M68K_ASM_MNEMONIC_MOVE && c->mnemonic_id!=M68K_ASM_MNEMONIC_MOVEA) ||
+        m68k_decode_candidate_to_instruction(c,&i)!=0) continue;
+    for(uint8_t op=0U;op<i.operand_count;++op) {
+      int32_t displacement;
+      if(!m68k_ir_operand_brief_index_displacement(&i.operands[op],&displacement) ||
+          i.operands[op].value.index_is_address || i.operands[op].value.index_long ||
+          i.operands[op].value.scale>1U || i.operands[op].value.index_reg>=8U) continue;
+      uint8_t reg=i.operands[op].value.index_reg;
+      const M68kHardwareWordSet *w=&node->platform_in.word_values[reg];
+      if(w->requires_input_contract || (!w->count && !w->known_bits_mask && !w->has_bounds)) continue;
+      M68kControlWordSelectorProof *proof=&lookup->control_word_selectors[lookup->control_word_selector_count++];
+      proof->section_index=decode->sections[s].section_index;proof->offset=c->offset;
+      proof->operand_index=op;proof->index_reg=reg;proof->words=*w;
+    }
+  }
+  return 0;
+}
+
 int m68k_analysis_render_lookup_run_platform_passes(M68kRenderLookup *lookup, const M68kDecodeIR *decode,
     uint8_t **accepted_start, uint8_t **accepted_bytes, M68kPlatformAnalysisPassStats *stats) {
   clock_t start;
@@ -18710,6 +18746,7 @@ int m68k_analysis_render_lookup_run_platform_passes(M68kRenderLookup *lookup, co
   if (render_lookup_record_typed_app_slot_pointer_accesses(lookup, decode, accepted_start) != 0) goto typed_flow_fail;
   typed_flow_filter_nonapp_fallbacks(lookup, decode, &typed_flow_workflow);
   if (callable_dispatch_capture(lookup, decode, &typed_flow_workflow)) goto typed_flow_fail;
+  if (collect_control_word_selectors(lookup,decode,&typed_flow_workflow)!=0) goto typed_flow_fail;
   /* Loop proof deliberately borrows node value storage after projection. */
   if (typed_flow_record_app_loop_ranges(lookup, decode, accepted_start, &typed_flow_workflow, 0) != 0) goto typed_flow_fail;
   if (typed_prune_resolved_indexed_diagnostics(lookup) != 0 || lookup->source_domain_error) goto typed_flow_fail;
@@ -18744,6 +18781,79 @@ int m68k_analysis_render_lookup_run_platform_passes(M68kRenderLookup *lookup, co
 typed_flow_fail:
   typed_flow_workflow_destroy(&typed_flow_workflow);
   return -1;
+}
+
+/* Export only a narrowly normalized mapped-source APTR cell array. The
+ * common static-record validator owns extent/overlap/type checks; the existing
+ * converged WORD solver owns selector bounds. No instruction/string scan or
+ * declared extent is substituted for a runtime selector proof. */
+int m68k_analysis_render_lookup_collect_control_pointer_reads(const M68kRenderLookup *lookup,
+    const M68kDecodeIR *decode, M68kControlPointerReadProof **out, size_t *out_count) {
+  M68kControlPointerReadProof *items=NULL;size_t count=0U;
+  if(!lookup || !decode || !out || !out_count) return -1;
+  *out=NULL;*out_count=0U;
+  if(lookup->typed_access_count>SIZE_MAX/sizeof(*items)) return -1;
+  if(lookup->typed_access_count && !(items=calloc(lookup->typed_access_count,sizeof(*items)))) return -1;
+  for(size_t n=0U;n<lookup->typed_access_count;++n) {
+    const M68kRenderTypedAccess *a=&lookup->typed_accesses[n];
+    const M68kWordIndexAccessIR *w=&a->word_index;
+    if(a->section_index>=decode->section_count || a->operand_index!=0U || a->inherited || a->nested ||
+        a->struct_size!=4U || a->field_size!=4U || a->field_offset || a->field_byte_offset ||
+        a->base_cursor || a->array_element_addend || w->base_record_index || w->encoded_symbol_correction ||
+        w->primitive_span_field_count || w->loop_domain.state || w->access_width!=4U ||
+        a->provenance.kind!=M68K_PLATFORM_TYPE_PROVENANCE_STATIC_DATA ||
+        a->provenance.merge_conflicted ||
+        a->provenance.section_index!=a->section_index ||
+        (!w->value_count && !w->has_mask_domain)) continue;
+    size_t aliases=0U;
+    for(size_t k=0U;k<lookup->typed_access_count;++k) {
+      const M68kRenderTypedAccess *b=&lookup->typed_accesses[k];
+      if(b->section_index==a->section_index && b->offset==a->offset && b->operand_index==a->operand_index) ++aliases;
+    }
+    if(aliases!=1U) continue;
+    uint16_t id=lookup_policy_struct_id_by_name(lookup->policy,a->root_struct_name);
+    const M68kAnalysisCustomStruct *record=lookup_policy_custom_struct_by_id(lookup->policy,id);
+    if(!record || record->size!=4U || record->field_count!=1U) continue;
+    const M68kAnalysisCustomStructField *field=&record->fields[0];
+    if(field->offset || field->size!=4U || strcmp(field->name,a->field_name) || strcmp(field->type_name,"APTR") ||
+        field->value_kind!=M68K_ANALYSIS_STRUCT_FIELD_VALUE_TARGET_POINTER ||
+        field->pointer_address_domain!=M68K_ANALYSIS_POINTER_DOMAIN_MAPPED_SOURCE) continue;
+    const M68kRenderStaticRecordArray *view=NULL;
+    for(size_t k=0U;k<lookup->static_record_array_count;++k) {
+      const M68kRenderStaticRecordArray *b=&lookup->static_record_arrays[k];
+      if(b->section_index==a->section_index && b->offset==a->provenance.offset && b->struct_id==id &&
+          b->source_owner_count==1U && b->element_count==w->record_count && b->size==4U*w->record_count) {
+        view=b;break;
+      }
+    }
+    if(!view || !view->element_count || view->element_count>M68K_CONTROL_POINTER_READ_CELL_LIMIT) continue;
+    const M68kDecodeSectionIR *section=&decode->sections[a->section_index];
+    const M68kDecodeCandidate *c=m68k_decode_ir_find_candidate_at_offset(section,a->offset);
+    M68kInstructionIR i;const M68kSimFormMetadata *meta;int32_t disp;
+    if(!c || c->size_suffix!='l' || m68k_decode_candidate_to_instruction(c,&i)!=0 ||
+        !(meta=m68k_sim_metadata_for_instruction(&i)) || meta->operand_access_kinds[0]!=M68K_SIM_ACCESS_MEMORY_READ ||
+        !m68k_ir_operand_brief_index_displacement(&i.operands[0],&disp) || disp ||
+        i.operands[0].value.index_is_address || i.operands[0].value.index_long ||
+        i.operands[0].value.scale>1U || i.operands[0].value.index_reg!=w->reg_index ||
+        w->reg_kind!=M68K_ANALYSIS_REGISTER_DATA || i.operands[0].value.ea_reg!=a->base_reg) continue;
+    M68kControlPointerReadProof proof;memset(&proof,0,sizeof(proof));
+    proof.section_index=a->section_index;proof.offset=a->offset;proof.operand_index=a->operand_index;
+    proof.source_owner_start=view->offset;proof.source_owner_size=view->size;
+    int valid=1;
+    uint32_t first=w->has_mask_domain ? w->index_lower : 0U;
+    uint32_t last=w->has_mask_domain ? w->index_upper : w->value_count-1U;
+    if(w->has_mask_domain && (first>last || last>INT16_MAX)) continue;
+    for(uint32_t k=first;k<=last;++k) {
+      if(w->has_mask_domain && (k&w->known_bits_mask)!=w->known_bits_value) continue;
+      int64_t value=w->has_mask_domain ? (int64_t)k : w->byte_offsets[k];
+      if(value<0 || (value&3) || (uint64_t)value+4U>view->size ||
+          proof.cell_count==M68K_CONTROL_POINTER_READ_CELL_LIMIT) {valid=0;break;}
+      proof.cells[proof.cell_count++]=view->offset+(uint32_t)value;
+    }
+    if(valid && proof.cell_count) items[count++]=proof;
+  }
+  if(!count) {free(items);items=NULL;}
+  *out=items;*out_count=count;return 0;
 }
 
 static void source_analysis_build_stats_record_platform_vector(M68kSourceAnalysisBuildStats *stats,

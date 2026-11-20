@@ -113,3 +113,127 @@ def test_independently_registered_second_half_is_an_entry_barrier(tmp_path):
                             {'seeded_code_entrypoints':[{'hunk':0,'addr':40,'name':'separate_entry'}]}) as (a,raw):
         assert not resolved_calls(a)
         exact(a,raw,tmp_path)
+
+
+def indexed_program(*,prefix='',middle='',source='d5',destination='d6'):
+    return (' lea.l rows(pc),a0\n lea.l callback(pc),a1\n move.l a1,18(a0)\n'+prefix
+            +f' move.l 0(a0,{source}.w),0(a0,{destination}.w)\n'
+             f' move.l 4(a0,{source}.w),4(a0,{destination}.w)\n'+middle
+            +f' move.l 8(a0,{source}.w),8(a0,{destination}.w)\n'
+            +' movea.l 6(a0),a1\n jsr (a1)\n rts\ncallback: moveq #7,d0\n rts\nrows: dcb.b 36,0\n')
+
+
+@pytest.mark.parametrize('prefix',['',' moveq #12,d5\n moveq #0,d6\n'])
+def test_two_index_record_compaction_keeps_complete_pointer_origin(tmp_path,prefix):
+    with candidate_artifact(tmp_path,indexed_program(prefix=prefix),[]) as (a,raw):
+        assert len(resolved_calls(a))==1
+        exact(a,raw,tmp_path)
+
+
+@pytest.mark.parametrize('updates',[
+    {'source':'d5','destination':'d5'},
+    {'prefix':' moveq #0,d5\n moveq #0,d6\n'},
+    {'prefix':' moveq #12,d5\n moveq #0,d6\n','middle':' move.l d2,d6\n'},
+    {'prefix':' moveq #12,d5\n moveq #0,d6\n','middle':' move.l d2,d5\n'},
+])
+def test_index_identity_and_version_are_not_independent_numeric_choices(tmp_path,updates):
+    with candidate_artifact(tmp_path,indexed_program(**updates),[]) as (a,raw):
+        assert not resolved_calls(a)
+        exact(a,raw,tmp_path)
+
+
+@pytest.mark.parametrize('prefix',['',' moveq #12,d6\n'])
+def test_reverse_exchange_through_successive_register_fragments(tmp_path,prefix):
+    code=(program(prefix=prefix).replace('move.l a1,18(a0)','move.l a1,6(a0)')
+          .replace('movea.l 6(a0),a1','movea.l 18(a0),a1'))
+    with candidate_artifact(tmp_path,code,[]) as (a,raw):
+        assert len(resolved_calls(a))==1
+        exact(a,raw,tmp_path)
+
+
+@pytest.mark.parametrize('middle',[
+    ' move.l d3,d2\n',
+    ' move.l d3,8(a0)\n',
+    ' bsr.w helper\n',
+])
+def test_register_or_unread_memory_kills_prevent_half_recomposition(tmp_path,middle):
+    code=(program(prefix=' moveq #12,d6\n').replace('move.l a1,18(a0)','move.l a1,6(a0)')
+          .replace('movea.l 6(a0),a1','movea.l 18(a0),a1')
+          .replace(' move.l d2,4(a0,d6.w)',middle+' move.l d2,4(a0,d6.w)'))
+    code+='helper: rts\n'
+    with candidate_artifact(tmp_path,code,[]) as (a,raw):
+        assert not resolved_calls(a)
+        exact(a,raw,tmp_path)
+
+
+def test_register_to_register_byte_transport_retains_one_origin(tmp_path):
+    code=(program(prefix=' moveq #12,d6\n').replace('move.l a1,18(a0)','move.l a1,6(a0)')
+          .replace('movea.l 6(a0),a1','movea.l 18(a0),a1')
+          .replace(' move.l d2,4(a0,d6.w)',' move.l d2,d3\n move.l d3,4(a0,d6.w)'))
+    with candidate_artifact(tmp_path,code,[]) as (a,raw):
+        assert len(resolved_calls(a))==1
+        exact(a,raw,tmp_path)
+
+
+def test_halves_from_distinct_rows_do_not_form_a_new_numeric_pointer(tmp_path):
+    code=''' lea.l rows(pc),a0
+ lea.l callback(pc),a1
+ move.l a1,6(a0)
+ lea.l other(pc),a1
+ move.l a1,30(a0)
+ move.l 4(a0),d2
+ move.l d2,16(a0)
+ move.l 32(a0),d2
+ move.l d2,20(a0)
+ movea.l 18(a0),a1
+ jsr (a1)
+ rts
+callback: moveq #7,d0
+ rts
+other: moveq #9,d0
+ rts
+rows: dcb.b 36,0
+'''
+    with candidate_artifact(tmp_path,code,[]) as (a,raw):
+        assert not resolved_calls(a)
+        exact(a,raw,tmp_path)
+
+
+def test_aligned_whole_pointer_and_data_register_use_the_same_byte_domain(tmp_path):
+    code=''' lea.l rows(pc),a0
+ lea.l callback(pc),a1
+ move.l a1,(a0)
+ move.l (a0),d2
+ move.l d2,0(a0,d6.w)
+ movea.l 12(a0),a1
+ jsr (a1)
+ rts
+callback: moveq #7,d0
+ rts
+rows: dcb.b 24,0
+'''
+    with candidate_artifact(tmp_path,code,[]) as (a,raw):
+        assert len(resolved_calls(a))==1
+        exact(a,raw,tmp_path)
+
+
+@pytest.mark.parametrize(('body', 'memory'), [
+    ('move.w #0,count.l', 'explicit'),
+    ('move.w #0,0(a3,d2.w)', 'unknown'),
+])
+def test_fragment_target_effects_do_not_imply_post_return_count_preservation(tmp_path, body, memory):
+    code=indexed_program().replace('callback: moveq #7,d0\n rts\n',
+                                  'callback: moveq #0,d7\n '+body+'\n rts\ncount: dc.w 0\n')
+    with candidate_artifact(tmp_path,code,[]) as (a,raw):
+        call,=resolved_calls(a)
+        summaries=a.analysis_payload()[0]['sections'][0]['function_summaries']
+        summary,=[s for s in summaries if s['entry_offset']==call['target_offset']]
+        assert summary['terminal_reason']=='none'
+        effects=summary['effects']
+        assert effects['memory']['state']==memory
+        if memory=='explicit':assert effects['memory']['effects']
+        assert any(r['location']['register']=='D7' and r['effect']=='clobbered'
+                   for r in effects['registers']['locations'])
+        edges=a.query_payload('edges',source_offset=call['source_offset'],direction='outgoing',limit=100)['items']
+        assert any(e['kind']=='call'and e['status']=='unresolved'for e in edges)
+        exact(a,raw,tmp_path)

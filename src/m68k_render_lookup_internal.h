@@ -114,6 +114,13 @@ typedef struct M68kHardwareWordSet {
   uint16_t scalar_symbol_equate;
 } M68kHardwareWordSet;
 
+typedef struct M68kControlWordSelectorProof {
+  size_t section_index;
+  uint32_t offset;
+  uint8_t operand_index,index_reg;
+  M68kHardwareWordSet words;
+} M68kControlWordSelectorProof;
+
 typedef struct M68kHardwareRelativeBase {
   M68kHardwareWordSet offsets;
   uint16_t base_id;
@@ -595,6 +602,17 @@ typedef struct M68kRenderTypedAccess {
   char field_expr[M68K_IR_SYMBOL_NAME_SIZE];
 } M68kRenderTypedAccess;
 
+/* Immutable facts copied from converged native typed/WORD analysis before
+ * control discovery resumes. These are source-cell identities, never current
+ * memory contents, callable-set closure or a rendering dependency. */
+#define M68K_CONTROL_POINTER_READ_CELL_LIMIT 64U
+typedef struct M68kControlPointerReadProof {
+  size_t section_index;
+  uint32_t offset, source_owner_start, source_owner_size;
+  uint8_t operand_index, cell_count;
+  uint32_t cells[M68K_CONTROL_POINTER_READ_CELL_LIMIT];
+} M68kControlPointerReadProof;
+
 typedef struct M68kRenderUnresolvedTypedAccess {
   size_t section_index;
   uint32_t offset;
@@ -950,6 +968,8 @@ struct M68kRenderLookup {
   M68kRenderTypedSlotEffect *typed_slot_effects;
   size_t typed_slot_effect_count;
   size_t typed_slot_effect_capacity;
+  M68kControlWordSelectorProof *control_word_selectors;
+  size_t control_word_selector_count;
   M68kRenderTypedAccess *typed_accesses;
   size_t typed_access_count;
   size_t typed_access_capacity;
@@ -1287,6 +1307,8 @@ int m68k_analysis_render_lookup_run_platform_passes(M68kRenderLookup *lookup, co
 int m68k_render_lookup_build(M68kRenderLookup *lookup, const M68kObject *object, const M68kDecodeIR *decode,
   const M68kFactIR *facts, const M68kAnalysisPolicy *policy, uint8_t **accepted_start,
   const M68kAnalysisLabelPoint *analysis_labels, size_t analysis_label_count);
+int m68k_analysis_render_lookup_collect_control_pointer_reads(const M68kRenderLookup *,
+  const M68kDecodeIR *, M68kControlPointerReadProof **, size_t *);
 void m68k_analysis_render_lookup_release_source_flow(M68kRenderLookup *lookup);
 /* 1: canonical domains changed typed input; 0: no eligible input; -1: failure. */
 int m68k_analysis_render_lookup_refine_source_domains(M68kRenderLookup *lookup,
