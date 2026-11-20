@@ -179,7 +179,9 @@ static int collect_callback_fragment_targets(Arena *arena,M68kFactsV2CallbackFie
       /* Preserve whole values, not independently discovered pointer halves. */
       for(size_t v=0U;v<known_count;++v) {
         M68kFactsV2CallbackFieldTarget value=targets->items[v];
-        if(value.section_index!=section_index || value.storage_offset!=known.storage_offset) continue;
+        if(value.section_index!=section_index || value.storage_offset!=known.storage_offset ||
+            !receiver_value_not_locally_contradicted(ctx,targets->entry_boundaries[section_index],
+              first,value.storage_offset,value.target.value)) continue;
         value.storage_offset=demand->offset;value.store_offset=completion;
         if(callback_field_targets_append(arena,targets,&value)!=0) return -1;
       }

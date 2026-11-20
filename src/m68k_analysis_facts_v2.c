@@ -463,6 +463,7 @@ static M68kReceiverContext *receiver_context_create(const M68kDecodeSectionIR *,
   const M68kRuntimeAddressSpace *, const M68kAnalysisPolicy *, const uint8_t *, Arena *);
 static void receiver_context_set_source_reads(M68kReceiverContext *,const M68kControlPointerReadProof *,size_t,const M68kControlWordSelectorProof *,size_t);
 static int receiver_field_slots(M68kReceiverContext *, const M68kDecodeCandidate *, size_t, M68kReceiverValues *);
+static int receiver_value_not_locally_contradicted(M68kReceiverContext *,const uint8_t *,const M68kDecodeCandidate *,uint32_t,uint32_t);
 static int receiver_field_slot_entry_witness(M68kReceiverContext *,const M68kDecodeCandidate *,size_t,M68kReceiverValues *);
 static int receiver_proven_source_slots(M68kReceiverContext *,const M68kDecodeCandidate *,size_t,M68kReceiverValues *);
 static int receiver_control_slots(M68kReceiverContext *, const M68kDecodeCandidate *, M68kReceiverValues *);
@@ -8185,7 +8186,9 @@ static int collect_receiver_callback_targets(M68kDecodeIR *decode, const M68kRun
     if(source_slots) for(uint32_t n=0U;n<from.count;++n) for(size_t v=0U;v<targets->count;++v) {
       const M68kFactsV2CallbackFieldTarget *known=&targets->items[v];
       if(known->section_index==section_index && known->storage_offset==from.offsets[n] &&
-          known->target.kind==M68K_FACTS_V2_TRACE_SOURCE_OFFSET) {
+          known->target.kind==M68K_FACTS_V2_TRACE_SOURCE_OFFSET &&
+          receiver_value_not_locally_contradicted(ctx,targets->entry_boundaries[section_index],
+            &store,from.offsets[n],known->target.value)) {
         uint32_t at=known->target.value,k;
         for(k=0U;k<values.count && values.offsets[k]!=at;++k) {}
         if(k<values.count) continue;
@@ -8467,6 +8470,8 @@ static int enqueue_callback_field_indirect_targets(M68kDecodeIR *decode, M68kFac
     if(receiver_resolved) for(uint32_t n=0U;n<receiver_slots.count;++n)
       if(receiver_slots.offsets[n]==target->storage_offset) matched=1;
     if (target->section_index != section_index || !matched) continue;
+    if(load_candidate && !receiver_value_not_locally_contradicted(targets->receivers[section_index],
+        targets->entry_boundaries[section_index],load_candidate,target->storage_offset,target->target.value)) continue;
     if (enqueue_same_section_control_resolved_target_from_offset(decode, facts, queue, accepted_start, accepted_bytes,
         profile, max_cpu, section_index, site_offset, target->target.value,
         target->has_runtime_address, target->runtime_address, M68K_FACT_CONFIDENCE_TOOL_INFERRED,

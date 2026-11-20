@@ -351,6 +351,84 @@ static int receiver_field_slots(M68kReceiverContext *ctx,const M68kDecodeCandida
   return 1;
 }
 
+/* A local address is exact only after one unmerged, ordinary straight-line
+ * definition. General receiver may-sets are not an exhaustive alias proof. */
+static int receiver_unique_local_slot(M68kReceiverContext *ctx,const uint8_t *entries,
+    const M68kDecodeCandidate *use,size_t op,uint32_t *out) {
+  uint8_t base;int32_t displacement;uint32_t slot,cursor=use->offset;
+  if(staged_static_slot(ctx->section,ctx->runtime,use,op,&slot)) {*out=slot;return 1;}
+  if(!receiver_base_field(use,op,&base,&displacement) || base>=7U) return 0;
+  for(unsigned step=0U;step<48U && !entries[cursor];++step) {
+    uint32_t edge=ctx->heads[cursor],root;uint8_t dest;
+    if(!edge || ctx->preds[edge].next || ctx->preds[edge].kind) return 0;
+    const M68kDecodeCandidate *c=find_accepted_candidate_ending_at(ctx->section,ctx->accepted,cursor);
+    M68kInstructionIR i;const M68kSimFormMetadata *m;
+    if(!c || c->offset!=ctx->preds[edge].source || m68k_decode_candidate_to_instruction(c,&i)!=0 ||
+        !(m=m68k_sim_metadata_for_instruction(&i)) || m->flow_kind!=M68K_SIM_FLOW_SEQUENTIAL ||
+        m->sp_effect_count || m->exception_trigger) return 0;
+    if(record_writes_reg(c,1U,base)) {
+      if(!staged_lea_root(ctx->section,ctx->runtime,c,&dest,&root) || dest!=base) return 0;
+      int64_t value=(int64_t)root+displacement;
+      if(value<0 || (uint64_t)value>=ctx->section->size) return 0;
+      *out=(uint32_t)value;return 1;
+    }
+    cursor=c->offset;
+  }
+  return 0;
+}
+
+/* This is a rejection proof, not a current-value or non-alias certificate.
+ * Follow only an ordinary uniquely entered prefix, latest writes first. A
+ * differing literal byte rules out the complete candidate at the read. Later
+ * identical bytes mask earlier writes; unknown aliases/ABIs retain uncertainty.
+ * Never compare source offsets with encoded runtime pointer bytes. */
+static int receiver_value_not_locally_contradicted(M68kReceiverContext *ctx,const uint8_t *entries,
+    const M68kDecodeCandidate *read,uint32_t cell,uint32_t target) {
+  uint32_t raw=0U,cursor=read->offset;int mapped=0;uint8_t remaining=15U;
+  for(size_t k=0U;k<ctx->runtime->count;++k) {
+    const M68kRuntimeAddressRange *map=&ctx->runtime->ranges[k];
+    if(map->section_index!=ctx->section->section_index || target<map->source_offset ||
+        target-map->source_offset>=map->size) continue;
+    if(map->kind==M68K_FACT_RUNTIME_RANGE_KIND_CONFLICTING_DISCOVERED_COPY ||
+        map->runtime_address>UINT32_MAX-(target-map->source_offset)) return 1;
+    uint32_t value=map->runtime_address+target-map->source_offset;
+    if(mapped && raw!=value) return 1;
+    mapped=1;raw=value;
+  }
+  if(!mapped || cell>ctx->section->size || ctx->section->size-cell<4U) return 1;
+  for(unsigned step=0U;step<48U && !entries[cursor];++step) {
+    uint32_t edge=ctx->heads[cursor];
+    if(!edge || ctx->preds[edge].next || ctx->preds[edge].kind) return 1;
+    const M68kDecodeCandidate *c=find_accepted_candidate_ending_at(ctx->section,ctx->accepted,cursor);
+    M68kInstructionIR i;const M68kSimFormMetadata *m;
+    if(!c || c->offset!=ctx->preds[edge].source || m68k_decode_candidate_to_instruction(c,&i)!=0 ||
+        !(m=m68k_sim_metadata_for_instruction(&i)) || m->flow_kind!=M68K_SIM_FLOW_SEQUENTIAL ||
+        m->sp_effect_count || m->exception_trigger) return 1;
+    for(size_t op=0U;op<c->operand_count;++op) {
+      if(m->operand_access_kinds[op]!=M68K_SIM_ACCESS_MEMORY_WRITE) continue;
+      uint32_t at,value;uint8_t width=m68k_sim_operand_width_bytes(&i,(uint8_t)op);
+      if(m->multi_transfer_direction || !width || width>4U ||
+          !receiver_unique_local_slot(ctx,entries,c,op,&at) || at>ctx->section->size ||
+          ctx->section->size-at<width) return 1;
+      if((uint64_t)at+width<=cell || (uint64_t)cell+4U<=at) continue;
+      if(m->operation_type==M68K_SIM_OP_CLEAR) value=0U;
+      else if(m->operation_type!=M68K_SIM_OP_MOVE || m->source_operand_index>=c->operand_count ||
+          !operand_immediate_value(c->operand_kinds[m->source_operand_index],
+            &c->operands[m->source_operand_index],&value)) return 1;
+      for(uint8_t b=0U;b<4U;++b) {
+        if(!(remaining&(1U<<b)) || cell+b<at || cell+b-at>=width) continue;
+        uint8_t expected=(uint8_t)(raw>>(8U*(3U-b)));
+        uint8_t actual=(uint8_t)(value>>(8U*(width-1U-(cell+b-at))));
+        if(expected!=actual) return 0;
+        remaining&=(uint8_t)~(1U<<b);
+      }
+      if(!remaining) return 1;
+    }
+    cursor=c->offset;
+  }
+  return 1;
+}
+
 /* A separate existential address witness for a proof-backed callback store.
  * Not a unique address, an alias fact, an iteration count or a returned cursor. */
 static int receiver_field_slot_entry_witness(M68kReceiverContext *ctx,const M68kDecodeCandidate *c,
