@@ -692,6 +692,8 @@ def _manual_suppressed_seeded_item_to_metadata(item: dict[str, object]) -> Suppr
         payload = {"kind": kind, "hunk": hunk, "addr": addr}
         if end is not None:
             payload["end"] = end
+        if item.get("source_fingerprint") is not None:
+            payload["source_fingerprint"] = item["source_fingerprint"]
         return SuppressedSeededItemMetadata.from_dict(payload)
     except AssertionError:
         return None
@@ -2557,6 +2559,16 @@ def _apply_manual_seed_projection(
         return metadata
     if metadata is None:
         metadata = TargetMetadata(target_type="program", entry_register_seeds=())
+    # Exact imported-fact corrections precede authored projections. Their
+    # fingerprint cannot suppress a same-span replacement or unrelated alias.
+    exact_imports = [item for item in metadata.suppressed_seeded_items if item.source_fingerprint]
+    exact_imports += [value for item in suppressed_seeded_item_projections
+                     if (value := _manual_suppressed_seeded_item_to_metadata(item)) is not None
+                     and value.source_fingerprint]
+    if exact_imports:
+        prior_suppressions = metadata.suppressed_seeded_items
+        metadata = replace(apply_suppressed_seeded_items(metadata, tuple(exact_imports)),
+                           suppressed_seeded_items=prior_suppressions)
     seeded_entities = list(metadata.seeded_entities)
     seeded_code_labels = list(metadata.seeded_code_labels)
     seeded_code_entrypoints = list(metadata.seeded_code_entrypoints)

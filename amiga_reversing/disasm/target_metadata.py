@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, replace
@@ -1865,6 +1866,7 @@ class SuppressedSeededItemMetadata:
     hunk: int
     addr: int
     end: int | None = None
+    source_fingerprint: str | None = None
 
     @classmethod
     def from_dict(cls, payload: dict[str, object]) -> SuppressedSeededItemMetadata:
@@ -1876,10 +1878,15 @@ class SuppressedSeededItemMetadata:
         assert isinstance(hunk, int)
         assert isinstance(addr, int)
         assert end is None or isinstance(end, int)
-        return cls(kind=_suppressed_seeded_item_kind(kind), hunk=hunk, addr=addr, end=end)
+        return cls(kind=_suppressed_seeded_item_kind(kind), hunk=hunk, addr=addr, end=end,
+                   source_fingerprint=cast(str | None, payload.get("source_fingerprint")))
 
     def __post_init__(self) -> None:
         assert isinstance(self.kind, SuppressedSeededItemKind)
+        if self.source_fingerprint is not None:
+            assert self.kind is SuppressedSeededItemKind.SEEDED_ENTITY and self.end is not None
+            assert isinstance(self.source_fingerprint, str) and len(self.source_fingerprint) == 64
+            assert all(c in "0123456789abcdef" for c in self.source_fingerprint)
 
 
 @dataclass(frozen=True, slots=True)
@@ -2325,6 +2332,9 @@ def _function_summary_location_payload(location: object) -> dict[str, object]:
 
 def target_metadata_json_payload(metadata: TargetMetadata) -> dict[str, object]:
     payload = asdict(metadata)
+    for item in payload.get("suppressed_seeded_items", ()):
+        if item.get("source_fingerprint") is None:
+            item.pop("source_fingerprint", None)
     for layout in payload.get("data_block_layouts", ()):
         if layout.get("pointer_table") is None:
             layout.pop("pointer_table", None)
@@ -2587,13 +2597,25 @@ def apply_suppressed_seeded_items(
     )
 
 
+def seeded_entity_fingerprint(entity: SeededEntityMetadata) -> str:
+    """Identity of one normalized fact; never authentication of input bytes."""
+    fact = {key: value for key, value in asdict(entity).items() if value is not None and value != ()}
+    return hashlib.sha256(json.dumps({"schema": "seeded_entity_v1", "fact": fact},
+                                     sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
 def _seeded_entity_is_suppressed(
     entity: SeededEntityMetadata,
     suppressed: set[SuppressedSeededItemMetadata],
 ) -> bool:
     exact = SuppressedSeededItemMetadata(SuppressedSeededItemKind.SEEDED_ENTITY, entity.hunk, entity.addr, entity.end)
     broad = SuppressedSeededItemMetadata(SuppressedSeededItemKind.SEEDED_ENTITY, entity.hunk, entity.addr)
-    return exact in suppressed or broad in suppressed
+    return exact in suppressed or broad in suppressed or any(
+        item.kind is SuppressedSeededItemKind.SEEDED_ENTITY
+        and (item.hunk, item.addr, item.end) == (entity.hunk, entity.addr, entity.end)
+        and item.source_fingerprint == seeded_entity_fingerprint(entity)
+        for item in suppressed if item.source_fingerprint is not None
+    )
 
 
 def _seeded_item_is_suppressed(

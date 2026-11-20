@@ -2399,6 +2399,12 @@ def _row_suppressible_seeded_items(row: Mapping[str, object]) -> list[dict[str, 
         source_locator = raw_item.get("source_locator")
         if isinstance(source_locator, str) and source_locator:
             item["source_locator"] = source_locator
+        if raw_item.get("source_fingerprint") is not None:
+            fingerprint = raw_item["source_fingerprint"]
+            if (kind != "seeded_entity" or end is None or not isinstance(fingerprint, str)
+                    or len(fingerprint) != 64 or any(c not in "0123456789abcdef" for c in fingerprint)):
+                raise ValueError("invalid exact imported correction fingerprint")
+            item["source_fingerprint"] = fingerprint
         items.append(item)
     return items
 
@@ -2666,6 +2672,8 @@ def _suppressed_seeded_item_payload(row: Mapping[str, object], params: Mapping[s
             continue
         if end is not None and item.get("end") != end:
             continue
+        if params.get("source_fingerprint") is not None and params["source_fingerprint"] != item.get("source_fingerprint"):
+            continue
         return _suppressed_seeded_item_identity(item)
     raise ValueError("suppress_seeded_item requires a suppressible seeded item on the selected row")
 
@@ -2674,6 +2682,8 @@ def _suppressed_seeded_item_identity(item: Mapping[str, object]) -> dict[str, ob
     identity = {"kind": item["kind"], "hunk": item["hunk"], "addr": item["addr"]}
     if "end" in item:
         identity["end"] = item["end"]
+    if item.get("source_fingerprint") is not None:
+        identity["source_fingerprint"] = item["source_fingerprint"]
     return identity
 
 

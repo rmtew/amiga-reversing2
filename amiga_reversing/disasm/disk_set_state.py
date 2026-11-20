@@ -433,8 +433,77 @@ def _conflicting_array_scalar_seed(row, layout, metadata):
     return {"kind": "seeded_entity", "hunk": 0, "addr": start, "end": end}
 
 
+def _conflicting_array_opaque_seed(row, layout, metadata, baseline):
+    """Recognize only a frozen weak BYTE import merged with its authored array.
+
+    The projection's derived name/citation must not masquerade as independent
+    evidence, nor permit correction of a genuinely named, typed or owned fact.
+    """
+    from .effective_metadata import (
+        _data_block_element_entity,
+        _merge_seeded_entity_projection,
+    )
+    from .target_metadata import (
+        DataBlockLayoutMetadata,
+        SeededEntityMetadata,
+        seeded_entity_fingerprint,
+        validate_scalar_data_array_owner,
+    )
+
+    start, end = row["start_offset"], row["end_offset"]
+    if any(layout.get(key) is not None for key in ("runtime_start", "runtime_end", "runtime_execution_view_id")):
+        return None
+    if layout.get("hunk") != 0 or layout.get("default_unit") not in {"word", "long"}:
+        return None
+    elements = [e for e in layout.get("elements", ())
+                if layout["source_start"] + e["offset"] == start
+                and start + e["width"] == end]
+    if len(elements) != 1:
+        return None
+    element = elements[0]
+    if element.get("array_stride") != {"word": 2, "long": 4}[layout["default_unit"]]:
+        return None
+    if not all(str(e.get("citation", "")).startswith("manual_action_log:") for e in (layout, element)):
+        return None
+    try:
+        validate_scalar_data_array_owner(element, layout)
+    except ValueError:
+        return None
+    def overlaps(values):
+        return [e for e in values.get("seeded_entities", ()) if e.get("hunk") == 0
+                and type(e.get("end")) is int and e.get("addr", end) < end and start < e["end"]]
+    originals, current = overlaps(baseline), overlaps(metadata)
+    if len(originals) != 1 or len(current) != 1:
+        return None
+    original = originals[0]
+    known_fields = set(SeededEntityMetadata.__dataclass_fields__)
+    if not set(original) <= known_fields or not set(current[0]) <= known_fields:
+        return None
+    if (original.get("addr") != start or original.get("end") != end
+            or original.get("type") != "data" or original.get("unit") != "byte"
+            or original.get("subtype") != "opaque_data" or original.get("review_status") != "seeded"
+            or original.get("source_id") in {None, "", "manual_action_log"}
+            or str(original.get("citation", "")).startswith("manual_action_log:")
+            or original.get("source_owner_start") is not None
+            or original.get("source_owner_size") is not None
+            or any(original.get(k) for k in ("name", "comment", "encoding", "struct_name",
+                "field_name", "field_type", "c_type", "pointer_struct", "value_kind", "value_domain",
+                "pointer_address_domain", "pointer_symbol_group", "owner_action_id", "source_evidence_id",
+                "parent_evidence_ids"))):
+        return None
+    declared = DataBlockLayoutMetadata.from_dict(layout)
+    projected = _data_block_element_entity(declared, next(e for e in declared.elements if e.offset == element["offset"]))
+    if projected is None:
+        return None
+    expected = _merge_seeded_entity_projection(SeededEntityMetadata.from_dict(original), projected)
+    if SeededEntityMetadata.from_dict(current[0]) != expected:
+        return None
+    return {"kind": "seeded_entity", "hunk": 0, "addr": start, "end": end,
+            "source_fingerprint": seeded_entity_fingerprint(SeededEntityMetadata.from_dict(original))}
+
+
 def _member_conflicting_scalar_seed(owner, member, row, layout):
-    from amiga_reversing.disasm.disk_set import file_at
+    from amiga_reversing.disasm.disk_set import checked_file, file_at
 
     start, end = row["start_offset"], row["end_offset"]
     analysis_member, bias = owner.owner(member)
@@ -445,7 +514,14 @@ def _member_conflicting_scalar_seed(owner, member, row, layout):
             owner.root, owner.members[analysis_member]["analysis"]["metadata"]["path"]
         ).read_bytes()
     )
-    return _conflicting_array_scalar_seed(row, layout, metadata)
+    correction = _conflicting_array_scalar_seed(row, layout, metadata)
+    if correction:
+        return correction
+    original = owner.members[analysis_member]["analysis"].get("state", {}).get("target_metadata.json")
+    if not original or original.get("sha256") is None:
+        return None
+    baseline = json.loads(checked_file(owner.root, original))
+    return _conflicting_array_opaque_seed(row, layout, metadata, baseline)
 
 
 def _member_data_layout_row(owner, member, row, layouts=None):

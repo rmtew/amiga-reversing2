@@ -2285,3 +2285,21 @@ unhandled LINK/UNLK is not a zero delta. Counter, all-entry, branch-merge,
 source-owner/extent and one-past checks remain unchanged. The resulting record
 facts are body-only structural witnesses from the existing solver, not manual
 receiver overrides or new code admission.
+
+## Exact imported-fact correction
+
+A scoped `correction.suppress_seeded_item.seeded_entity` can explicitly retire a
+complete legacy opaque BYTE fact beneath a proved WORD/LONG array. The command
+is offered only when the hashed frozen import contains one unnamed, untyped,
+unowned opaque fact, and the current fact is exactly its merge with that whole
+authored array. Independent names, comments, types, pointers, evidence, owners,
+runtime views, partial overlaps and unrecognized metadata remain protected.
+
+This case carries a checked `source_fingerprint` of the normalized original
+fact. Replay removes that exact import before projecting authored facts, so a
+same-span replacement survives. The fingerprint is recorded in the journal and
+metadata; undo/redo retains the original import. Forged fingerprints are refused.
+Historical coordinate-only corrections retain their previous behavior and wire
+shape. This fact fingerprint authenticates neither member bytes nor media:
+normal member-input hashes, revision, source-window, ownership, assembly and
+media-proof requirements remain unchanged.

@@ -1226,7 +1226,7 @@ def _action_object(action: _ManualAction, field_name: str) -> dict[str, object]:
     return _object(action.payload.get(field_name), what=f"{action.kind} {field_name}")
 
 
-def _suppressed_seeded_item_key(item: dict[str, object]) -> tuple[str, int, int, int | None]:
+def _suppressed_seeded_item_key(item: dict[str, object]) -> tuple[str, int, int, int | None, str | None]:
     kind = item.get("kind")
     hunk = _manual_seed_int(item, "hunk")
     addr = _manual_seed_int(item, "addr")
@@ -1236,7 +1236,12 @@ def _suppressed_seeded_item_key(item: dict[str, object]) -> tuple[str, int, int,
         SuppressedSeededItemKind(kind)
     except ValueError:
         raise ValueError(f"unsupported suppressed seeded item kind: {kind}") from None
-    return kind, hunk, addr, _manual_seed_int(item, "end")
+    fingerprint = item.get("source_fingerprint")
+    if fingerprint is not None and (kind != "seeded_entity" or not isinstance(fingerprint, str)
+            or len(fingerprint) != 64 or any(c not in "0123456789abcdef" for c in fingerprint)
+            or _manual_seed_int(item, "end") is None):
+        raise ValueError("exact imported correction requires a complete entity fingerprint")
+    return kind, hunk, addr, _manual_seed_int(item, "end"), fingerprint
 
 
 def _execution_view_key(view: dict[str, object]) -> tuple[int, int, int]:
@@ -2018,7 +2023,7 @@ def _project_actions(
     representations: dict[str, dict[str, object]] = {}
     representation_owners: dict[tuple[int, int, int, int | None], str] = {}
     semantic_hints: dict[str, dict[str, object]] = {}
-    suppressed_seeded_items: dict[tuple[str, int, int, int | None], dict[str, object]] = {}
+    suppressed_seeded_items: dict[tuple[str, int, int, int | None, str | None], dict[str, object]] = {}
     target_equates: dict[str, dict[str, object]] = {}
     renamed_target_equates: dict[str, dict[str, object]] = {}
     removed_target_equates: dict[str, dict[str, object]] = {}
