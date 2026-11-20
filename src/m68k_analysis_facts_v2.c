@@ -3664,10 +3664,10 @@ static int trace_value_from_candidate_source(size_t section_index, const M68kDec
       *out_value = slot->value;
       return out_value->kind != M68K_FACTS_V2_TRACE_UNKNOWN;
     }
-    if (value < section->size) {
-      trace_value_set_source_offset(out_value, section_index, value);
-      return 1;
-    }
+    /* An absolute memory operand names storage, not the value read from it.
+     * Only a proved slot content may flow here. Effective-address operations
+     * use trace_value_from_candidate_address_operand instead; do not turn an
+     * untracked read into either a source pointer or an invented code target. */
   }
   if (operand_is_stack_postincrement(&candidate->operands[operand_index])) {
     stack_slot = trace_state_find_stack_slot_const(state, 0U);
