@@ -1,4 +1,4 @@
-"""Recheck pinned FoFT matrix transport using accepted native operand facts.
+"""Recheck pinned FoFT render source contracts using accepted native operand facts.
 
 This is a source-contract check, not a decoder, interpreter, code-admission path
 or claim about callback effects and live framebuffer contents.
@@ -337,6 +337,283 @@ def hit_record_contract(rows):
             'runtime_reachability_or_visible_result_proved': False}
 
 
+
+def flag_glyph_contract(payload, rows):
+    """Initial counted source spans and selected accepted reader operands only."""
+    def at(pc, mnemonic):
+        selected = [r for r in rows if r['source_offset'] + 0x800 == pc]
+        if len(selected) != 1 or selected[0]['provenance'] != 'accepted_instruction':
+            raise ValueError('flag glyph requires unique accepted reader instructions')
+        operation(selected[0], mnemonic)
+        return selected[0]
+
+    operand(at(0x1EAD2, 'clr'), 0, register='D7')
+    for pc, step, reg in [(0x1EB16, 1, 'D7'), (0x1EB18, 8, 'A4')]:
+        row = at(pc, 'addq')
+        if row['operand_facts'][0].get('immediate_value') != step:
+            raise ValueError('flag glyph cursor step differs')
+        operand(row, 1, register=reg)
+    row = at(0x1EB1A, 'cmp')
+    if row['operand_facts'][0].get('immediate_value') != 16:
+        raise ValueError('flag glyph count differs')
+    operand(row, 1, register='D7')
+    for pc, name, offset, reg in [(0x1EADE, 'movea', 0, 'A5'),
+                                  (0x1EAE0, 'move', 4, 'D6')]:
+        row = at(pc, name)
+        field = row['operand_facts'][0]
+        if (not field['memory'] or field['base_register'] != 'A4'
+                or field['indexed'] or not field['displacement_known']
+                or field['displacement'] != offset or field['ea_update']
+                or field['width_bytes'] != 4):
+            raise ValueError('flag glyph field reader differs')
+        operand(row, 1, register=reg, width=4)
+    operand(at(0x1EAEC, 'jsr'), 0, address=0x1B0E2, width=4)
+    # These are source contracts, not an interpreter or a live sentinel scan.
+    start, end, cursor, streams = 0x1EB64, 0x1EBE4, 0x1EBE4, []
+    if len(payload) < 0x1ED96 - 0x800:
+        raise ValueError('flag glyph source bytes missing')
+    for bit in range(16):
+        offset = start - 0x800 + 8 * bit
+        pointer = int.from_bytes(payload[offset:offset+4], 'big')
+        count = int.from_bytes(payload[offset+4:offset+8], 'big')
+        if pointer != cursor or not 0 < count <= 0xFFFF:
+            raise ValueError('flag glyph initial pointer/count extent differs')
+        cursor = pointer + 2 * count
+        if cursor > 0x1ED96:
+            raise ValueError('flag glyph stream extends outside its source span')
+        streams.append({'bit': bit, 'runtime': pointer, 'words': count,
+                        'end_runtime': cursor})
+    if cursor != 0x1ED96:
+        raise ValueError('flag glyph streams do not cover the exact source span')
+    return {'descriptor_runtime': start, 'descriptor_end_runtime': end,
+            'records': 16, 'stride': 8, 'initial_streams': streams,
+            'glyph_words': 217, 'glyph_bytes': 434,
+            'draw_runtime': 0x1B0E2, 'count_consumption': 'D6.W after LONG load',
+            'branch_and_register_preservation_review': 'foft-panel-flag-glyphs.md',
+            'mutable_contents_or_alias_closure': False, 'runtime_visibility': 'not observed'}
+
+
+
+def indexed_panel_glyph_contract(payload, rows):
+    """Bound initial table views; producer range derivations remain conditional."""
+    def at(pc, name):
+        found = [r for r in rows if r['source_offset'] + 0x800 == pc]
+        if len(found) != 1 or found[0]['provenance'] != 'accepted_instruction':
+            raise ValueError('indexed glyph requires unique accepted reader instructions')
+        operation(found[0], name)
+        return found[0]
+
+    result = []
+    for tag, base, count, start, end, load, lea, add, read_count, read_pointer, call in [
+            ('A', 0x1F06A, 6, 0x1F0A2, 0x1F0EE,
+             0x1E970, 0x1E97A, 0x1E97E, 0x1E980, 0x1E984, 0x1E98A),
+            ('B', 0x1EEFE, 14, 0x1EF6E, 0x1F06A,
+             0x1E9C0, 0x1E9CA, 0x1E9CE, 0x1E9D0, 0x1E9D4, 0x1E9DA)]:
+        for pc in [load + 4, load + 6, load + 8]:
+            row = at(pc, 'add')
+            operand(row, 0, register='D0'); operand(row, 1, register='D0')
+        row = at(lea, 'lea'); source = row['operand_facts'][0]
+        if (not source.get('pc_relative') or not source.get('displacement_known')
+                or source.get('displacement') != base - (lea + 2)):
+            raise ValueError('indexed glyph table source differs')
+        operand(row, 1, register='A5', width=4)
+        row = at(add, 'adda')
+        operand(row, 0, register='D0'); operand(row, 1, register='A5')
+        for pc, name, offset, reg in [(read_count, 'move', 4, 'D6'),
+                                      (read_pointer, 'movea', 0, 'A5')]:
+            row = at(pc, name); field = row['operand_facts'][0]
+            if (not field['memory'] or field['base_register'] != 'A5'
+                    or field['indexed'] or not field['displacement_known']
+                    or field['displacement'] != offset or field['ea_update']
+                    or field['width_bytes'] != 4):
+                raise ValueError('indexed glyph field differs')
+            operand(row, 1, register=reg, width=4)
+        operand(at(call, 'jsr'), 0, address=0x1B0E2, width=4)
+        display_row = 43 if tag == 'A' else 57
+        draw_row = at(call-2, 'moveq')
+        if draw_row['operand_facts'][0].get('immediate_value') != display_row:
+            raise ValueError('indexed glyph display row differs')
+        operand(draw_row, 1, register='D4', width=4)
+        if len(payload) < end - 0x800:
+            raise ValueError('indexed glyph source bytes missing')
+        entries, unique = [], {}
+        for index in range(count):
+            offset = base - 0x800 + 8 * index
+            pointer = int.from_bytes(payload[offset:offset+4], 'big')
+            words = int.from_bytes(payload[offset+4:offset+8], 'big')
+            if (pointer % 2 or not start <= pointer < end or not 0 < words <= 0xFFFF
+                    or pointer + 2 * words > end):
+                raise ValueError('indexed glyph source extent differs')
+            if pointer in unique and unique[pointer] != words:
+                raise ValueError('indexed glyph shared stream extent differs')
+            unique[pointer] = words
+            entries.append({'index': index, 'runtime': pointer, 'words': words})
+        cursor = start
+        for pointer, words in sorted(unique.items()):
+            if pointer != cursor:
+                raise ValueError('indexed glyph streams overlap or leave a gap')
+            cursor = pointer + 2 * words
+        if cursor != end:
+            raise ValueError('indexed glyph streams do not cover their source span')
+        result.append({'table': tag, 'runtime': base, 'records': count, 'stride': 8, 'display_row': display_row,
+            'normal_producer_index_range': [0, count-1], 'initial_entries': entries,
+            'unique_streams': len(unique), 'glyph_words': sum(unique.values()),
+            'source_end_runtime': end, 'all_writer_or_live_bound_proved': False})
+    return {'tables': result, 'count_consumption': 'D6.W after LONG load',
+            'range_and_branch_review': 'foft-panel-flag-glyphs.md',
+            'extra_A_descriptor_bytes_not_typed': 8, 'runtime': 'not executed'}
+
+
+
+def scenery_bound_headers(payload, rows):
+    """Initial data views behind pointer values, never callable admission."""
+    for pc, offset, double in [(0x4AE62, -10, 0x4AE66), (0x4AE6C, -8, 0x4AE70)]:
+        selected = [r for r in rows if r['source_offset'] + 0x800 == pc]
+        doubled = [r for r in rows if r['source_offset'] + 0x800 == double]
+        if (len(selected) != 1 or len(doubled) != 1
+                or any(r['provenance'] != 'accepted_instruction' for r in selected + doubled)):
+            raise ValueError('scenery bounds require accepted reader instructions')
+        operation(selected[0], 'move'); field = selected[0]['operand_facts'][0]
+        if (not field['memory'] or field['base_register'] != 'A6' or field['indexed']
+                or not field['displacement_known'] or field['displacement'] != offset
+                or field['width_bytes'] != 2 or field['ea_update']):
+            raise ValueError('scenery bounds reader differs')
+        operand(selected[0], 1, register='D2')
+        operation(doubled[0], 'add')
+        operand(doubled[0], 0, register='D2'); operand(doubled[0], 1, register='D2')
+    if len(payload) < 0x4A026 - 0x800:
+        raise ValueError('scenery bounds table bytes missing')
+    targets = [int.from_bytes(payload[0x49802+4*i:0x49806+4*i], 'big') for i in range(9)]
+    if len(set(targets)) != 8 or targets[0] != targets[-1]:
+        raise ValueError('scenery bounds initial sharing differs')
+    spans = sorted((target-10, target-6) for target in set(targets))
+    if any(start < previous_end for (_, previous_end), (start, _) in zip(spans, spans[1:], strict=False)):
+        raise ValueError('scenery bounds initial headers overlap')
+    headers = []
+    for target in dict.fromkeys(targets):
+        start, end = target - 10, target - 6
+        if target % 2 or start < 0x800 or end - 0x800 > len(payload):
+            raise ValueError('scenery bounds header outside source')
+        if any(r['source_offset'] + 0x800 < end
+               and r['source_offset'] + 0x800 + r.get('size', 0) > start
+               for r in rows if r['provenance'] == 'accepted_instruction'):
+            raise ValueError('scenery bounds overlap accepted instruction bytes')
+        words = [int.from_bytes(payload[start-0x800+i:start-0x800+i+2], 'big', signed=True)
+                 for i in (0, 2)]
+        headers.append({'target_runtime': target, 'header_runtime': start,
+                        'end_runtime': end, 'initial_signed_words': words})
+    return {'initial_cells': 9, 'unique_headers': headers, 'typed_bytes': 32,
+            'reader_offsets': [-10, -8], 'word_multiplier': 2,
+            'code_admission_or_callback_effects_proved': False,
+            'other_prefix_bytes_or_lifetime_typed': False}
+
+
+
+def panel_mask_inventory(rows):
+    """Inventory explicit D6 effects; entry/branch dominance is source-reviewed."""
+    block = window(rows, 0x1FA32, 0x1FC86)
+    helper = window(rows, 0x1B436, 0x1B460)
+    if block[0]['mnemonic'] != 'clr':
+        raise ValueError('panel mask initial clear differs')
+    operand(block[0], 0, register='D6')
+    operation(block[-1], 'move')
+    operand(block[-1], 0, register='D6')
+    operand(block[-1], 1, address=0x1FD62)
+    safe = {'nop', 'move', 'swap', 'eori', 'addq', 'subi', 'rol', 'add', 'ror', 'rts'}
+    for row in helper:
+        if row['mnemonic'] not in safe or any(
+                p.get('direct_register') == 'D6' and p.get('access') != 'register_read'
+                for p in row['operand_facts']):
+            raise ValueError('panel mask helper has an unproved D6 effect')
+    if helper[-1]['mnemonic'] != 'rts':
+        raise ValueError('panel mask helper return differs')
+    sets, clears, masks, calls = set(), set(), [], []
+    for row in block:
+        if row['mnemonic'] in {'jsr', 'bsr', 'jmp', 'movem', 'trap', 'rte', 'rtr', 'stop', 'illegal'}:
+            if row['mnemonic'] != 'jsr':
+                raise ValueError('panel mask has an unproved implicit effect')
+            operand(row, 0, address=0x1B436, width=4)
+            calls.append(row['source_offset'] + 0x800)
+        if row is block[0]:
+            continue
+        effects = [p for p in row['operand_facts'] if p.get('direct_register') == 'D6'
+                   and p.get('access') != 'register_read']
+        if not effects:
+            continue
+        if len(effects) != 1 or row['mnemonic'] not in {'bset', 'bclr', 'andi'}:
+            raise ValueError('panel mask has an unproved explicit D6 effect')
+        value = row['operand_facts'][0].get('immediate_value')
+        if row['mnemonic'] == 'andi':
+            operand(row, 1, register='D6')
+            if not isinstance(value, int) or not 0 <= value <= 0xFFFF:
+                raise ValueError('panel mask WORD mask differs')
+            masks.append(value)
+        else:
+            operand(row, 1, register='D6', width=4)
+            if not isinstance(value, int) or not 0 <= value < 15:
+                raise ValueError('panel mask bit operation exceeds the reviewed domain')
+            (sets if row['mnemonic'] == 'bset' else clears).add(value)
+    return {'bset_bits': sorted(sets), 'bclr_bits': sorted(clears), 'word_and_masks': masks,
+            'direct_helper_calls': calls, 'helper_d6_preserved': True,
+            'bit15_clear_on_reviewed_ordinary_producer': True,
+            'entry_and_branch_dominance_review': 'foft-panel-flag-glyphs.md',
+            'all_writers_or_runtime_visibility_proved': False}
+
+
+
+def panel_text_receipt(payload, font):
+    """Decode source offsets using the separately audited, pinned atlas slots."""
+    expected = '8efc64f20c1e3956f0be348dd41867c94a254c2205a936ab1565aa3c7ac4c34a'
+    if len(font) != 380 or hashlib.sha256(font).hexdigest() != expected:
+        raise ValueError('panel font atlas identity differs')
+    alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ -'
+    if len(payload) < 0x1F0EE - 0x800:
+        raise ValueError('panel text source bytes missing')
+    phase_hashes = []
+    words = [int.from_bytes(font[i:i+2], 'big') for i in range(0, 380, 2)]
+    for phase, address in [(0, 0xBB2E), (1, 0xB9B2), (2, 0xB836), (3, 0xB6BA)]:
+        data = payload[address-0x800:address-0x800+380]
+        shifted = b''.join((word >> (4*phase)).to_bytes(2, 'big') for word in words)
+        if data != shifted:
+            raise ValueError('panel font phase view differs')
+        phase_hashes.append({'phase': phase, 'runtime': address,
+            'sha256': hashlib.sha256(data).hexdigest(), 'right_shift_bits': 4*phase})
+
+    def text(pointer, count):
+        start, end = pointer - 0x800, pointer - 0x800 + 2 * count
+        if pointer % 2 or not 0 < count <= 0xFFFF or start < 0 or end > len(payload):
+            raise ValueError('panel glyph text source extent differs')
+        values = [int.from_bytes(payload[p:p+2], 'big') for p in range(start, end, 2)]
+        if any(value % 5 or value // 5 >= len(alphabet) for value in values):
+            raise ValueError('panel glyph offset is not an audited atlas slot')
+        return ''.join(alphabet[value // 5] for value in values)
+
+    if len(payload) < 0x1F0EE - 0x800:
+        raise ValueError('panel text source bytes missing')
+    labels, auxiliary = [], []
+    for base, count, output in [(0x1ED96, 9, labels), (0x1EDF4, 2, auxiliary)]:
+        for i in range(count):
+            at = base-0x800 + 10*i
+            pointer = int.from_bytes(payload[at:at+4], 'big')
+            row = int.from_bytes(payload[at+6:at+8], 'big')
+            words = int.from_bytes(payload[at+8:at+10], 'big')
+            output.append({'display_row': row, 'text': text(pointer, words)})
+    tables = {}
+    for name, start, count in [('starport_type', 0x1F06A, 6), ('atmosphere', 0x1EEFE, 14),
+                                ('flags', 0x1EB64, 16)]:
+        options = []
+        for i in range(count):
+            at = start-0x800 + 8*i
+            pointer = int.from_bytes(payload[at:at+4], 'big')
+            words = int.from_bytes(payload[at+4:at+8], 'big')
+            options.append(text(pointer, words))
+        tables[name] = options
+    return {'font_sha256': expected, 'font_slot_mapping': alphabet,
+            'mapping_evidence': 'manual static five-WORD glyph-cell review; foft-panel-flag-glyphs.md',
+            'phase_atlases': phase_hashes, 'labels': labels, 'auxiliary_labels': auxiliary,
+            'initial_texts': tables, 'runtime_visibility': 'not observed'}
+
+
 def collect(artifact, payload, *, full=False):
     rows = []
     for lo, hi in [(0xF16E, 0xF2EA), (0xFC24, 0xFC92)]:
@@ -374,6 +651,12 @@ def collect(artifact, payload, *, full=False):
         result['glyph_stream_inventory'] = glyph_stream_inventory(complete)
         result['fixed_point_receiver'] = fixed_point_receiver(complete)
         result['hit_record_contract'] = hit_record_contract(complete)
+        result['flag_glyph_contract'] = flag_glyph_contract(payload, complete)
+        result['indexed_panel_glyph_contract'] = indexed_panel_glyph_contract(payload, complete)
+        result['scenery_bound_headers'] = scenery_bound_headers(payload, complete)
+        result['panel_mask_inventory'] = panel_mask_inventory(complete)
+        result['panel_text_receipt'] = panel_text_receipt(payload,
+            (Path(__file__).resolve().parents[1]/'targets/amiga_raw_foft/assets/dataGraphics380_1.bin').read_bytes())
     return result
 
 
