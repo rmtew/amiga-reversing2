@@ -127,15 +127,19 @@ def keyboard_alias_band(values=None):
     return [0x102F6 + min(offsets), 0x102F6 + max(offsets) + 2]
 
 
-def direct_write_inventory(rows):
+def direct_write_inventory(rows, *, spans=None):
     """Only explicit, non-bulk absolute extents; all other stores stay open."""
-    spans = {'scenery_callback_cells': (0x4A002, 0x4A026),
-             'draw_count_word': (0x4E726, 0x4E728)}
+    if spans is None:
+        spans = {'scenery_callback_cells': (0x4A002, 0x4A026),
+                 'draw_count_word': (0x4E726, 0x4E728)}
+    require(all(isinstance(name, str) and name and len(span) == 2 and
+                all(type(v) is int for v in span) and 0 <= span[0] < span[1] <= 2**32
+                for name, span in spans.items()), 'invalid reviewed write span')
     intersections = {name: [] for name in spans}
     direct = other = 0
     for row in rows:
         for p in row['operand_facts']:
-            if p.get('access') != 'memory_write':
+            if p.get('access') not in ('memory_write', 'memory_read_write'):
                 continue
             address, width = p.get('absolute_address'), p.get('width_bytes')
             if (address is None or not isinstance(width, int) or width <= 0
@@ -152,7 +156,7 @@ def direct_write_inventory(rows):
             'whole_memory_alias_closure': False}
 
 
-def reachable_write_inventory(rows, analysis, roots):
+def reachable_write_inventory(rows, analysis, roots, *, spans=None):
     """Union the existing native CFG, not a new call graph or alias analysis."""
     blocks, edges = analysis['blocks'], analysis['edges']
     starts = [b['start_offset'] for b in blocks]
@@ -188,7 +192,7 @@ def reachable_write_inventory(rows, analysis, roots):
         n = bisect.bisect_right(starts, at) - 1
         if n in seen and at < blocks[n]['end_offset']:
             selected.append(row)
-    result = direct_write_inventory(selected)
+    result = direct_write_inventory(selected, spans=spans)
     result.update(callback_roots=len(set(roots)), blocks=len(seen), instructions=len(selected),
                   unresolved_nonreturn_edges=unresolved, excludes_async_interrupts=True,
                   runtime_target_set_closed=False)
