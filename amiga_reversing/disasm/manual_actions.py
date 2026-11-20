@@ -183,6 +183,7 @@ class ManualActionKind(StrEnum):
     RESIZE_MANUAL_DATA_BLOCK_LAYOUT = "resize_manual_data_block_layout"
     REMOVE_MANUAL_DATA_BLOCK_LAYOUT = "remove_manual_data_block_layout"
     DECLARE_MANUAL_RECORD_ARRAY = "declare_manual_record_array"
+    EXTEND_MANUAL_RECORD_ARRAY = "extend_manual_record_array"
     DECLARE_MANUAL_RECORD_LIST = "declare_manual_record_list"
     SET_MANUAL_DATA_BLOCK_ELEMENT = "set_manual_data_block_element"
     RENAME_MANUAL_DATA_BLOCK_ELEMENTS = "rename_manual_data_block_elements"
@@ -2234,6 +2235,42 @@ def _project_actions(
             key = _data_block_element_key(element)
             removed_data_block_elements.pop(key, None)
             data_block_elements[key] = element
+        elif action.kind is ManualActionKind.EXTEND_MANUAL_RECORD_ARRAY:
+            from .record_arrays import (
+                extend_record_array,
+                record_array_witness,
+                record_shape,
+                validate_exclusive_record_binding,
+            )
+            record = dict(_action_object(action, 'custom_struct'))
+            element = _validated_data_block_element(
+                _action_object(action, 'data_block_element'), data_block_layouts)
+            layout = {**data_block_layouts[element['layout_id']], 'elements': [
+                value for (lid, _), value in data_block_elements.items()
+                if lid == element['layout_id']]}
+            updated, prior_binding = extend_record_array(element, record, layout)
+            if (prior_binding != _action_object(action, 'prior_binding')
+                    or record_array_witness(updated) != record_array_witness(element)):
+                raise ValueError('record extension lost or changed its prior binding witness')
+            validate_exclusive_record_binding(data_block_elements.values(), updated)
+            prior_type = custom_structs.get(record['name'])
+            old_shape = prior_binding['type_binding']['record_contract']
+            if prior_type is None or record_shape(prior_type) != old_shape:
+                raise ValueError('record extension lost or changed its prior custom type')
+            added = [field for field in record_shape(record)['fields']
+                     if field not in old_shape['fields']]
+            history = updated['type_binding'].get('record_field_extensions', [])
+            if not isinstance(history, list):
+                raise ValueError('record extension provenance must be a list')
+            updated['type_binding']['record_field_extensions'] = [*history, {
+                'action_id': action.action_id, 'prior_record_contract': old_shape,
+                'prior_custom_struct': prior_type, 'added_fields': added}]
+            # Preserve richer old spelling/provenance; only the explicitly
+            # added fields acquire this new type-definition action.
+            custom_structs[record['name']] = {**prior_type,
+                'fields': sorted([*prior_type['fields'], *added], key=lambda f: f['offset']),
+                'custom_struct_id': action.action_id}
+            data_block_elements[_data_block_element_key(updated)] = updated
         elif action.kind is ManualActionKind.CREATE_MANUAL_CUSTOM_STRUCT:
             custom_struct = _action_object(action, "custom_struct")
             _put_by_id(custom_structs, custom_struct, "name")
@@ -2824,6 +2861,7 @@ _POLICY_STORAGE_ACTION_KINDS = frozenset({
     ManualActionKind.CREATE_MANUAL_LABEL, ManualActionKind.REMOVE_MANUAL_LABEL,
     ManualActionKind.RENAME_MANUAL_LABEL, ManualActionKind.CHANGE_LABEL_SCOPE,
     ManualActionKind.DECLARE_MANUAL_RECORD_ARRAY,
+    ManualActionKind.EXTEND_MANUAL_RECORD_ARRAY,
     ManualActionKind.DECLARE_MANUAL_RECORD_LIST,
     ManualActionKind.CREATE_MANUAL_CUSTOM_STRUCT, ManualActionKind.RENAME_MANUAL_CUSTOM_STRUCT,
     ManualActionKind.REMOVE_MANUAL_CUSTOM_STRUCT, ManualActionKind.CREATE_MANUAL_CUSTOM_STRUCT_FIELD,

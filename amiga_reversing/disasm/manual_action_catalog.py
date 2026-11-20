@@ -1319,11 +1319,13 @@ def listing_range_catalog_manual_payload(
         if len(subranges) != 1:
             raise ValueError("record declaration requires one contiguous existing data owner")
         selected = subranges[0]
-        allowed = {"record_type", "record_size", "record_count", "record_stride", "fields", "field_presentation"}
+        allowed = {"record_type", "record_size", "record_count", "record_stride", "fields", "field_presentation", "extend_fields"}
         if set(user_params) - allowed:
             raise ValueError("record declaration accepts only an explicit type, shape and flat fields")
         if "field_presentation" in params and params["field_presentation"] is not True:
             raise ValueError("record field presentation accepts only explicit true")
+        if "extend_fields" in params and params["extend_fields"] is not True:
+            raise ValueError("record field extension accepts only explicit true")
         if not isinstance(params.get("fields"), list | tuple) or any(
             not isinstance(f, Mapping) or set(f) - {"name", "type", "offset", "size", "value_kind",
                     "pointer_address_domain", "pointer_symbol_group"}
@@ -1350,6 +1352,11 @@ def listing_range_catalog_manual_payload(
         if params.get("field_presentation") is True:
             element["type_binding"]["record_field_presentation"] = True
             element["type_binding"]["record_preserve_scalar_names"] = True
+        if params.get('extend_fields') is True:
+            from .record_arrays import extend_record_array
+            element, prior = extend_record_array(element, record, owner)
+            return [('extend_manual_record_array', {
+                'custom_struct': record, 'data_block_element': element, 'prior_binding': prior})]
         validate_record_array(element, record, owner)
         return [("declare_manual_record_array", {
             "custom_struct": record, "data_block_element": element})]
@@ -1903,6 +1910,7 @@ def _range_data_block_element_actions(
                 "record_count": {"type": "integer", "minimum": 1},
                 "record_stride": {"type": "integer", "minimum": 1},
                 "field_presentation": {"type": "boolean", "enum": [True]},
+                "extend_fields": {"type": "boolean", "enum": [True]},
                 "fields": {"type": "array", "minItems": 1, "items": {
                     "type": "object", "properties": {
                         "name": {"type": "string"}, "type": {"type": "string"},

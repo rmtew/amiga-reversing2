@@ -1029,6 +1029,27 @@ source evidence and native admission checks still apply, including through a
 shared member view. This is declaration-driven rendering, not automatic record
 inference or code-entry admission.
 
+An already-bound array can explicitly add proved fields in its unknown gaps
+with `extend_fields: true` on the same operation. Supply the complete requested
+shape, including every unchanged old field. This is a distinct
+`extend_manual_record_array` journal transition, not a relaxation of ordinary
+declaration conflicts. The type name/size, array identity/count/stride/extent,
+old field names/types/offsets/address domains and original binding provenance
+must remain identical. Normal alignment, non-overlap, member ownership,
+revision, freshly authenticated input and native/assembly checks still apply.
+No-op, replacement, resizing or reinterpretation requests fail atomically.
+
+The operation currently requires one exclusive array binding for the custom
+type: a single selection cannot revise another binding's exact witness. It
+preserves the original binding and creator, records the prior semantic binding,
+full prior custom type and added fields, and revalidates them during replay.
+Repeated extensions form an ordered provenance chain; review/undo/redo use the
+normal journal path. Undoing an earlier extension while a later one depends on
+it is refused. Optional `field_presentation: true` retains its existing meaning.
+Adding a pointer field still needs the explicit ordinary address contract and
+never admits code or infers pointee/value closure. Member-mode verification
+remains member-only; an extension receipt cannot certify media placements.
+
 A complete unbound packed primitive ARRAY can also be regrouped by this command
 when every record field preserves exactly one existing BYTE, WORD or LONG leaf
 and the fields densely cover each record. This requires the identical full

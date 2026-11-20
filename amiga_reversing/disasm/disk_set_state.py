@@ -926,8 +926,14 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None, source
             for prior in metadata.get('custom_structs', ()):
                 if prior['name'] in shapes and record_shape(prior) != shapes[prior['name']]:
                     raise ValueError('record list conflicts with an existing custom type')
-        if kind == "declare_manual_record_array":
-            from .record_arrays import record_shape, validate_record_array
+        if kind in {"declare_manual_record_array", "extend_manual_record_array"}:
+            from .record_arrays import (
+                extend_record_array,
+                record_array_witness,
+                record_shape,
+                validate_exclusive_record_binding,
+                validate_record_array,
+            )
             selected = inspected.get("selection_rows", rows)
             layout = selected[0].get("active_data_block_layout")
             element, record = payload["data_block_element"], payload["custom_struct"]
@@ -937,11 +943,25 @@ def _prepare_member_interpretation(owner, member, body, *, artifact=None, source
                     or element["offset"] != selected[0]["start_offset"] - layout["source_start"]
                     or element["width"] != selected[-1]["end_offset"] - selected[0]["start_offset"]):
                 raise ValueError("record declaration must match the exact inspected member owner and span")
-            validate_record_array(element, record, layout)
+            extending = kind == 'extend_manual_record_array'
+            if extending:
+                checked, prior_binding = extend_record_array(element, record, layout)
+                if (payload.get('prior_binding') != prior_binding
+                        or record_array_witness(checked) != record_array_witness(element)):
+                    raise ValueError('record extension must retain its inspected binding witness')
+            else:
+                validate_record_array(element, record, layout)
             metadata = json.loads(file_at(owner.root,
                 owner.members[analysis_member]["analysis"]["metadata"]["path"]).read_bytes())
+            if extending:
+                validate_exclusive_record_binding(
+                    [e for owned in metadata.get('data_block_layouts', ()) for e in owned['elements']], element)
+                if len([t for t in metadata.get('custom_structs', ()) if t['name'] == record['name']]) != 1:
+                    raise ValueError('record extension requires its unique inspected custom type')
             for prior in metadata.get("custom_structs", ()):
-                if prior["name"] == record["name"] and record_shape(prior) != record_shape(record):
+                expected = (payload['prior_binding']['type_binding']['record_contract']
+                            if extending else record_shape(record))
+                if prior["name"] == record["name"] and record_shape(prior) != expected:
                     raise ValueError("record declaration conflicts with an existing custom type")
         if kind == "suppress_seeded_item":
             layout = rows[0].get("active_data_block_layout")

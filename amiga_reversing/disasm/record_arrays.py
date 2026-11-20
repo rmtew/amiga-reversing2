@@ -24,6 +24,59 @@ _WIDTHS = {
 }
 
 
+def record_array_witness(element):
+    """Stable semantic identity, excluding projection-only citation defaults."""
+    return deepcopy({key: element.get(key) for key in (
+        'layout_id', 'offset', 'width', 'kind', 'array_count', 'array_stride',
+        'name', 'representation', 'reference_interpretation', 'provenance', 'type_binding')})
+
+
+def validate_exclusive_record_binding(elements, selected):
+    """A single-selection edit cannot revise another array's exact witness."""
+    name = selected['type_binding']['bound_type_id']
+    matching = [(e.get('layout_id'), e.get('offset')) for e in elements
+                if (e.get('type_binding') or {}).get('bound_type_id') == name]
+    if matching != [(selected['layout_id'], selected['offset'])]:
+        raise ValueError('record extension requires one exclusive array binding for its type')
+
+
+def extend_record_array(element, record, layout):
+    """Fill declared gaps without changing any prior field or owned extent.
+
+    This is an explicit new journal transition. Ordinary declarations retain
+    their exact-shape rule; no historical witness is silently reinterpreted.
+    """
+    shape = record_shape(record)
+    matching = [e for e in layout.get('elements', ())
+                if e.get('offset') == element.get('offset')]
+    if len(matching) != 1:
+        raise ValueError('record extension requires one existing array binding')
+    prior = matching[0]
+    old = (prior.get('type_binding') or {}).get('record_contract')
+    if not isinstance(old, Mapping):
+        raise ValueError('record extension requires its prior declared contract')
+    old = record_shape(old)
+    validate_record_array(deepcopy(prior), old, layout)
+    if (old['name'] != shape['name'] or old['size'] != shape['size']
+            or len(shape['fields']) <= len(old['fields'])
+            or any(field not in shape['fields'] for field in old['fields'])):
+        raise ValueError('record extension may only add fields inside prior gaps')
+    if any(element.get(k) != prior.get(k) for k in (
+            'layout_id', 'offset', 'width', 'kind', 'array_count', 'array_stride')):
+        raise ValueError('record extension cannot change array identity or extent')
+    updated = deepcopy(prior)
+    updated['type_binding']['record_contract'] = shape
+    requested = element.get('type_binding') or {}
+    if requested.get('record_field_presentation') is True:
+        updated['type_binding']['record_field_presentation'] = True
+        updated['type_binding']['record_preserve_scalar_names'] = True
+    # The old binding has just passed its unchanged validator. Validate the
+    # replacement against the same owner and every other existing element.
+    other = {**layout, 'elements': [e for e in layout.get('elements', ()) if e is not prior]}
+    validate_record_array(updated, shape, other)
+    return updated, record_array_witness(prior)
+
+
 def preserves_primitive_grid(shape, unit):
     fields = shape['fields']
     return len(fields) * unit == shape['size'] and all(
