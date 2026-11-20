@@ -5516,9 +5516,20 @@ static int typed_word_index_mask_domain(const M68kRenderPlatformState *platform,
   value &= mask;
   uint16_t lower = value, upper = (uint16_t)(value | (uint16_t)~mask);
   if (words->has_bounds) {
-    if (words->lower_bound > words->upper_bound) return 0; /* Modular union needs another domain. */
-    if (lower < words->lower_bound) lower = words->lower_bound;
-    if (upper > words->upper_bound) upper = words->upper_bound;
+    if (words->lower_bound <= words->upper_bound) {
+      if (lower < words->lower_bound) lower = words->lower_bound;
+      if (upper > words->upper_bound) upper = words->upper_bound;
+    } else {
+      /* Signed compare edges can retain a modular union. Independent known
+       * bits may exclude one complete arm; never discard a still-live arm
+       * merely to obtain a positive source index. */
+      int low_arm = lower <= words->upper_bound;
+      int high_arm = upper >= words->lower_bound;
+      if (low_arm == high_arm) return 0;
+      if (low_arm) {
+        if (upper > words->upper_bound) upper = words->upper_bound;
+      } else if (lower < words->lower_bound) lower = words->lower_bound;
+    }
   }
   if (lower > upper || upper > INT16_MAX) return 0;
   memset(out, 0, sizeof(*out));
@@ -10643,25 +10654,32 @@ static void hardware_relative_transfer(M68kRenderPlatformState *state, const M68
       }
       state->word_values[dest] = result;
     } else if (((meta->operation_type == M68K_SIM_OP_SHIFT &&
-                 meta->shift_direction == M68K_SIM_SHIFT_DIR_LEFT &&
+                 (meta->shift_direction == M68K_SIM_SHIFT_DIR_LEFT ||
+                  meta->shift_direction == M68K_SIM_SHIFT_DIR_RIGHT) &&
                  meta->shift_fill_mode == M68K_SIM_SHIFT_FILL_ZERO &&
                  meta->shift_count_source == M68K_SIM_SHIFT_COUNT_OPERAND) ||
                 instruction->mnemonic_id == M68K_ASM_MNEMONIC_MULU) &&
         instruction->size_suffix == 'w' && source.count == 1U) {
       uint16_t amount = source.values[0];
-      /* ASL and LSL have the same low-WORD value transfer according to the
-       * generated direction/fill metadata. Their different CCR effects do not
-       * enter this value-only domain. Keep the existing narrow count bound. */
+      /* Generated direction/fill metadata distinguishes zero-fill LSR from
+       * sign-fill ASR. ASL/LSL share the left value transfer. This WORD-only
+       * domain does not read an unknown upper LONG or model CCR effects. */
       int shift = meta->operation_type == M68K_SIM_OP_SHIFT;
+      int right = shift && meta->shift_direction == M68K_SIM_SHIFT_DIR_RIGHT;
       if (shift && amount > 15U) return;
       if (!before->word_values[dest].count && shift) {
         uint16_t known, value;
         hardware_word_known_bits(&before->word_values[dest], &known, &value);
-        hardware_word_from_bits(&result, (uint16_t)((known << amount) | ((1U << amount) - 1U)),
-          (uint16_t)(value << amount));
+        if (right)
+          hardware_word_from_bits(&result,
+            (uint16_t)((known >> amount) | (uint16_t)~(UINT16_MAX >> amount)),
+            (uint16_t)(value >> amount));
+        else
+          hardware_word_from_bits(&result, (uint16_t)((known << amount) | ((1U << amount) - 1U)),
+            (uint16_t)(value << amount));
       } else for (i = 0U; i < before->word_values[dest].count; ++i) {
         uint32_t value = before->word_values[dest].values[i];
-        value = shift ? value << amount : value * amount;
+        value = shift ? (right ? value >> amount : value << amount) : value * amount;
         if (!hardware_word_set_add(&result, (uint16_t)value)) return;
       }
       result.requires_input_contract = source.requires_input_contract | before->word_values[dest].requires_input_contract;

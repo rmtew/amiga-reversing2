@@ -277,8 +277,10 @@ and the complete scalar access must fit that field. `bounded_cfg_mask` evidence
 retains the bit constraints and bounding interval; `indexed_mask_range` is an
 explicit overapproximation, not a claim that every intervening byte is read.
 It adds no register state or value cap, loaded-pointer identity, immutable-byte
-promise or caller bound. Negative/modular domains and varying residues keep
-the existing finite/loop paths or remain unresolved. Regressions:
+promise or caller bound. A modular bound can project to one ordinary interval
+only when independent known-bit extrema exclude its other entire arm. Both
+live arms, negative indexes and varying residues retain the existing finite/loop
+paths or remain unresolved. No signed guard becomes an unsigned guard. Regressions:
 `tests/test_masked_word_index_fields.py`.
 
 Indexed-field rendering retains a scalar EQU identity only from an explicitly
@@ -296,6 +298,24 @@ both WORD indexing and full-register scalar transport, without a mnemonic-based
 sign-extension rule in analysis.
 Regressions: `tests/test_typed_index_symbol_compensation.py` and native
 `logical_immediate_uses_generated_signedness`.
+
+## Zero-fill WORD shift values
+
+The shared scalar WORD domain uses generated direction/fill metadata for both
+left zero-fill shifts and logical right shifts. Finite values shift exactly;
+known-bit masks shift with the zero-filled result bits. WORD wrap, current
+input-contract provenance, unknown-call invalidation and the existing count
+scope (a single proved count from zero through fifteen) remain unchanged.
+This adds no LONG upper-half facts, BYTE transfer, sign-filled ASR/rotate rule,
+CCR interpretation, table-size guess or larger finite set.
+
+Combining this with the existing closed compare-edge bounds can validate a
+masked/shifted/capped array index across its actual merge. The resulting
+`bounded_cfg_mask` is an address/footprint proof, not a loaded pointer value,
+callable target set, memory-preservation or lifetime contract. Regressions:
+`tests/test_word_index_logical_right_shift.py` cover both signed modular arms,
+unknown/clobbered values, widths, counts, insufficient arrays, source-record
+fields and exact native/vasm round trips.
 
 ## Indexed primitive-copy address anchors
 
