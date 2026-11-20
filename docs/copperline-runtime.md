@@ -6,6 +6,46 @@ The UI remains the static-analysis/reassembly workspace; runtime sessions run
 through the restricted target-aware CLI and return JSON observations. There is
 no new public debugger endpoint or browser emulator console.
 
+## Read-only original-media input preflight
+
+`--preflight-original-media foft` is a host-only engineering check for the
+canonical FoFT disk-set owner. It does not register a runtime prefix, compile a
+scenario, create state, launch an emulator or authorize a later run.
+
+```sh
+python -m amiga_reversing.tools.copperline_session \
+  --preflight-original-media foft --target amiga_raw_foft \
+  --rom /private/kick13.rom --floppy0 /private/FederationOfFreeTraders.ipf \
+  --copperline /private/Copperline-1.0.0-x86_64.AppImage
+```
+
+The FoFT pin policy is isolated in `foft_original_media_inputs.py`; the common
+checker is shared with independent synthetic DOS/NDOS fixtures. The declared
+contract checks fresh file bytes against the authorized ROM,
+original SPS 0613 IPF and existing official 1.0.0 package/executable fingerprints.
+It validates the normal `DiskSet` manifest/package and independently owned boot
+and main identities/contexts before recovery. Only when every file verifies does
+normal media recovery authenticate member bytes. The boot/main source windows
+remain **declared contracts**, never live mappings. A package fingerprint is not
+proof of a runnable installation, handshake or native-IPF behavior on this disk.
+
+Exit 0 / `inputs_verified` means only that this host input contract passed.
+Exit 1 / `blocked` reports missing, wrong-sized, unreadable or wrong-hash files
+without starting recovery. Neither result is a runtime or rebuild receipt:
+`launch_admitted`, `live_handoff_verified` and `media_rebuild_verified` remain
+false, with no placement coverage. The report cannot be supplied as admission to
+another mode. `--run`, scenarios, host/direct/derived mounts, observations,
+checkpoints, state directories and nondefault run budgets are rejected in this
+mode. User-provided hashes and runtime/source addresses are not accepted.
+
+The live original-media registry still admits only its existing SGII prefix;
+SGII behavior and authenticated 1.0.0/protocol-1 negotiation are unchanged. A
+FoFT recipe must separately add scoped disk-set-member scenario compilation and
+qualify a cold original-media boot and normal input, with loaded-byte checks and
+cleanup. Do not use the generic raw-binary project resolver or a matching PC as
+proof of that handoff. The current unresolved input/qualification boundary is
+recorded in [FoFT runner engineering](validation/foft-runtime-input-preflight.md).
+
 ## Reproduce in this cloud environment
 
 ```sh

@@ -17,14 +17,24 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from amiga_reversing.tools.runtime_analysis import build_project_listing_artifact_profile, analysis_scope
-from amiga_reversing.tools.copperline_bus_trace import validate_bus_trace
 from amiga_reversing.disasm.project_paths import resolve_project_paths
+from amiga_reversing.tools.copperline_bus_trace import validate_bus_trace
 from amiga_reversing.tools.copperline_runtime import (
-    MAX_SCENARIO_PHASES, MAX_SCENARIO_INPUT_EVENTS, validate_phase_occurrences, observe, validate_memory_expectation, validate_custom_registers,
-    validate_memory_access_watch, validate_phase_frame_budget, validate_memory_goal,
+    MAX_SCENARIO_INPUT_EVENTS,
+    MAX_SCENARIO_PHASES,
+    observe,
+    validate_custom_registers,
+    validate_memory_access_watch,
+    validate_memory_expectation,
+    validate_memory_goal,
+    validate_phase_frame_budget,
+    validate_phase_occurrences,
 )
 from amiga_reversing.tools.direct_payload_adapter import build_for_target, load_contract
+from amiga_reversing.tools.runtime_analysis import (
+    analysis_scope,
+    build_project_listing_artifact_profile,
+)
 from amiga_reversing.tools.runtime_symbols import generate_runtime_symbol_artifact
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -652,11 +662,18 @@ def validate_capture(capture: object) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    from .original_media_preflight import PREFLIGHT_NAMES
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--derived-artifact",
         type=Path,
         help="Validated fixed-width relocation manifest or explicit optional-patch receipt",
+    )
+    parser.add_argument(
+        "--preflight-original-media",
+        choices=PREFLIGHT_NAMES,
+        help="Read-only pinned input check; never launches or admits a runtime prefix",
     )
     parser.add_argument("--target", required=True)
     parser.add_argument("--rom", required=True, type=Path)
@@ -719,6 +736,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if getattr(args, "preflight_original_media", None):
+        from .original_media_preflight import cli_preflight
+
+        binary = args.copperline
+        if binary is None:
+            try:
+                binary = resolve_binary(None)
+            except ValueError:
+                binary = None
+        report = cli_preflight(args, project_root=ROOT, binary_path=binary)
+        print(json.dumps(report, indent=2))
+        return 0 if report["input_contract_satisfied"] else 1
     observation_memory_equals = (
         bytes.fromhex(args.observation_memory_equals)
         if args.observation_memory_equals
