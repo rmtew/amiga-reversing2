@@ -70,6 +70,8 @@ def extend_record_array(element, record, layout):
     if requested.get('record_field_presentation') is True:
         updated['type_binding']['record_field_presentation'] = True
         updated['type_binding']['record_preserve_scalar_names'] = True
+        if requested.get('record_preserve_compatible_scalar_names') is True:
+            updated['type_binding']['record_preserve_compatible_scalar_names'] = True
     # The old binding has just passed its unchanged validator. Validate the
     # replacement against the same owner and every other existing element.
     other = {**layout, 'elements': [e for e in layout.get('elements', ()) if e is not prior]}
@@ -260,6 +262,9 @@ def validate_record_array(element, record, layout):
     binding = element.get("type_binding") or {}
     field_presentation = binding.get("record_field_presentation")
     preserve_names = binding.get("record_preserve_scalar_names")
+    compatible_names = binding.get("record_preserve_compatible_scalar_names")
+    if compatible_names is not None and not (compatible_names is True and field_presentation is True):
+        raise ValueError("compatible scalar names require explicit record field presentation")
     if ((field_presentation is not None or preserve_names is not None)
             and not (field_presentation is True and preserve_names is True)):
         raise ValueError("record field presentation and scalar-name preservation require explicit true")
@@ -321,6 +326,8 @@ def validate_record_array(element, record, layout):
     if field_presentation is True:
         element["type_binding"]["record_field_presentation"] = True
         element["type_binding"]["record_preserve_scalar_names"] = True
+        if compatible_names is True:
+            element["type_binding"]["record_preserve_compatible_scalar_names"] = True
     return shape
 
 

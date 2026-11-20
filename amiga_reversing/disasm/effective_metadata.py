@@ -1498,21 +1498,45 @@ def _data_block_custom_struct_field_entity(
     )
 
 
-def _record_list_scalar_names(entities, originals, layout):
-    """Keep a unique exact independent scalar identity on a new typed leaf.
+def _record_compatible_scalar_identity(original, field):
+    """Preserve spelling only for the same already typed scalar leaf.
 
-    This changes neither the field's type/role nor any ownership extent. Partial,
-    stronger typed and ambiguous facts do not supply a guessed preferred name.
+    Imported primitive paths may have one leading slash. This is not type
+    inference: struct, field, primitive name, extent and scalar/address role
+    must already agree. Pointer/domain facts never enter this name-only rule.
+    """
+    def primitive(name):
+        return name.removeprefix('/').casefold() if isinstance(name, str) else None
+    return (bool(field.struct_name) and bool(field.field_name)
+            and field.value_kind == 'scalar' and original.value_kind in (None, 'scalar')
+            and original.struct_name == field.struct_name
+            and original.field_name == field.field_name
+            and bool(original.field_type) and bool(original.c_type)
+            and primitive(original.field_type) == primitive(field.field_type)
+            and primitive(original.c_type) == primitive(field.c_type)
+            and not any((original.pointer_struct, original.value_domain,
+                         original.pointer_address_domain, original.pointer_symbol_group,
+                         field.pointer_struct, field.value_domain,
+                         field.pointer_address_domain, field.pointer_symbol_group)))
+
+
+def _record_list_scalar_names(entities, originals, layout, *, compatible_typed=False):
+    """Keep an exact independent or explicitly compatible scalar identity.
+
+    This changes spelling only. Historical contracts keep their independent-
+    scalar rule; new array contracts can preserve the same typed scalar field.
+    Partial, incompatible and ambiguous facts never supply a guessed name.
     """
     result = []
     for field in entities:
         matches = {e.name for e in originals
                    if e.name and e.type == 'data' and e.hunk == field.hunk
                    and (e.addr, e.end, e.unit) == (field.addr, field.end, field.unit)
-                   and e.subtype is None and e.field_name is None
-                   and not any((e.struct_name, e.field_type, e.c_type,
+                   and e.subtype is None
+                   and ((e.field_name is None and not any((e.struct_name, e.field_type, e.c_type,
                                 e.pointer_struct, e.value_kind, e.value_domain,
-                                e.pointer_address_domain, e.pointer_symbol_group))}
+                                e.pointer_address_domain, e.pointer_symbol_group)))
+                        or (compatible_typed and _record_compatible_scalar_identity(e, field)))}
         if field.field_name and field.addr > layout.source_start and len(matches) > 1:
             raise ValueError('ambiguous independent scalar names require explicit reconciliation')
         if field.field_name and field.addr > layout.source_start and len(matches) == 1:
@@ -2899,7 +2923,8 @@ def _apply_manual_seed_projection(
             if (binding.get('record_list_preserve_scalar_names') is True
                     or binding.get('record_preserve_scalar_names') is True):
                 typed_entities_by_element[(layout.layout_id, element.offset)] = _record_list_scalar_names(
-                    typed_entities_by_element[(layout.layout_id, element.offset)], seeded_entities, layout)
+                    typed_entities_by_element[(layout.layout_id, element.offset)], seeded_entities, layout,
+                    compatible_typed=binding.get('record_preserve_compatible_scalar_names') is True)
 
     scalar_field_spans = {
         (entity.hunk, entity.addr, entity.end)

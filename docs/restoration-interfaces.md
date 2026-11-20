@@ -50,6 +50,17 @@ The durable binding stores the explicit projection and scalar-name-preservation
 flags. Re-declaring the same shape can opt in while retaining the original
 binding identity and provenance. Ordinary historical declarations remain
 compact, and later declarations without the option do not silently erase it.
+New field-presented record-array declarations retain a unique existing **typed scalar**
+name when section, full leaf extent/unit, struct, field and primitive type agree.
+A single imported primitive path prefix (`/word`) and primitive-name case are
+normalized; custom struct/field names remain exact. Pointer/domain annotations,
+partial overlaps, incompatible types and competing identities gain no guessed
+name. This is spelling preservation, not a type or lifetime refinement.
+The durable `record_preserve_compatible_scalar_names: true` contract is written
+by new declarations or normal shape-preserving reauthoring. Earlier serialized
+bindings retain their old deterministic projection until such a journaled
+upgrade; the before-snapshot guard is unchanged.
+
 Undo/redo uses the existing journal. False, numeric and string substitutes are
 rejected; this is an explicit opt-in, not a new formatting default.
 

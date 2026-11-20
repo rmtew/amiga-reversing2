@@ -1352,6 +1352,7 @@ def listing_range_catalog_manual_payload(
         if params.get("field_presentation") is True:
             element["type_binding"]["record_field_presentation"] = True
             element["type_binding"]["record_preserve_scalar_names"] = True
+            element["type_binding"]["record_preserve_compatible_scalar_names"] = True
         if params.get('extend_fields') is True:
             from .record_arrays import extend_record_array
             element, prior = extend_record_array(element, record, owner)
