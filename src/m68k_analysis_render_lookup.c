@@ -8093,7 +8093,12 @@ static int typed_flow_local_callee_effect_summary(const M68kRenderLookup *lookup
         }
       }
       if (metadata->flow_kind == M68K_SIM_FLOW_RETURN) {
-        if (state.frame_id != 0U) goto cleanup;
+        /* Callable effects describe an ordinary caller continuation. Exception
+         * or CCR-frame returns and explicit stack-adjust returns have a
+         * different contract; the shared generated metadata owns that split. */
+        if (metadata->return_restore_kind != M68K_SIM_RETURN_RESTORE_PC_ONLY ||
+            metadata->return_stack_adjust_operand_index < instruction.operand_count ||
+            state.frame_id != 0U) goto cleanup;
         state.preserved_mask = 0U;
         for (uint8_t reg = 0U; reg < 8U; ++reg)
           if (state.entry_origin[reg] == reg) state.preserved_mask |= (uint8_t)(1U << reg);
@@ -8518,6 +8523,45 @@ static int render_lookup_collect_inferred_direct_function_summaries(M68kRenderLo
       use.kind = M68K_FUNCTION_SUMMARY_USE_CALL;
       if (render_lookup_add_function_summary_use(lookup, &use) != 0) return -1;
     }
+  }
+  return 0;
+}
+
+/* An already accepted indirect CALL target is a concrete entry too. Reuse
+ * the ordinary body/SCC solver for that entry, without intersecting a subset
+ * into a summary for the indirect call itself. Unresolved edges, writable
+ * dispatch values and target admission remain owned by control analysis. */
+static int render_lookup_collect_resolved_call_target_summaries(M68kRenderLookup *lookup,
+    const M68kDecodeIR *decode, uint8_t **accepted_start) {
+  for (size_t n = 0U; n < lookup->code_start_ref_count; ++n) {
+    const M68kFact *ref = lookup->code_start_refs[n].fact;
+    const M68kDecodeSectionIR *source, *target;
+    const M68kDecodeCandidate *site;
+    const M68kAnalysisFunctionSummary *configured;
+    M68kFunctionSummaryUseIR use;
+    if (ref == NULL || ref->kind != M68K_FACT_CODE_START ||
+        ref->reason != M68K_FACT_CODE_START_REASON_CONTROL_TARGET ||
+        ref->source_section_index >= decode->section_count || ref->section_index >= decode->section_count)
+      continue;
+    source = &decode->sections[ref->source_section_index];
+    target = &decode->sections[ref->section_index];
+    if (!accepted_start_at(source, accepted_start[ref->source_section_index], ref->source_offset) ||
+        !accepted_start_at(target, accepted_start[ref->section_index], ref->offset)) continue;
+    site = find_candidate_at_offset_local(source, ref->source_offset);
+    if (site == NULL || !analysis_candidate_is_indirect_control(site, M68K_SIM_FLOW_CALL)) continue;
+    configured = lookup_configured_direct_function_summary(lookup, ref->section_index, ref->offset);
+    if (configured == NULL && render_lookup_append_inferred_direct_function_summary(lookup,
+          ref->section_index, ref->offset) != 0) return -1;
+    memset(&use, 0, sizeof(use));
+    if (configured != NULL)
+      snprintf(use.function_summary_id, sizeof(use.function_summary_id), "%s", configured->function_summary_id);
+    else
+      snprintf(use.function_summary_id, sizeof(use.function_summary_id), "inferred_local_s%u_o%08X",
+        (unsigned)ref->section_index, (unsigned)ref->offset);
+    use.caller_section_index = (uint32_t)ref->source_section_index;
+    use.caller_offset = ref->source_offset;
+    use.kind = M68K_FUNCTION_SUMMARY_USE_CALL;
+    if (render_lookup_add_function_summary_use(lookup, &use) != 0) return -1;
   }
   return 0;
 }
@@ -18624,6 +18668,7 @@ int m68k_analysis_render_lookup_run_platform_passes(M68kRenderLookup *lookup, co
    * solver then owns recursive edges; typed flow only consumes its facts. */
   typed_stage_start = clock();
   if (render_lookup_collect_inferred_direct_function_summaries(lookup, decode, accepted_start) != 0) return -1;
+  if (render_lookup_collect_resolved_call_target_summaries(lookup, decode, accepted_start) != 0) return -1;
   if (render_lookup_solve_inferred_direct_function_summaries(lookup, decode, accepted_start) != 0) return -1;
   if (render_lookup_collect_platform_call_thunks(lookup, decode, accepted_start) != 0) return -1;
   /* A direct inferred summary guarantees the post-callback solve below. Its

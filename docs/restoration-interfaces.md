@@ -1222,6 +1222,25 @@ still requires an existing input index. Empty and malformed input arrays remain
 distinct. Native metadata reading accepts compact
 and indented JSON for these arrays without changing the contract or ABI.
 
+Native callee-effect inference includes concrete entries already accepted as
+resolved indirect **call** targets. Each gets the same entry-owned summary and
+ordinary body/SCC proof as a direct-call entry, with a reverse use at the original
+call site. This is an effect audit of existing accepted code: it does not admit
+new targets, follow address-looking data, treat an indirect jump as a call,
+intersect a partial target set into a callable summary, or remove the site's
+unresolved edge. Authored entry summaries retain precedence. Individual entry
+summaries use the existing `direct` callable kind (a concrete entry rather than
+a table contract); that kind does not assert that every incoming call has a
+directly encoded destination.
+
+The ordinary caller-continuation proof requires generated `PC_ONLY` return
+restoration with no explicit stack-adjust operand. CCR/exception-frame and
+stack-adjust returns remain unsupported for this contract; their code stays
+accepted where it was already accepted. Unknown nested calls and unknown write
+subjects retain their existing conservative effects. A per-target summary is
+not a proof that a writable dispatch exhausts its targets, preserves a specific
+caller buffer, or returns in an actual run.
+
 Bounded native callee inference may also publish a generated `hardware_base`
 register result with a stable `hardware_base_id`. The proof starts without
 caller hardware values, follows original register transfers, and requires the
