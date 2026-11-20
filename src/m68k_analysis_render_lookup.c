@@ -1459,6 +1459,34 @@ static M68kPlatformContractCompositionState function_summary_compose_platform_co
 #define M68K_RENDER_TYPED_FLOW_DEFAULT_NODE_VISIT_LIMIT 2000000U
 #define M68K_RENDER_TYPED_FLOW_DEFAULT_ITERATION_LIMIT 64U
 
+/* Exact position only: a single ordinary auto-updating stack EA. This does
+ * not recover a saved value or type, and repeated/explicit SP writes remain
+ * unsupported. Byte accesses advance A7 by two bytes on the 68000. */
+static int instruction_single_stack_ea_delta(const M68kInstructionIR *instruction, int32_t *out_delta) {
+  const M68kSimFormMetadata *metadata = m68k_sim_metadata_for_instruction(instruction);
+  size_t updates = 0U;
+  int32_t delta = 0;
+  if (!metadata || metadata->flow_kind != M68K_SIM_FLOW_SEQUENTIAL || metadata->sp_effect_count ||
+      metadata->operation_type == M68K_SIM_OP_MOVE_MULTIPLE) return 0;
+  for (size_t i = 0U; i < instruction->operand_count; ++i) {
+    const M68kOperandIR *operand = &instruction->operands[i];
+    uint8_t reg, width, count, span;
+    if (operand_address_register_index_local(operand, &reg) && reg == 7U &&
+        (platform_operand_register_write_mask(instruction, i) & UINT16_C(0x8000))) return 0;
+    int pre = operand_is_predec_a7_local(operand);
+    if (!pre && !operand_is_postinc_a7_local(operand)) continue;
+    if (++updates != 1U || i >= 4U ||
+        !platform_operand_updates_address_register(instruction, i) ||
+        !platform_operand_memory_span(instruction, i, &width, &count, &span) || count != 1U ||
+        (width != 1U && width != 2U && width != 4U) || span != width) return 0;
+    delta = width == 1U ? 2 : width;
+    if (!pre) delta = -delta;
+  }
+  if (updates != 1U) return 0;
+  *out_delta = delta;
+  return 1;
+}
+
 static int instruction_stack_delta_for_comment(const M68kInstructionIR *instruction, int32_t *out_delta) {
   size_t operand_index;
   uint8_t dest_reg = 0U;
@@ -1474,7 +1502,8 @@ static int instruction_stack_delta_for_comment(const M68kInstructionIR *instruct
     return 1;
   }
   if (instruction->mnemonic_id == M68K_ASM_MNEMONIC_MOVEA && instruction->size_suffix == 'l' &&
-      instruction->operand_count == 2U && operand_is_postinc_a7_local(&instruction->operands[0])) {
+      instruction->operand_count == 2U && operand_is_postinc_a7_local(&instruction->operands[0]) &&
+      operand_address_register_index_local(&instruction->operands[1], &dest_reg) && dest_reg != 7U) {
     *out_delta = -4;
     return 1;
   }
@@ -1517,6 +1546,7 @@ static int instruction_stack_delta_for_comment(const M68kInstructionIR *instruct
       : -(int32_t)value;
     return 1;
   }
+  if (instruction_single_stack_ea_delta(instruction, out_delta)) return 1;
   for (operand_index = 0U; operand_index < instruction->operand_count; ++operand_index) {
     if (operand_is_predec_a7_local(&instruction->operands[operand_index]) ||
         operand_is_postinc_a7_local(&instruction->operands[operand_index])) {
@@ -1527,6 +1557,9 @@ static int instruction_stack_delta_for_comment(const M68kInstructionIR *instruct
       (operand_address_register_index_local(&instruction->operands[instruction->operand_count - 1U], &dest_reg) && dest_reg == 7U)) {
     return 0;
   }
+  /* An unhandled implicit change (for example LINK/UNLK) is unknown,
+   * not a zero delta. Known stack forms have returned above. */
+  if (instruction_may_update_stack_pointer_from_metadata(instruction)) return 0;
   return 1;
 }
 
@@ -8780,7 +8813,9 @@ static void affine_entry_transfer_after(M68kRenderTypedState *state, const M68kR
   if (metadata->flow_kind != M68K_SIM_FLOW_CALL && instruction_may_update_stack_pointer_from_metadata(instruction)) {
     int32_t stack_delta;
     state->addr_regs[7].entry_value_id = 0U;
-    if (has_stack) {
+    if (instruction_single_stack_ea_delta(instruction, &stack_delta)) {
+      state->addr_regs[7].entry_value_id = affine_entry_adjust(context, before[15], -(int64_t)stack_delta);
+    } else if (has_stack) {
       stack_delta = (int32_t)stack->width * stack->count;
       if (stack->direction == M68K_STACK_TRANSFER_POP) stack_delta = -stack_delta;
       state->addr_regs[7].entry_value_id = affine_entry_adjust(context, before[15], -(int64_t)stack_delta);

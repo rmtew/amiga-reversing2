@@ -2148,3 +2148,20 @@ the exact beginning of a presented field, including its source provenance.
 The original scalar fact and its extent remain intact. Interior, gap and outside
 comments are not moved; normal imported-comment replacement, replay and undo
 continue to select the immutable original identity.
+
+## Stack position in counted record proofs
+
+Native counter-relative record proofs reuse normal stack accounting. A single
+ordinary pre-decrement or post-increment stack EA with a generated, exact
+memory span now has a checked position delta even when it is an arithmetic
+operand rather than a register save/restore. BYTE accesses advance A7 by two
+bytes; WORD and LONG use two and four. This carries only position identity,
+not the saved value, a receiver type, pointee stability or call preservation.
+
+Repeated updating EAs using SP, an explicit scalar result assigned to SP,
+unknown spans and unhandled implicit changes remain unsupported. In particular,
+a scalar pop into SP is not the ordinary increment of its old value, and an
+unhandled LINK/UNLK is not a zero delta. Counter, all-entry, branch-merge,
+source-owner/extent and one-past checks remain unchanged. The resulting record
+facts are body-only structural witnesses from the existing solver, not manual
+receiver overrides or new code admission.
