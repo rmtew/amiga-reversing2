@@ -243,6 +243,100 @@ def fixed_point_receiver(rows):
             'body_only': True, 'pointee_or_value_closure': False}
 
 
+def hit_record_contract(rows):
+    """Check bounded native setup/operators, not runtime reachability or values."""
+    def at(pc, mnemonic):
+        found = [r for r in rows if r['source_offset'] + 0x800 == pc]
+        if len(found) != 1 or found[0].get('provenance') != 'accepted_instruction':
+            raise ValueError('hit record requires unique accepted native instructions')
+        operation(found[0], mnemonic)
+        return found[0]
+
+    def memory(row, index, base, offset, width=2):
+        field = row['operand_facts'][index]
+        if (not field['memory'] or field['base_register'] != base or field['indexed']
+                or not field['displacement_known'] or field['displacement'] != offset
+                or field['width_bytes'] != width or field['ea_update']):
+            raise ValueError('hit record operand differs from its bounded source contract')
+
+    setups = []
+    for start, end, final in [(0x2DBFC, 0x2DC14, 'A6'), (0x2E41A, 0x2E432, 'A0')]:
+        block = window(rows, start, end)
+        if len(block) != 6:
+            raise ValueError('hit record setup extent differs')
+        for i, base, reg in [(0, 0x4ED18, 'A6'), (2, 0x4E818, 'A0'), (4, 0x4ED18, 'A6')]:
+            operation(block[i], 'lea')
+            operand(block[i], 0, address=base, width=4)
+            operand(block[i], 1, register=reg, width=4)
+        for i, reg in [(1, 'A6'), (3, 'A0'), (5, final)]:
+            operation(block[i], 'adda')
+            operand(block[i], 0, register='D5')
+            operand(block[i], 1, register=reg)
+        setups.append({'runtime': start, 'action_offset_copies': int(final == 'A6'),
+                       'state_offset_copies': 1 + int(final == 'A0'),
+                       'offset_kind': 'sign-extended D5.W', 'fallthrough_sequence_only': True})
+    arms = []
+    for name, pool0, pool2, reserve, scale, shift in [
+            ('laser', 0x2D8A6, 0x2D89E, 0x2D8BA, 0x2D898, 1),
+            ('gauss', 0x2DC66, 0x2DC5E, 0x2DC7A, 0x2DC58, 2),
+            ('plasma', 0x2E484, 0x2E47C, 0x2E498, 0x2E476, 4)]:
+        scaling = at(scale, 'add' if name == 'laser' else 'asl')
+        operand(scaling, 1, register='D0')
+        if name == 'laser':
+            operand(scaling, 0, register='D0')
+        elif scaling['operand_facts'][0]['immediate_value'] != shift:
+            raise ValueError('hit record WORD scale differs')
+        for pc, offset in [(pool0, 0), (pool2, 2), (reserve, 6)]:
+            row = at(pc, 'sub')
+            operand(row, 0, register='D0'); memory(row, 1, 'A6', offset)
+        arms.append({'family': name, 'pool0_runtime': pool0, 'pool2_runtime': pool2,
+                     'reserve_runtime': reserve, 'reserve_operator': 'SUB.W D0',
+                     'word_scale': 1 << shift, 'value_range_proved': False})
+    # The two Fusion arms store a zero-clamped pool; their common reserve
+    # operator is ADD.W D3 rather than the direct arms' full-amount SUB.W D0.
+    for load, store, clear, offset in [(0x2E83C, 0x2E846, 0x2E844, 0),
+                                      (0x2E84E, 0x2E85A, 0x2E858, 2)]:
+        row = at(load, 'move'); memory(row, 0, 'A0', offset); operand(row, 1, register='D2')
+        row = at(store, 'move'); operand(row, 0, register='D2'); memory(row, 1, 'A0', offset)
+        operand(at(clear, 'clr'), 0, register='D2')
+    row = at(0x2E85E, 'add'); operand(row, 0, register='D3'); memory(row, 1, 'A0', 6)
+    scaling = at(0x2E834, 'asl'); operand(scaling, 1, register='D0')
+    if scaling['operand_facts'][0]['immediate_value'] != 5:
+        raise ValueError('hit record Fusion WORD scale differs')
+    for pc, offset, amount in [(0x2E986, 2, 100), (0x2E98C, 0, 100), (0x2E9AA, 6, 50)]:
+        row = at(pc, 'subi'); memory(row, 1, 'A6', offset)
+        if row['operand_facts'][0]['immediate_value'] != amount:
+            raise ValueError('hit record constant debit differs')
+    model_scale = at(0x2B27A, 'mulu'); operand(model_scale, 1, register='D0')
+    if model_scale['operand_facts'][0]['immediate_value'] != 50:
+        raise ValueError('hit record dispatcher model scale differs')
+    row = at(0x2B27E, 'sub'); operand(row, 0, register='D0'); memory(row, 1, 'A6', 0)
+    initialized = []
+    for pc, offset, value in [(0x2A1B8, 4, 10), (0x2A1C4, 8, 256), (0x2A1CA, 10, 4096),
+                              (0x2A938, 4, 100), (0x2A944, 8, 256), (0x2A94A, 10, 4096),
+                              (0x2A9B0, 4, 1), (0x2A9BC, 8, 6), (0x2A9C2, 10, 0)]:
+        row = at(pc, 'move'); memory(row, 1, 'A3', offset)
+        if row['operand_facts'][0]['immediate_value'] != value:
+            raise ValueError('hit record initialized WORD value differs')
+        initialized.append({'runtime': pc, 'offset': offset, 'width': 2, 'initial_value': value})
+    direct_bases = []
+    for row in rows:
+        if row['mnemonic'] == 'lea' and row['operand_facts'][0].get('absolute_address') == 0x4ED18:
+            if row.get('provenance') != 'accepted_instruction':
+                raise ValueError('hit record base inventory requires accepted native instructions')
+            direct_bases.append({'runtime': row['source_offset'] + 0x800,
+                                 'register': row['operand_facts'][1]['direct_register']})
+    return {'setups': setups, 'direct_arms': arms,
+            'fusion_reserve_runtime': 0x2E85E, 'fusion_reserve_operator': 'ADD.W D3',
+            'fusion_word_scale': 32,
+            'impact_debit_order': [2, 0, 6], 'impact_debits': [100, 100, 50],
+            'dispatcher_model_scaled_pool0_runtime': 0x2B27E, 'dispatcher_model_scale': 50,
+            'initialized_neutral_words': initialized, 'direct_base_leas': direct_bases,
+            'all_aliases_or_writers_closed': False,
+            'branch_order_evidence': 'pinned accepted source, reviewed in foft-action-hit-records.md',
+            'runtime_reachability_or_visible_result_proved': False}
+
+
 def collect(artifact, payload, *, full=False):
     rows = []
     for lo, hi in [(0xF16E, 0xF2EA), (0xFC24, 0xFC92)]:
@@ -279,6 +373,7 @@ def collect(artifact, payload, *, full=False):
         result['body_work_chain'] = body_work_chain(complete)
         result['glyph_stream_inventory'] = glyph_stream_inventory(complete)
         result['fixed_point_receiver'] = fixed_point_receiver(complete)
+        result['hit_record_contract'] = hit_record_contract(complete)
     return result
 
 
