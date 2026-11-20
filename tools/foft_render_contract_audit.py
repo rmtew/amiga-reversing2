@@ -509,6 +509,236 @@ def scenery_bound_headers(payload, rows):
 
 
 
+def scenery_compacting_append_contract(rows, edges):
+    """Recheck the exact accepted producer, not callback values or a new solver."""
+    block = window(rows, 0x4AE0A, 0x4AE94)
+    at = {r['source_offset']+0x800:r for r in block}
+    allowed = {'nop','clr','move','movea','moveq','lea','beq','addq','andi','lsr',
+               'add','cmp','ble','tst','bpl','neg','bgt','st','addi','dbf'}
+    if any(r['mnemonic'] not in allowed for r in block):
+        raise ValueError('compacting producer has an unsupported operation')
+
+    def ins(pc, name):
+        row = at.get(pc)
+        if row is None:
+            raise ValueError('compacting producer instruction missing')
+        operation(row,name)
+        return row
+
+    def immediate(pc,name,value,reg,width=2):
+        row=ins(pc,name)
+        if row['operand_facts'][0].get('immediate_value')!=value:
+            raise ValueError('compacting producer immediate differs')
+        operand(row,1,register=reg,width=width)
+
+    operand(ins(0x4AE0A,'clr'),0,register='D0')
+    operand(ins(0x4AE0C,'move'),0,register='D0')
+    operand(at[0x4AE0C],1,register='D7')
+    for pc,reg,address in [(0x4AE0E,'A0',0xE816),(0x4AE14,'A1',0x15BD0),
+                           (0x4AE1A,'A4',0x4A002)]:
+        operand(ins(pc,'lea'),0,address=address,width=4)
+        operand(at[pc],1,register=reg,width=4)
+    immediate(0x4AE20,'moveq',15,'D6',4)
+    operand(ins(0x4AE22,'movea'),0,address=0x4BC00,width=4)
+    operand(at[0x4AE22],1,register='A2',width=4)
+    descriptor=ins(0x4AE26,'move')['operand_facts'][0]
+    if (not descriptor['memory'] or descriptor['base_register']!='A2'
+            or descriptor['ea_update']!=1 or descriptor['width_bytes']!=2):
+        raise ValueError('compacting descriptor cursor differs')
+    operand(at[0x4AE26],1,register='D1')
+    immediate(0x4AE2A,'addq',1,'D7')
+    immediate(0x4AE34,'andi',0xF00,'D1')
+    immediate(0x4AE38,'lsr',8,'D1')
+    for pc in [0x4AE3A,0x4AE3C]:
+        operand(ins(pc,'add'),0,register='D1');operand(at[pc],1,register='D1')
+    immediate(0x4AE3E,'cmp',32,'D1')
+    immediate(0x4AE44,'moveq',32,'D1',4)
+    immediate(0x4AE8C,'addi',10,'D0')
+    operand(ins(0x4AE90,'dbf'),0,register='D6')
+    stores=[(0x4AE2C,4,0),(0x4AE30,2,4),(0x4AE46,4,6),(0x4AE4A,2,10)]
+    for pc,width,_ in stores:
+        row=ins(pc,'clr' if pc==0x4AE4A else 'move')
+        p=row['operand_facts'][0 if pc==0x4AE4A else 1]
+        if (not p['memory'] or p['access']!='memory_write' or p['base_register']!='A0'
+                or p['ea_update']!=1 or p['width_bytes']!=width):
+            raise ValueError('compacting append footprint differs')
+    for pc,offset,width in [(0x4AE2C,0,4),(0x4AE30,4,2)]:
+        p=at[pc]['operand_facts'][0]
+        if (not p['memory'] or p['base_register']!='A1' or not p['indexed']
+                or p['index_register']!='D0' or p['index_width_bytes']!=2
+                or not p['displacement_known'] or p['displacement']!=offset
+                or p['ea_update'] or p['width_bytes']!=width):
+            raise ValueError('compacting point source differs')
+    operand(ins(0x4AE56,'movea'),1,register='A6',width=4)
+    for pc in [0x4AE46,0x4AE56]:
+        source=at[pc]['operand_facts'][0]
+        if (not source['memory'] or source['base_register']!='A4' or not source['indexed']
+                or source['index_register']!='D1' or source['index_width_bytes']!=2
+                or not source['displacement_known'] or source['displacement']
+                or source['ea_update'] or source['width_bytes']!=4):
+            raise ValueError('compacting callback source differs')
+        witnesses=[p for p in at[pc]['typed_accesses'] if p['operand_index']==0
+                   and p.get('root_struct_name')=='SceneryCallbackCell'
+                   and p.get('field_name')=='drawAddress']
+        if len(witnesses)!=1:
+            raise ValueError('compacting source requires its native indexed-field proof')
+        w=witnesses[0].get('word_index',{});domain=w.get('index_domain',{})
+        if (w.get('record_count')!=9 or w.get('index_width')!=2 or w.get('access_width')!=4
+                or domain.get('lower_bound')!=0 or domain.get('upper_bound')!=32
+                or domain.get('known_bits_mask',0)&3!=3
+                or domain.get('known_bits_value',0)&3):
+            raise ValueError('compacting selector domain differs')
+    branches={0x4AE28:('beq',0x4AE8C),0x4AE42:('ble',0x4AE46),
+              0x4AE52:('beq',0x4AE8C),0x4AE5E:('bpl',0x4AE62),
+              0x4AE6A:('bgt',0x4AE8C),0x4AE76:('bpl',0x4AE7A),
+              0x4AE7C:('bgt',0x4AE8C),0x4AE90:('dbf',0x4AE26)}
+    for pc,(name,target) in branches.items():
+        row=ins(pc,name)
+        observed=[e for e in edges if e['source_offset']+0x800==pc]
+        wanted={('branch',target-0x800),('fallthrough',pc+row['size']-0x800)}
+        if (len(observed)!=2 or any(e['status']!='resolved' or e['target_section_index']!=0
+                                   for e in observed)
+                or {(e['kind'],e['target_offset'])for e in observed}!=wanted):
+            raise ValueError('compacting branch or loop edge differs')
+    flow={r['source_offset']+0x800 for r in block
+          if any(p['access']=='branch_target'for p in r['operand_facts'])}
+    if flow!=set(branches):
+        raise ValueError('compacting producer has an unsupported control edge')
+    expected_writes={'A0':{0x4AE0E},'A1':{0x4AE14},'A2':{0x4AE22},'A4':{0x4AE1A},
+                     'D0':{0x4AE0A,0x4AE8C},'D6':{0x4AE20},'D7':{0x4AE0C,0x4AE2A}}
+    writes={reg:set()for reg in expected_writes};updates=[];memory=[]
+    for row in block:
+        pc=row['source_offset']+0x800
+        for i,p in enumerate(row['operand_facts']):
+            if p['access']=='register_list_write':
+                raise ValueError('compacting producer has an unknown register-list write')
+            if p['direct_register']in writes and p['access']=='register_write':
+                writes[p['direct_register']].add(pc)
+            if p['ea_update']:
+                updates.append((pc,p['base_register'],p['ea_update'],p['width_bytes']))
+            if p['access']=='memory_write':
+                memory.append((pc,i))
+    if writes!=expected_writes or sorted(updates)!=sorted([(pc,'A0',1,w)for pc,w,_ in stores]+[(0x4AE26,'A2',1,2)]):
+        raise ValueError('compacting producer has an unproved cursor/counter write')
+    if sorted(memory)!=sorted([(pc,0 if pc==0x4AE4A else 1)for pc,_,_ in stores]+[(0x4AE7E,0),(0x4AE84,1)]):
+        raise ValueError('compacting producer has an unproved memory write')
+    operand(ins(0x4AE7E,'st'),0,address=0x4E2B8,width=1)
+    operand(ins(0x4AE84,'move'),1,address=0x2F7DA)
+    # Induction over the two checked paths: skip changes neither counter nor
+    # destination; append changes them by 1 and 12 before every bounds branch.
+    return {'entry_contract_runtime':0x4AE0A,
+            'scope':'ordinary initializer-to-loop paths; external entries are not closed',
+            'external_entries_or_aliases_closed':False,
+            'descriptor_iterations':16,'descriptor_step_bytes':2,'descriptor_cell_runtime':0x4BC00,
+            'descriptor_read_extent_bytes':32,'point_step_bytes':10,
+            'point_read_extent_bytes':156,'appended_count_range':[0,16],
+            'append_stride':12,'append_fields':[{'offset':o,'width':w}for _,w,o in stores],
+            'destination_runtime':0xE816,'maximum_written_bytes':192,
+            'count_register':'D7.W','point_index_register':'D0.W','upper_halves_proved':False,
+            'header_invariant':'A0 = viewObjectRecords + 12*count; count = unsigned(D7.W) = appended nonzero descriptors',
+            'bounds_checks_can_retract_append':False,'native_source_field_witnesses':2,
+            'post_cull_or_callback_preservation_proved':False,'allocation_or_live_capacity_proved':False}
+
+
+def scenery_record_copy_contract(rows, edges):
+    """Exact opaque row/copy shapes; no scalarization of pointer fragments."""
+    def ea(row,index,offset,selector=None,update=0):
+        p=row['operand_facts'][index]
+        if (not p['memory'] or p['base_register']!='A0' or p['width_bytes']!=4
+                or p['ea_update']!=update or not p['displacement_known']
+                or p['displacement']!=offset or p['indexed']!=(selector is not None)
+                or selector is not None and (p['index_register']!=selector or p['index_width_bytes']!=2)):
+            raise ValueError('scenery row copy EA differs')
+    def triple(start,end,source_index,dest_index):
+        part=window(rows,start,end)
+        if len(part)!=3:raise ValueError('scenery row copy extent differs')
+        for offset,row in zip([0,4,8],part,strict=True):
+            operation(row,'move');ea(row,0,offset,source_index);ea(row,1,offset,dest_index)
+    triple(0xE6C8,0xE6DA,'D5','D6')
+    triple(0xE754,0xE764,'D6',None)
+    swap=window(rows,0xE722,0xE748)
+    if len(swap)!=9:raise ValueError('scenery row swap extent differs')
+    for i,offset in enumerate([0,4,8]):
+        load,replace,restore=swap[3*i:3*i+3]
+        for row in [load,replace,restore]:operation(row,'move')
+        ea(load,0,offset);operand(load,1,register='D2',width=4)
+        ea(replace,0,offset,'D6');ea(replace,1,offset)
+        operand(restore,0,register='D2',width=4);ea(restore,1,offset,'D6')
+    for start,end in [(0xE6FA,0xE702),(0xE780,0xE788)]:
+        part=window(rows,start,end)
+        if len(part)!=4:raise ValueError('scenery backup chunk extent differs')
+        for row in part:
+            operation(row,'move')
+            for i,base in [(0,'A0'),(1,'A1')]:
+                p=row['operand_facts'][i]
+                if (not p['memory'] or p['base_register']!=base or p['indexed']
+                        or p['ea_update']!=1 or p['width_bytes']!=4):
+                    raise ValueError('scenery backup cursor differs')
+    at={r['source_offset']+0x800:r for r in rows}
+    for pc,name,reg in [(0xE572,'mulu','D6'),(0xE6A0,'subi','D6'),(0xE6DA,'subi','D5'),
+                        (0xE712,'mulu','D7'),(0xE748,'subi','D6'),(0xE764,'subi','D7')]:
+        row=at.get(pc)
+        if not row or row['provenance']!='accepted_instruction':
+            raise ValueError('scenery row stride instruction missing')
+        operation(row,name)
+        if row['operand_facts'][0].get('immediate_value')!=12:
+            raise ValueError('scenery row stride differs')
+        operand(row,1,register=reg)
+    # The backup count and singleton decision retain their WORD source. This
+    # proves the local contract only, not preservation after the draw call.
+    for pc,name,source,dest in [(0xE6EE,'move','D7','D6'),(0xE70A,'move','D6','D7')]:
+        row=at.get(pc)
+        if row is None or row['provenance']!='accepted_instruction':
+            raise ValueError('scenery count transport missing')
+        operation(row,name);operand(row,0,register=source);operand(row,1,register=dest)
+    for pc,name in [(0xE6E8,'tst'),(0xE6F8,'subq'),(0xE70C,'subq')]:
+        row=at.get(pc)
+        if row is None or row['provenance']!='accepted_instruction':
+            raise ValueError('scenery count adjustment missing')
+        operation(row,name);operand(row,0 if name=='tst'else 1,register='D7')
+        if name=='subq'and row['operand_facts'][0].get('immediate_value')!=1:
+            raise ValueError('scenery count adjustment differs')
+    load=at.get(0xE7B2);call=at.get(0xE80E);count=at.get(0xE778)
+    if any(r is None or r['provenance']!='accepted_instruction'for r in [load,call,count]):
+        raise ValueError('scenery draw/count instructions missing')
+    operation(load,'movea');ea(load,0,6);operand(load,1,register='A1',width=4)
+    operation(call,'jsr');p=call['operand_facts'][0]
+    if not p['memory']or p['base_register']!='A1'or p['indexed']or p['ea_update']:
+        raise ValueError('scenery callback register differs')
+    operation(count,'move');operand(count,0,address=0x4E726);operand(count,1,register='D7')
+    restore=window(rows,0xE778,0xE78E)
+    if [r['mnemonic']for r in restore]!=['move','subq','move','move','move','move','dbf','rts']:
+        raise ValueError('scenery restore control differs')
+    operand(restore[1],1,register='D7');operand(restore[-2],0,register='D7')
+    if restore[1]['operand_facts'][0].get('immediate_value')!=1:
+        raise ValueError('scenery restore count adjustment differs')
+    for pc,name,target in [(0xE6EA,'ble',0xE814),(0xE702,'dbf',0xE6FA),
+                           (0xE70E,'beq',0xE78E),(0xE788,'dbf',0xE780)]:
+        row=at.get(pc)
+        if row is None or row['provenance']!='accepted_instruction':
+            raise ValueError('scenery count branch missing')
+        operation(row,name)
+        if name=='dbf':operand(row,0,register='D7')
+        selected=[e for e in edges if e['source_offset']+0x800==pc]
+        if (len(selected)!=2 or any(e['status']!='resolved' or e['target_section_index']!=0 for e in selected)
+                or {(e['kind'],e['target_offset'])for e in selected}!=
+                    {('branch',target-0x800),('fallthrough',pc+row['size']-0x800)}):
+            raise ValueError('scenery count branch differs')
+
+    return {'record_stride':12,'record_copy_long_offsets':[0,4,8],
+            'cull_copy_runtime':0xE6C8,'sort_swap_runtime':0xE722,
+            'post_draw_replacement_runtime':0xE754,'backup_chunk_bytes':16,
+            'restore_count_source_runtime':0x4E726,
+            'positive_restore_count_required_for_count_sized_copy':True,
+            'restore_count_rechecked_locally':False,'positive_restore_count_proved':False,
+            'single_row_skips_restore':True,'pointer_byte_span':[6,10],
+            'pointer_fragments':[{'long_offset':4,'long_byte_offset':2,'pointer_byte_offset':0,'bytes':2},
+                                 {'long_offset':8,'long_byte_offset':0,'pointer_byte_offset':2,'bytes':2}],
+            'long_copies_are_whole_pointer_values':False,'fragments_require_same_source_row':True,
+            'loaded_value_or_callable_closure':False,'callee_or_alias_effects_proved':False,
+            'conditional_source_lineage_review':'foft-scenery-compaction.md'}
+
+
 def panel_mask_inventory(rows):
     """Inventory explicit D6 effects; entry/branch dominance is source-reviewed."""
     block = window(rows, 0x1FA32, 0x1FC86)
@@ -654,6 +884,31 @@ def collect(artifact, payload, *, full=False):
         result['flag_glyph_contract'] = flag_glyph_contract(payload, complete)
         result['indexed_panel_glyph_contract'] = indexed_panel_glyph_contract(payload, complete)
         result['scenery_bound_headers'] = scenery_bound_headers(payload, complete)
+        append_edges = []
+        for pc in [0x4AE28,0x4AE42,0x4AE52,0x4AE5E,0x4AE6A,0x4AE76,0x4AE7C,0x4AE90]:
+            page = artifact.query_payload('edges',section_index=0,source_offset=pc-0x800,
+                                          direction='outgoing',limit=100)
+            if page['has_more']:
+                raise ValueError('compacting edge query incomplete')
+            append_edges.extend(page['items'])
+        descriptor_load = next(r for r in complete if r['source_offset']+0x800==0x4AE22)
+        refs = artifact.query_payload('references',section_index=0,source_offset=0x4AE22-0x800,
+                                      direction='outgoing',limit=100)
+        if refs['has_more']:
+            raise ValueError('compacting descriptor reference query incomplete')
+        descriptor_load['resolved_reference_addresses'] = [
+            {'operand_index':e['operand_index'],'has_address':True,'address':e['target_offset']+0x800}
+            for e in refs['items'] if e.get('target_section_index')==0 and not e.get('comment_only')
+            and e.get('operand_index') is not None]
+        result['scenery_compacting_append_contract'] = scenery_compacting_append_contract(complete,append_edges)
+        copy_edges=[]
+        for pc in [0xE6EA,0xE702,0xE70E,0xE788]:
+            page=artifact.query_payload('edges',section_index=0,source_offset=pc-0x800,
+                                         direction='outgoing',limit=100)
+            if page['has_more']:
+                raise ValueError('scenery copy edge query incomplete')
+            copy_edges.extend(page['items'])
+        result['scenery_record_copy_contract'] = scenery_record_copy_contract(complete,copy_edges)
         result['panel_mask_inventory'] = panel_mask_inventory(complete)
         result['panel_text_receipt'] = panel_text_receipt(payload,
             (Path(__file__).resolve().parents[1]/'targets/amiga_raw_foft/assets/dataGraphics380_1.bin').read_bytes())
