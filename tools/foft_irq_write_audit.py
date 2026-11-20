@@ -156,7 +156,7 @@ def direct_write_inventory(rows, *, spans=None):
             'whole_memory_alias_closure': False}
 
 
-def reachable_write_inventory(rows, analysis, roots, *, spans=None):
+def reachable_write_inventory(rows, analysis, roots, *, spans=None, include_sites=False):
     """Union the existing native CFG, not a new call graph or alias analysis."""
     blocks, edges = analysis['blocks'], analysis['edges']
     starts = [b['start_offset'] for b in blocks]
@@ -196,6 +196,11 @@ def reachable_write_inventory(rows, analysis, roots, *, spans=None):
     result.update(callback_roots=len(set(roots)), blocks=len(seen), instructions=len(selected),
                   unresolved_nonreturn_edges=unresolved, excludes_async_interrupts=True,
                   runtime_target_set_closed=False)
+    if include_sites:
+        result['write_sites'] = [
+            {'runtime': r['source_offset'] + 0x800, 'operand_index': i, 'operand': p}
+            for r in selected for i, p in enumerate(r['operand_facts'])
+            if p.get('access') in ('memory_write', 'memory_read_write')]
     return result
 
 

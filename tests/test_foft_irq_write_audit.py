@@ -177,3 +177,16 @@ def test_coper_rejects_changed_write_domains_or_frame_contract(change):
     elif change == 'extra': rows[19]['operand_facts'] = rows[15]['operand_facts']
     elif change == 'restore': rows[16]['operand_facts'][1]['direct_register'] = 'A0'
     with pytest.raises(ValueError, match='differ|unexpected'): coper(rows)
+
+
+def test_optional_write_sites_retain_every_operand_and_leave_default_shape_unchanged():
+    from tools.foft_irq_write_audit import reachable_write_inventory
+    rows, analysis = graph_sample()
+    ordinary = reachable_write_inventory(rows, analysis, [0])
+    detailed = reachable_write_inventory(rows, analysis, [0], include_sites=True)
+    sites = detailed.pop('write_sites')
+    assert detailed == ordinary
+    assert [(s['runtime'], s['operand_index']) for s in sites] == [(0x800, 0), (0x802, 0), (0x804, 0)]
+    assert all(s['operand']['width_bytes'] == 2 for s in sites)
+    assert all('bytes' not in s for s in sites)
+    assert not detailed['whole_memory_alias_closure']
