@@ -425,6 +425,41 @@ def _rename_manual_data_owner(entities, label):
     return True, result
 
 
+def _rename_manual_layout_owner(layouts, label):
+    """Keep an exact source-root rename when typed fields are projected later."""
+    layout_id = label.get("data_block_layout_id")
+    if not layout_id:
+        return layouts  # Historical labels retain their saved projection contract.
+    if (label.get("scope") is ManualLabelScope.LOCAL or
+            label.get("address_domain", "source") != "source"):
+        raise ValueError("layout-root rename requires a global source label")
+    previous = {r for r in label.get("previous_names", []) if isinstance(r, str)}
+    if isinstance(label.get("previous_name"), str):
+        previous.add(label["previous_name"])
+    name = _manual_seed_text(label, "name")
+    addr = _manual_seed_int(label, "addr")
+    hunk = _manual_seed_int(label, "hunk") or 0
+    if not previous or name is None or addr is None:
+        raise ValueError("layout-root rename requires its previous source identity")
+    names = previous | {name}
+    matches = [i for i, layout in enumerate(layouts)
+               if layout.layout_id == layout_id and layout.hunk == hunk
+               and layout.source_start == addr and layout.name in names]
+    if len(matches) > 1:
+        raise ValueError("source label rename requires a unique named layout owner")
+    if not matches:
+        raise ValueError("layout-root rename lost its exact named source owner")
+    result = list(layouts)
+    index = matches[0]
+    layout = result[index]
+    # Explicitly named record runs at the root can supply the same identity.
+    # Interior aliases and independently named elements retain their spelling.
+    elements = tuple(replace(e, name=name) if e.offset == 0 and e.name in names else e
+                     for e in layout.elements)
+    result[index] = replace(layout, name=name, elements=elements)
+    return result
+
+
 def _append_manual_label_declaration(declarations, declaration, label):
     """An explicit row rename replaces that name at its exact address identity.
 
@@ -2900,6 +2935,8 @@ def _apply_manual_seed_projection(
             data_block_layouts.append(data_block_layout)
     merged_data_block_layouts = {layout.layout_id: layout for layout in data_block_layouts}
     effective_data_block_layouts = list(merged_data_block_layouts.values())
+    for label in labels:
+        effective_data_block_layouts = _rename_manual_layout_owner(effective_data_block_layouts, label)
     # A bound structure emits its fields, not the enclosing element's display
     # representation. Preserve an explicit symbolic identity of an exact scalar
     # field; broad/partial overlaps and pointer identities keep their owners.

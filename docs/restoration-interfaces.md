@@ -893,6 +893,14 @@ stay unchanged. This requires a stable layout ID, not an inferred source range.
 Labels derived from the owner follow its name; unrelated explicit source labels
 still use inspected `label.rename` actions.
 
+On a scoped member, an inspected global source label at the exact named layout
+root also carries that layout's durable ID into `label.rename`. Replay retains
+the root name when projecting typed fields, preserving field names, interior
+aliases, bindings and provenance. A missing or mismatched owner is rejected.
+Historical labels without this explicit identity keep their saved projection;
+reinspect and rename normally to adopt the checked owner contract. Runtime and
+local identities do not silently become layout-root edits.
+
 `target.data_block.layout.resize` changes only an active raw section-0 owner's
 exclusive `source_end`. Supply `layout_id`, inspected `expected_source_end` and
 new `source_end`, as well as the service revision. Start, identity, role, fields,

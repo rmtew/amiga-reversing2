@@ -56,7 +56,8 @@ def test_exact_data_rename_preserves_every_non_name_fact_and_saved_replay():
         _rename_manual_data_owner([original, replace(original, unit="byte")], label)
 
 
-def test_data_owner_rename_keeps_native_field_inference_and_exact_assembly(tmp_path):
+@pytest.mark.parametrize("declared_layout", [False, True])
+def test_data_owner_rename_keeps_native_field_inference_and_exact_assembly(tmp_path, declared_layout):
     import json
     import subprocess
     from pathlib import Path
@@ -164,6 +165,23 @@ def test_data_owner_rename_keeps_native_field_inference_and_exact_assembly(tmp_p
             seeded_entities=(first, second),
         ),
     )
+    if declared_layout:
+        from amiga_reversing.disasm.manual_action_catalog import (
+            target_catalog_manual_payload,
+        )
+        commands = [
+            ("target.data_block.layout.create", {"layout_id": "voice-owner", "hunk": 0,
+                "source_start": 10, "source_end": 14, "name": "old_record", "default_unit": "word"}),
+            ("target.data_block.element.set", {"layout_id": "voice-owner", "offset": 0,
+                "width": 4, "kind": "struct", "binding_kind": "custom_struct", "type_id": "Voice"}),
+        ]
+        append_manual_actions(tmp_path, binary_source=source, actions=[
+            (ManualActionKind(kind), payload)
+            for command, parameters in commands
+            for kind, payload in [target_catalog_manual_payload(command, parameters)]
+        ])
+        write_target_metadata(tmp_path, effective_target_metadata(tmp_path, binary_source=source))
+        (tmp_path / "manual_actions.jsonl").unlink()
     append_manual_actions(
         tmp_path,
         binary_source=source,
@@ -179,6 +197,7 @@ def test_data_owner_rename_keeps_native_field_inference_and_exact_assembly(tmp_p
                         "previous_name": "old_record",
                         "address_domain": "source",
                         "scope": "global",
+                        **({"data_block_layout_id": "voice-owner"} if declared_layout else {}),
                     }
                 },
             )
@@ -204,6 +223,12 @@ def test_data_owner_rename_keeps_native_field_inference_and_exact_assembly(tmp_p
     assert metadata.seeded_entities[0].name == "voice_state"
     assert metadata.seeded_entities[1].field_name == "sample_count"
     assert not metadata.seeded_code_labels
+    if declared_layout:
+        assert metadata.data_block_layouts[0].name == "voice_state"
+        assert metadata.data_block_layouts[0].layout_id == "voice-owner"
+        assert not any(e.name == "old_record" for e in metadata.seeded_entities)
+        write_target_metadata(tmp_path, metadata)
+        assert effective_target_metadata(tmp_path, binary_source=source) == metadata
     with effective_metadata_file(tmp_path) as effective:
         artifact = c_backend.build_listing_artifact_profile_from_binary_source(
             source, metadata_path=effective

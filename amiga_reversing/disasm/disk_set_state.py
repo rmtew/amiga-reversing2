@@ -631,7 +631,8 @@ def inspect_member(owner, member, body, *, artifact=None):
             projected = json.loads(file_at(owner.root, current["path"]).read_bytes())
             source_labels = [*projected.get("seeded_code_labels", ()),
                              *(e for e in projected.get("seeded_entities", ()) if e.get("name"))]
-            annotate_source_label_identity(row, source_labels, projected.get("absolute_code_labels", ()))
+            annotate_source_label_identity(row, source_labels, projected.get("absolute_code_labels", ()),
+                                           projected.get("data_block_layouts", ()))
         locator = _member_locator(owner, member, row)
         context = {"kind": "row", "locator": locator}
         commands = listing_row_action_catalog(row)

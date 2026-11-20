@@ -243,7 +243,7 @@ def _append_data_literal_context(contexts: list[dict[str, object]], row: Mapping
     contexts.append(context)
 
 
-def annotate_source_label_identity(row, declarations, runtime_declarations=()):
+def annotate_source_label_identity(row, declarations, runtime_declarations=(), data_layouts=()):
     """Retain one exact declared spelling, coordinate and address domain.
 
     Runtime coordinates come from the selected native row, never a guessed
@@ -269,6 +269,13 @@ def annotate_source_label_identity(row, declarations, runtime_declarations=()):
         row['canonical_label_address_domain'] = domain
         row['canonical_label_address'] = address
         row['canonical_label_hunk'] = hunk
+        roots = [layout for layout in data_layouts
+                 if domain == 'source' and layout.get('hunk', 0) == hunk
+                 and layout.get('source_start') == address and layout.get('name') == name]
+        if len(roots) == 1:
+            row['source_label_layout_id'] = roots[0]['layout_id']
+        elif roots:
+            row['canonical_label_ambiguous'] = True
         comments = {d['comment'] for _, d in matches if d.get('comment')}
         if len(comments) == 1:
             row['source_label_comment'] = next(iter(comments))

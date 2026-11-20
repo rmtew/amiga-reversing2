@@ -5356,6 +5356,11 @@ def _row_label_payload(
         if isinstance(element_context.get("source_label_comment"), str):
             label["comment"] = element_context["source_label_comment"]
         _copy_element_provenance(label, element_context)
+    layout_id = row.get("source_label_layout_id")
+    if layout_id is not None and label["scope"] == "global":
+        if address_domain != "source" or not isinstance(layout_id, str) or not layout_id:
+            raise ValueError("layout-root rename requires a checked source identity")
+        label["data_block_layout_id"] = layout_id
     row_index = _optional_int(row.get("row_index"))
     if row_index is not None:
         label["row_index"] = row_index
