@@ -116,6 +116,18 @@ code-label declaration once, with its provenance. This admits no code. Typed
 or bounded data, runtime aliases, and same-name declarations at other locations
 still collide; a matching name alone does not establish identity.
 
+Scoped row renames retain the declared address domain as part of label identity.
+Source code/data declarations match exact section, source offset and spelling;
+runtime aliases match the native row's runtime address and spelling. A name
+that resembles `abs_...` cannot override a matching source declaration, and a
+renamed runtime alias cannot silently become a source alias. No load-base
+subtraction or nearest-label inference supplies the coordinate. Missing runtime
+mapping, coincident source/runtime identities or conflicting annotations refuse
+rather than choosing a domain. Existing explicit journal domains replay
+unchanged. A runtime restatement does not create a source-local owner; locals
+still need their explicit source declaration. Renaming imported data preserves
+its extent, type, pointer interpretation and immutable original evidence.
+
 ## Custom prefix inheritance
 
 Native custom-structure metadata retains `base_struct` and `base_offset`.

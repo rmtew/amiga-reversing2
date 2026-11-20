@@ -5316,6 +5316,15 @@ def _row_label_payload(
         addr = parsed_symbol[1]
     else:
         addr = _int_field(row, "start_offset", fallback="addr")
+    declared_domain = element_context.get('canonical_symbol_address_domain') if isinstance(element_context, Mapping) else None
+    if declared_domain is not None:
+        if declared_domain not in {'source', 'runtime'}:
+            raise ValueError('label has an invalid canonical address domain')
+        address_domain = declared_domain
+        addr = _optional_int(element_context.get('canonical_symbol_address'))
+        hunk = _optional_int(element_context.get('canonical_symbol_hunk'))
+        if addr is None or hunk is None:
+            raise ValueError('label lost its canonical address coordinates')
     label: dict[str, object] = {
         "label_id": f"catalog-label-{address_domain}-{_row_identity_token(row, hunk, addr)}",
         "name": name.strip(),
@@ -5326,6 +5335,8 @@ def _row_label_payload(
     }
     scope = params.get('scope', 'local' if '\\.' in symbol_text else 'global')
     if scope == 'local':
+        if declared_domain == 'runtime':
+            raise ValueError('runtime label rename preserves its address domain; locals require a source declaration')
         source_hunk = _int_field(row, 'section_index', default=0)
         source_addr = _int_field(row, 'start_offset', fallback='addr')
         local = _target_code_label_payload(dict(hunk=source_hunk, addr=source_addr, name=name,

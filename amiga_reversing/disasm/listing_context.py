@@ -243,29 +243,39 @@ def _append_data_literal_context(contexts: list[dict[str, object]], row: Mapping
     contexts.append(context)
 
 
-def annotate_source_label_identity(row, declarations):
-    """Retain a declared canonical identity when source displays a bare local.
+def annotate_source_label_identity(row, declarations, runtime_declarations=()):
+    """Retain one exact declared spelling, coordinate and address domain.
 
-    Exact section/address plus the rendered local component must select one
-    declaration. Never reconstruct ownership from the nearest preceding label.
+    Runtime coordinates come from the selected native row, never a guessed
+    load offset. Coincident declarations in different domains are ambiguous.
     """
     if row.get("kind") != "label":
         return
     displayed = str(row.get("label", ""))
-    matches = [d for d in declarations
-               if d.get("hunk", 0) == row.get("section_index", 0)
-               and d["addr"] == row.get("start_offset")
-               and (d["name"].endswith("\\" + displayed) if displayed.startswith(".") else d["name"] == displayed)]
-    names = {d["name"] for d in matches}
-    if len(names) == 1:
-        row["canonical_label"] = next(iter(names))
-        comments = {d["comment"] for d in matches if d.get("comment")}
+    source = [d for d in declarations
+              if d.get("hunk", 0) == row.get("section_index", 0)
+              and d["addr"] == row.get("start_offset")
+              and (d["name"].endswith("\\" + displayed) if displayed.startswith(".") else d["name"] == displayed)]
+    runtime_named = [d for d in runtime_declarations if d['name'] == displayed]
+    runtime = [d for d in runtime_named if type(row.get('runtime_address')) is int
+               and d['addr'] == row['runtime_address']
+               and d.get('hunk', row.get('section_index', 0)) == row.get('section_index', 0)]
+    matches = [('source', d) for d in source] + [('runtime', d) for d in runtime]
+    identities = {(domain, d['name'], d['addr'], d.get('hunk', row.get('section_index', 0)))
+                  for domain, d in matches}
+    if len(identities) == 1:
+        domain, name, address, hunk = next(iter(identities))
+        row['canonical_label'] = name
+        row['canonical_label_address_domain'] = domain
+        row['canonical_label_address'] = address
+        row['canonical_label_hunk'] = hunk
+        comments = {d['comment'] for _, d in matches if d.get('comment')}
         if len(comments) == 1:
-            row["source_label_comment"] = next(iter(comments))
+            row['source_label_comment'] = next(iter(comments))
         elif len(comments) > 1:
-            row["source_label_comment_ambiguous"] = True
-    elif len(names) > 1:
-        row["canonical_label_ambiguous"] = True
+            row['source_label_comment_ambiguous'] = True
+    elif identities or runtime_named:
+        row['canonical_label_ambiguous'] = True
 
 
 def _append_label_context(contexts: list[dict[str, object]], row: Mapping[str, object]) -> None:
@@ -276,6 +286,10 @@ def _append_label_context(contexts: list[dict[str, object]], row: Mapping[str, o
     context["symbol"] = symbol
     if row.get("canonical_label"):
         context["canonical_symbol"] = row["canonical_label"]
+        for suffix in ('address_domain', 'address', 'hunk'):
+            key = 'canonical_label_' + suffix
+            if key in row:
+                context['canonical_symbol_' + suffix] = row[key]
     if row.get("canonical_label_ambiguous"):
         context["canonical_symbol_ambiguous"] = True
     if row.get("source_label_comment"):

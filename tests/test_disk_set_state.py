@@ -25,6 +25,7 @@ def editable(
     scalar_array=False,
     scalar_tail=False,
     absolute_alias=False,
+    runtime_labels=None,
     record_data=None,
     record_label=None,
     record_scalar_label=None,
@@ -116,6 +117,8 @@ def editable(
             hunk=0, addr=7, end=14, type='data', subtype='string', unit='byte',
             encoding='ascii', seed_origin='manual_analysis', review_status='seeded',
             source_id='imported-analysis', citation='Imported preliminary string boundary'))
+    if runtime_labels is not None:
+        metadata["absolute_code_labels"] = runtime_labels
     if absolute_alias:
         metadata["absolute_code_labels"] = [{"addr": 0x1000, "name": "syntheticRuntimeEntry",
             "seed_origin": "manual_analysis", "review_status": "seeded", "citation": "Imported runtime identity"}]
@@ -944,39 +947,37 @@ def test_scoped_string_seed_preserves_a_proven_interior_text_entry(
     assert '\tdc.b "He"' in text
 
 
-def test_member_local_owner_is_explicit_source_declaration_beside_runtime_alias(
-    tmp_path, monkeypatch
-):
+def test_member_runtime_restatement_does_not_create_source_local_owner(tmp_path, monkeypatch):
+    # The former two-rename shortcut depended on losing the runtime domain.
+    # Restating a runtime identity is not an explicit source-owner declaration.
     _, target, _, call = editable(tmp_path, monkeypatch, owner_scope=True)
+    owner = call('inspect', source_offset=4, row_kind='label')
+    call('interpret', **data_request(owner, 'label.rename', {'name': 'begin'}))
+    owner = call('inspect', source_offset=4, row_kind='label')
+    saved = call('interpret', **data_request(owner, 'label.rename', {'name': 'begin', 'scope': 'global'}))
+    metadata_path = DiskSet.load(target, project_root=target.parent.parent).members['main']['analysis']['metadata']['path']
+    metadata = json.loads((target/metadata_path).read_bytes())
+    assert not [r for r in metadata['seeded_code_labels'] if r['addr'] == 4]
+    child = call('inspect', source_offset=6, row_kind='label')
+    before = (target/'manifest.json').read_bytes()
+    with pytest.raises(ValueError, match='unique named global owner'):
+        call('interpret', **data_request(child, 'label.rename',
+             {'name': '.done', 'scope': 'local', 'owner_offset': 4}))
+    assert (target/'manifest.json').read_bytes() == before
+    assert saved['verification']['media_exact']
 
-    def rename(selected, name, **scope):
-        result = request(selected)
-        result.update(command_id="label.rename", parameters={"name": name, **scope})
-        result["evidence"]["reason"] = (
-            "The existing helper entry and sequential RTS establish these source identities."
-        )
-        return result
 
-    owner = call("inspect", source_offset=4, row_kind="label")
-    call("interpret", **rename(owner, "begin"))
-    owner = call("inspect", source_offset=4, row_kind="label")
-    child = call("inspect", source_offset=6, row_kind="label")
-    source_owner = rename(owner, "begin", scope="global")
-    local = rename(child, ".done", scope="local", owner_offset=4)
-    before = (target / "manifest.json").read_bytes()
-    with pytest.raises(ValueError, match="unique named global owner"):
-        call("interpret", **local)
-    assert (target / "manifest.json").read_bytes() == before
-    entries = [
-        {k: v for k, v in r.items() if k != "expected_revision"}
-        for r in (source_owner, local)
-    ]
-    saved = call(
-        "interpret_batch", expected_revision=owner["revision"], entries=entries
-    )
-    assert saved["verification"]["media_exact"]
-    text = (target / "main.s").read_text()
-    assert "begin:\n" in text and ".done:\n\trts" in text
+def test_member_explicit_source_declaration_owns_local(tmp_path, monkeypatch):
+    _, target, _, call = editable(tmp_path, monkeypatch, owner_scope=True, source_labels=[
+        {'hunk': 0, 'addr': at, 'name': name, 'seed_origin': 'manual_analysis',
+         'review_status': 'seeded', 'citation': 'Explicit synthetic source owner'}
+        for at, name in [(4, 'begin'), (6, 'ending')]])
+    child = call('inspect', source_offset=6, row_kind='label')
+    saved = call('interpret', **data_request(child, 'label.rename',
+        {'name': '.done', 'scope': 'local', 'owner_offset': 4}))
+    assert saved['verification']['media_exact']
+    text = (target/'main.s').read_text()
+    assert 'begin:\n' in text and '.done:\n\trts' in text
 
 
 def test_scoped_word_offset_binds_two_source_points_and_builds_exactly(
