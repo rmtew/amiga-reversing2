@@ -35,6 +35,7 @@ def fixture(
     unsigned=False,
     raw_properties=None,
     scalar_long=False,
+    labels=(),
 ):
     assembly = (
         code or " lea.l TABLE(pc),a6\n move.w 14(a6),d0\n move.w 18(a6),d1\n rts\n"
@@ -162,6 +163,8 @@ def fixture(
                 "citation": "independent conflicting type",
             }
         )
+    metadata.setdefault('seeded_code_labels', []).extend(
+        {'hunk': 0, 'addr': at, 'name': name} for at, name in labels)
     path = tmp_path / "effective.json"
     path.write_text(json.dumps(metadata))
     before = path.read_bytes()

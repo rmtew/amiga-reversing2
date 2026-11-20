@@ -1076,6 +1076,17 @@ available, and undo restores the primitive array. This is an explicit evidenced
 record declaration, not inference from plausible values or a general overlap
 override.
 
+The native render walk preserves complete uninterpreted WORD/LONG storage
+cells before and after a narrower primary owner. It emits presentation fragments
+of the retained fact, rechecking primary ownership, alignment, code, relocation,
+anchor, string and label boundaries per cell. An incomplete cell remains raw;
+an interior label does not swallow later complete cells. No source fact, owned
+extent, journal or receiver type is rewritten. Comments stay at their original
+start and existing labels remain independently addressable. Pointer/table
+contracts, explicit value types, constants, domains, consumers, interpreted
+references and authored owner spans keep their existing paths; this is not a
+general overlap override or inference of a scalar value from storage width.
+
 The data-role catalog also exposes `range.seed.data.opaque_data`. Scoped Restore
 accepts this only for an inspected, bounded native data span, with byte seeds
 that exactly partition that selection and do not overlap a typed layout. It

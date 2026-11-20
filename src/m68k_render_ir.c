@@ -5483,6 +5483,71 @@ static int structured_data_item_is_render_candidate(const M68kRenderLookup *look
   return 1;
 }
 
+/* Preserve only complete, uninterpreted storage cells outside a narrower
+ * primary owner. These are presentation fragments of the existing fact, not
+ * new owners, field types, values or permission to cross a boundary. */
+static uint32_t primitive_storage_fragment_unit(const M68kAnalysisStructuredDataItem *item) {
+  if (!item || item->semantic_role_flags || item->source_pattern_id || item->source_pattern[0] ||
+      item->semantic_role[0] || item->table_conflicted ||
+      item->table_kind_id != M68K_ANALYSIS_TABLE_KIND_UNKNOWN ||
+      item->has_source_owner_span || item->struct_name[0] || item->field_name[0] ||
+      item->is_pointer || item->has_target || item->has_constant_value || item->has_consumer ||
+      item->c_type[0] || item->constant_name[0] || item->value_domain[0] ||
+      item->pointer_address_domain != M68K_ANALYSIS_POINTER_DOMAIN_LEGACY) return 0U;
+  if (item->kind == M68K_ANALYSIS_STRUCTURED_DATA_WORDS &&
+      (!item->field_type[0] || m68k_ascii_equal_ci(item->field_type, "word"))) return 2U;
+  if (item->kind == M68K_ANALYSIS_STRUCTURED_DATA_LONGS &&
+      (!item->field_type[0] || m68k_ascii_equal_ci(item->field_type, "long"))) return 4U;
+  return 0U;
+}
+
+static int render_primitive_storage_fragment(const M68kRenderLookup *lookup,
+    const M68kDecodeSectionIR *section, const uint8_t *accepted_bytes, uint32_t extent,
+    uint32_t offset, const M68kRenderPlan *plan, M68kAnalysisStructuredDataItem *out) {
+  M68kRenderRangeOwnershipView ownership;
+  const M68kAnalysisStructuredDataItem *item;
+  uint32_t width, end, cursor;
+  if (!lookup || !section || !section->data || offset >= extent ||
+      !lookup_range_ownership_covering_offset(lookup, section->section_index, offset, &ownership) ||
+      !(item = ownership.structured_item) || !(width = primitive_storage_fragment_unit(item)) ||
+      item->offset > offset || (offset - item->offset) % width || item->size % width ||
+      item->offset > section->size || item->size > section->size - item->offset ||
+      structured_scalar_equate_group(lookup->policy, item)) return 0;
+  end = item->offset + item->size;
+  if (end > extent) end = extent;
+  /* Explicit encoded references keep their existing expression-planning path. */
+  if (lookup->policy) for (size_t i = 0U; i < lookup->policy->manual_runtime_address_ref_count; ++i) {
+    const M68kAnalysisManualRuntimeAddressRef *ref = &lookup->policy->manual_runtime_address_refs[i];
+    if (ref->has_section_index && ref->section_index == section->section_index &&
+        (uint64_t)ref->offset < (uint64_t)item->offset + item->size &&
+        (uint64_t)ref->offset + 4U > item->offset) return 0;
+  }
+  for (cursor = offset; end - cursor >= width; cursor += width) {
+    int clear = 1;
+    for (uint32_t byte = 0U; byte < width; ++byte) {
+      uint32_t at = cursor + byte;
+      M68kRenderRangeOwnershipView current;
+      uint16_t flags = render_lookup_boundary_flags(lookup, section->section_index, at);
+      if (accepted_byte_at(section, accepted_bytes, at) ||
+          !lookup_range_ownership_covering_offset(lookup, section->section_index, at, &current) ||
+          current.structured_item != item || lookup_manual_representation_at(lookup, section->section_index, at) ||
+          (flags & (M68K_RENDER_BOUNDARY_RELOCATION | M68K_RENDER_BOUNDARY_ANCHOR |
+            M68K_RENDER_BOUNDARY_STRING_SPAN)) ||
+          (at != offset && lookup_structured_item_probe_has_blocking_boundary(
+            lookup, item, section->section_index, at, plan == NULL)) ||
+          (plan && byte && m68k_render_plan_find_label(plan, (uint32_t)section->section_index, at))) {
+        clear = 0; break;
+      }
+    }
+    if (!clear) break;
+  }
+  if (cursor == offset) return 0;
+  *out = *item;
+  out->offset = offset; out->size = cursor - offset;
+  if (offset != item->offset) out->comment[0] = '\0';
+  return 1;
+}
+
 /* A required interior boundary may split a valid typed field into raw rows.
  * Preserve its identity on the first fragment without bypassing that boundary
  * or claiming that the fragment is the complete field. */
@@ -5495,7 +5560,6 @@ static const char *structured_data_fragment_comment(const M68kRenderLookup *look
   M68kRenderRangeOwnershipView ownership;
   if (lookup == NULL || section == NULL || item == NULL || comment == NULL || comment_size == 0U ||
       size == 0U || item->offset != start || item->size <= size || item->table_conflicted ||
-      item->struct_name[0] == '\0' || item->field_name[0] == '\0' ||
       start >= render_extent || item->size > render_extent - start ||
       start >= section->size || item->size > section->size - start ||
       !lookup_range_ownership_at_offset(lookup, section->section_index, start, &ownership) ||
@@ -5503,7 +5567,10 @@ static const char *structured_data_fragment_comment(const M68kRenderLookup *look
   for (probe = start; probe < start + item->size; ++probe) {
     if (accepted_byte_at(section, accepted_bytes, probe)) return NULL;
   }
-  snprintf(comment, comment_size, "%s (first %u of %u bytes)", item->field_name,
+  const char *identity = item->struct_name[0] && item->field_name[0] ? item->field_name :
+    primitive_storage_fragment_unit(item) && item->comment[0] ? item->comment : NULL;
+  if (identity == NULL) return NULL;
+  snprintf(comment, comment_size, "%s (first %u of %u bytes)", identity,
     (unsigned)size, (unsigned)item->size);
   return comment;
 }
@@ -12967,6 +13034,13 @@ int m68k_render_ir_preview_emit_prepared(const M68kObject *object, const M68kDec
             lookup_structured_data_item_at_offset(lookup, section->section_index, offset);
           int structured_item_clear = structured_data_item_is_render_candidate(lookup, section,
             accepted_bytes[section_index], render_extent, offset, structured_item, &out_preview->asm_source_plan);
+          M68kAnalysisStructuredDataItem storage_fragment;
+          if (!structured_item_clear && render_primitive_storage_fragment(lookup, section,
+              accepted_bytes[section_index], render_extent, offset, &out_preview->asm_source_plan,
+              &storage_fragment)) {
+            structured_item = &storage_fragment;
+            structured_item_clear = 1;
+          }
           if (structured_item != NULL && structured_item_clear) {
             ++out_preview->statement_count;
             ++out_preview->data_statement_count;
@@ -13035,9 +13109,18 @@ int m68k_render_ir_preview_emit_prepared(const M68kObject *object, const M68kDec
               }
               offset += string_span->size;
             } else {
-              uint32_t start = offset;
+              uint32_t start = offset, fallback_extent = render_extent;
               int initialized_span = section->data != NULL && start < section->size;
-              while (offset < render_extent &&
+              M68kRenderRangeOwnershipView storage;
+              if (lookup_range_ownership_covering_offset(lookup, section->section_index, start, &storage)) {
+                uint32_t unit = primitive_storage_fragment_unit(storage.structured_item);
+                if (unit && start >= storage.structured_item->offset) {
+                  uint32_t phase = (start - storage.structured_item->offset) % unit;
+                  if (phase && unit - phase < fallback_extent - start)
+                    fallback_extent = start + unit - phase;
+                }
+              }
+              while (offset < fallback_extent &&
                   !accepted_byte_at(section, accepted_bytes[section_index], offset) &&
                   !lookup_has_render_walk_data_split_boundary(lookup, section->section_index, offset,
                     offset != start, offset != start, offset != start, offset != start) &&
