@@ -847,6 +847,162 @@ def packed_draw_return_contract(rows, edges, summaries):
             'individual_effects_close_dispatch':False}
 
 
+def scenery_probe_crosswalk(count):
+    """Byte-span algebra only, conditional on an unchanged 12-byte snapshot.
+
+    This does not execute the probe, establish callback effects, or turn its
+    overlapping reads into a second physical record owner.
+    """
+    if type(count) is not int or not 1 <= count <= 16:
+        raise ValueError('scenery snapshot count must be in 1..16')
+    fields = {0: 'x', 2: 'y', 4: 'z', 6: 'callbackHigh',
+              8: 'callbackLow', 10: 'tail'}
+    result = []
+    for probe in range(count):
+        reads = []
+        for name, displacement in [('inputX', 0), ('inputY', 2),
+                                    ('divisor', 4), ('actionGate', 10)]:
+            offset = 10 * probe + displacement
+            if offset + 2 > 12 * count:
+                raise ValueError('scenery probe escapes conditional snapshot')
+            reads.append({'consumer': name, 'byte_offset': offset,
+                          'producer_row': offset // 12,
+                          'producer_field': fields[offset % 12]})
+        result.append({'probe': probe, 'phase': 10 * probe % 12, 'reads': reads})
+    return result
+
+
+def scenery_probe_contract(rows, edges=()):
+    """Recheck the real overlapping reader, not just the arithmetic crosswalk."""
+    at = {r['source_offset'] + 0x800: r for r in rows}
+    def read(pc, displacement, dest=None, name='move'):
+        r = at.get(pc)
+        if r is None or r['provenance'] != 'accepted_instruction':
+            raise ValueError('scenery probe instruction missing')
+        operation(r, name)
+        p = r['operand_facts'][0]
+        if (not p['memory'] or p['base_register'] != 'A0' or p['indexed']
+                or p['ea_update'] or not p['displacement_known']
+                or p['displacement'] != displacement or p['width_bytes'] != 2
+                or p['access'] != 'memory_read'):
+            raise ValueError('scenery probe read differs')
+        if dest is not None:
+            operand(r, 1, register=dest)
+    for pc, offset, reg in [(0x4AEC4, 0, 'D0'), (0x4AEC6, 2, 'D1'),
+                             (0x4AECA, 4, 'D2')]:
+        read(pc, offset, reg)
+    root = at[0x4AEB2]; operation(root, 'lea')
+    operand(root, 0, address=0xE816, width=4); operand(root, 1, register='A0', width=4)
+    count = at[0x4AEB8]; operation(count, 'move')
+    operand(count, 0, address=0x4E726); operand(count, 1, register='D7')
+    adjust = at[0x4AEBE]; operation(adjust, 'subq'); operand(adjust, 1, register='D7')
+    if adjust['operand_facts'][0].get('immediate_value') != 1:
+        raise ValueError('scenery probe count adjustment differs')
+    # Remaining anchors are checked by their accepted native operands in the
+    # bounded reader; do not infer the layout from matching pointer values.
+    block = window(rows, 0x4AEB2, 0x4AF62)
+    divides = [r for r in block if r['mnemonic'] == 'divs']
+    if len(divides) != 2:
+        raise ValueError('scenery probe division count differs')
+    for r, dest in zip(divides, ['D0', 'D1'], strict=True):
+        operand(r, 0, register='D2'); operand(r, 1, register=dest)
+    gates = [r for r in block if r['mnemonic'] == 'tst' and
+             r['operand_facts'][0].get('base_register') == 'A0']
+    if len(gates) != 1:
+        raise ValueError('scenery probe gate count differs')
+    read(gates[0]['source_offset'] + 0x800, 10, name='tst')
+    advances = [r for r in block if r['mnemonic'] == 'lea' and
+                r['operand_facts'][0].get('base_register') == 'A0']
+    if len(advances) != 1:
+        raise ValueError('scenery probe advance count differs')
+    p = advances[0]['operand_facts'][0]
+    if (not p['memory'] or p['indexed'] or p['ea_update']
+            or not p['displacement_known'] or p['displacement'] != 10):
+        raise ValueError('scenery probe advance differs')
+    operand(advances[0], 1, register='A0', width=4)
+    for pc, name, target in [(0x4AEC0, 'bmi', 0x4AF62),
+            (0x4AEF0, 'bgt', 0x4AF5A), (0x4AF00, 'bgt', 0x4AF5A),
+            (0x4AF12, 'beq', 0x4AF62), (0x4AF18, 'bne', 0x4AF62),
+            (0x4AF56, 'bra', 0x4AF62), (0x4AF5E, 'dbf', 0x4AEC4)]:
+        operation(at[pc], name)
+        selected = [e for e in edges if e['source_offset']+0x800 == pc]
+        expected = {('jump' if name == 'bra' else 'branch', target-0x800)}
+        if name != 'bra':
+            expected.add(('fallthrough', pc+at[pc]['size']-0x800))
+        if (len(selected) != len(expected) or any(e['status'] != 'resolved'
+                or e['target_section_index'] != 0 for e in selected)
+                or {(e['kind'], e['target_offset']) for e in selected} != expected):
+            raise ValueError('scenery probe control edges differ')
+    operand(at[0x4AF5E], 0, register='D7')
+    return {'producer_stride': 12, 'consumer_stride': 10,
+            'post_return_count_source_runtime': 0x4E726,
+            'crosswalk_requires_unchanged_snapshot_and_positive_count': True,
+            'conditional_count_domain': [1, 16],
+            'consumer_guard_proves_that_domain': False,
+            'conditional_crosswalk': scenery_probe_crosswalk(16),
+            'snapshot_or_count_preservation_proved': False,
+            'live_execution_or_fault_observed': False}
+
+
+def pending_system_damage_contract(rows):
+    """Pin the source-backed state name and the two bounded selector lists."""
+    at = {r['source_offset'] + 0x800: r for r in rows}
+    block = window(rows, 0x2EE34, 0x2EE58)
+    if [r['mnemonic'] for r in block] != [
+            'movem', 'bsr', 'move', 'beq', 'add', 'bsr', 'clr', 'movem', 'rts']:
+        raise ValueError('pending damage consumer framing differs')
+    operand(at[0x2EE3C], 0, address=0x4E69C)
+    operand(at[0x2EE3C], 1, register='D1')
+    for i in [0, 1]:
+        operand(at[0x2EE46], i, register='D1')
+    operand(at[0x2EE4C], 0, address=0x4E69C)
+    initializers = [(0x275AE, 10), (0x275C8, 10),
+                    (0x284A2, 5), (0x284B6, 5)]
+    for pc, value in initializers:
+        r = at[pc]; operation(r, 'addi')
+        operand(r, 1, address=0x4E69C)
+        if r['operand_facts'][0].get('immediate_value') != value:
+            raise ValueError('scenery pending damage amount differs')
+    selectors = []
+    for pc, doubles, load, mask, begin, end in [
+            (0x2EE6C, [0x2EE70, 0x2EE72], 0x2EE74, 15, 0x2EF02, 0x2EF42),
+            (0x2EEA8, [0x2EEB0, 0x2EEB2], 0x2EEB4, 3, 0x2EF42, 0x2EF52)]:
+        r = at[pc]; operation(r, 'andi'); operand(r, 1, register='D0')
+        if r['operand_facts'][0].get('immediate_value') != mask:
+            raise ValueError('damage selector mask differs')
+        for pc in doubles:
+            r = at[pc]; operation(r, 'add')
+            for i in [0, 1]:
+                operand(r, i, register='D0')
+        r = at[load]; operation(r, 'movea'); operand(r, 1, register='A0', width=4)
+        p = r['operand_facts'][0]
+        if (not p['memory'] or p['base_register'] != 'A0' or not p['indexed']
+                or p['index_register'] != 'D0' or p['index_width_bytes'] != 2
+                or p['index_scale'] != 1 or p['width_bytes'] != 4
+                or p['ea_update'] or not p['displacement_known'] or p['displacement'] != 0):
+            raise ValueError('damage selector load differs')
+        lea = at[0x2EE62 if begin == 0x2EF02 else 0x2EEAC]
+        operation(lea, 'lea'); operand(lea, 0, address=begin, width=4)
+        operand(lea, 1, register='A0', width=4)
+        selectors.append({'source_runtime_span': [begin, end], 'row_count': mask + 1,
+                          'row_stride': 4, 'special_values_are_not_dereferences': True})
+    for pc, value in [(0x2EE78, 0x2EF6E), (0x2EE9A, 0xffffffff)]:
+        r = at[pc]; operation(r, 'cmpa'); operand(r, 1, register='A0', width=4)
+        if r['operand_facts'][0].get('immediate_value') != value:
+            raise ValueError('damage selector special comparison differs')
+    uses = []
+    for r in rows:
+        for p in r['operand_facts']:
+            if p.get('absolute_address') == 0x4E69C:
+                if r['provenance'] != 'accepted_instruction' or p['width_bytes'] != 2:
+                    raise ValueError('pending state use width/provenance differs')
+                uses.append({'runtime': r['source_offset'] + 0x800,
+                             'operation': r['mnemonic'], 'access': p['access']})
+    return {'direct_absolute_uses': uses, 'selector_tables': selectors,
+            'initial_callback_execution_proved': False,
+            'complete_writer_alias_or_value_domain': False}
+
+
 def panel_mask_inventory(rows):
     """Inventory explicit D6 effects; entry/branch dominance is source-reviewed."""
     block = window(rows, 0x1FA32, 0x1FC86)
@@ -1037,6 +1193,34 @@ def collect(artifact, payload, *, full=False):
         analysis=artifact.analysis_payload()[0]
         result['packed_draw_return_contract']=packed_draw_return_contract(complete,return_edges,
             analysis['sections'][0]['function_summaries'])
+        for pc in [0x2EE62, 0x2EEAC]:
+            row = next(r for r in complete if r['source_offset'] + 0x800 == pc)
+            refs = artifact.query_payload('references', section_index=0,
+                source_offset=pc-0x800, direction='outgoing', limit=100)
+            if refs['has_more']:
+                raise ValueError('damage selector reference query incomplete')
+            row['resolved_reference_addresses'] = [
+                {'operand_index': e['operand_index'], 'has_address': True,
+                 'address': e['target_offset']+0x800}
+                for e in refs['items'] if e.get('target_section_index') == 0
+                and not e.get('comment_only') and e.get('operand_index') is not None]
+        result['pending_system_damage_contract'] = pending_system_damage_contract(complete)
+        probe_edges = []
+        for pc in [0x4AEC0, 0x4AEF0, 0x4AF00, 0x4AF12, 0x4AF18, 0x4AF56, 0x4AF5E]:
+            page = artifact.query_payload('edges', section_index=0, source_offset=pc-0x800,
+                direction='outgoing', limit=100)
+            if page['has_more']:
+                raise ValueError('scenery probe edge query incomplete')
+            probe_edges.extend(page['items'])
+        result['scenery_probe_contract'] = scenery_probe_contract(complete, probe_edges)
+        callback_cells = [int.from_bytes(payload[0x49802+4*i:0x49806+4*i], 'big')
+                          for i in range(9)]
+        result['scenery_probe_contract']['initialized_callback_half_properties'] = {
+            'cells': len(callback_cells), 'unique_values': len(set(callback_cells)),
+            'all_high_words_nonzero': all(value >> 16 != 0 for value in callback_cells),
+            'all_low_words_nonzero': all(value & 0xffff != 0 for value in callback_cells),
+            'preservation_at_consumer_proved': False}
+
         result['panel_mask_inventory'] = panel_mask_inventory(complete)
         result['panel_text_receipt'] = panel_text_receipt(payload,
             (Path(__file__).resolve().parents[1]/'targets/amiga_raw_foft/assets/dataGraphics380_1.bin').read_bytes())
