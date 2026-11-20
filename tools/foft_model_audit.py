@@ -124,20 +124,23 @@ def main():
     parser.add_argument(
         "--map", type=Path, default=ROOT / "docs/validation/foft-ship-model-map.json"
     )
-    parser.add_argument(
-        "--media", action="append", required=True, metavar="ID=PRIVATE_PATH"
-    )
+    inputs = parser.add_mutually_exclusive_group(required=True)
+    inputs.add_argument("--media", action="append", metavar="ID=PRIVATE_PATH")
+    inputs.add_argument("--member-path", type=Path,
+        help="Existing main owner bytes; authenticate against the manifest, without media claims")
     args = parser.parse_args()
     mapping = json.loads(args.map.read_text())
     if mapping["target_id"] != "amiga_raw_foft" or mapping["member_id"] != "main":
         raise ValueError("this recipe uses the existing FOFT main member only")
-    media = dict(value.split("=", 1) for value in args.media)
+    media = dict(value.split("=", 1) for value in args.media or [])
+    input_body = ({"input_mode": "member", "member_paths": {"main": str(args.member_path)}}
+                  if args.member_path is not None else None)
     root = ROOT / "targets" / mapping["target_id"]
     with target_lock(root):
         owner = DiskSet.load(root, project_root=ROOT)
         if owner.revision != mapping["revision"]:
             raise ValueError("map revision differs; review before re-pinning it")
-        source, artifact = _artifact(owner, "main", media)
+        source, artifact = _artifact(owner, "main", media, input_body=input_body)
         try:
             base = mapping["load_address"]
 
@@ -168,17 +171,12 @@ def main():
                     raise ValueError("ambiguous or unsupported native reference extent")
                 return page["items"]
 
-            print(
-                json.dumps(
-                    audit_native(
-                        source.read_bytes(),
-                        mapping,
-                        instruction=instruction,
-                        references=references,
-                    ),
-                    indent=2,
-                )
-            )
+            result = audit_native(source.read_bytes(), mapping,
+                instruction=instruction, references=references)
+            result.update(input_mode="member" if input_body else "disk",
+                input_authentication="manifest_owner_member" if input_body else "manifest_media_and_decoded_member",
+                media_verification="not_performed", rebuilt_media_verified=False)
+            print(json.dumps(result, indent=2))
         finally:
             artifact.close()
     return 0

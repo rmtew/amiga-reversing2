@@ -739,6 +739,114 @@ def scenery_record_copy_contract(rows, edges):
             'conditional_source_lineage_review':'foft-scenery-compaction.md'}
 
 
+
+def packed_draw_return_contract(rows, edges, summaries):
+    """Pinned load/call/snapshot contracts; never a closed callback effect set."""
+    block=window(rows,0xE78E,0xE816)
+    at={r['source_offset']+0x800:r for r in rows}
+    wanted=[(0xE78E,'move'),(0xE792,'bmi'),(0xE796,'move'),(0xE79A,'move'),
+            (0xE79C,'bpl'),(0xE79E,'neg'),(0xE7A0,'tst'),(0xE7A2,'bpl'),
+            (0xE7A4,'neg'),(0xE7A6,'cmp'),(0xE7A8,'ble'),(0xE7AC,'cmp'),
+            (0xE7AE,'ble'),(0xE7B2,'movea'),(0xE7B6,'movem'),(0xE7BA,'move'),
+            (0xE7C0,'move'),(0xE7C8,'move'),(0xE7D0,'move'),(0xE7D6,'cmp'),
+            (0xE7DA,'ble'),(0xE7DC,'move'),(0xE7E2,'move'),(0xE7EA,'move'),
+            (0xE7F0,'clr'),(0xE7F2,'jsr'),(0xE7F8,'move'),(0xE7FE,'move'),
+            (0xE804,'jsr'),(0xE80A,'bra'),(0xE80E,'jsr'),(0xE810,'movem'),(0xE814,'rts')]
+    if [(r['source_offset']+0x800,r['mnemonic'])for r in block]!=wanted:
+        raise ValueError('draw return instruction window differs')
+    def memory(pc,index,offset,width=2):
+        p=at[pc]['operand_facts'][index]
+        if (not p['memory']or p['base_register']!='A0'or p['indexed']or p['ea_update']
+                or not p['displacement_known']or p['displacement']!=offset or p['width_bytes']!=width):
+            raise ValueError('draw return view read differs')
+    for pc,off,reg in [(0xE78E,4,'D2'),(0xE796,2,'D0'),(0xE79A,0,'D1')]:
+        memory(pc,0,off);operand(at[pc],1,register=reg)
+    memory(0xE7B2,0,6,4);operand(at[0xE7B2],1,register='A1',width=4)
+    for pc,reg in [(0xE79E,'D1'),(0xE7A0,'D0'),(0xE7A4,'D0')]:operand(at[pc],0,register=reg)
+    for pc,reg in [(0xE7A6,'D1'),(0xE7AC,'D0')]:
+        operand(at[pc],0,register=reg);operand(at[pc],1,register='D2')
+    all_regs={f'{kind}{n}'for kind in ['D','A']for n in range(8)}
+    for pc,write in [(0xE7B6,True),(0xE810,False)]:
+        row=at[pc];reg,mem=row['operand_facts'][0 if write else 1],row['operand_facts'][1 if write else 0]
+        if (reg['access']!=('register_list_read'if write else'register_list_write')
+                or set(reg['register_list'])!=all_regs or len(reg['register_list'])!=16
+                or reg['width_bytes']!=4 or not reg['bulk_transfer']
+                or not mem['memory']or mem['base_register']!='A7'or mem['indexed']
+                or mem['access']!=('memory_write'if write else'memory_read')
+                or mem['width_bytes']!=4 or not mem['bulk_transfer']
+                or mem['ea_update']!=(2 if write else 1)):
+            raise ValueError('draw return save frame differs')
+    for pc,offset,address in [(0xE7BA,0,0x15E5A),(0xE7C0,2,0x15E5C),(0xE7C8,4,0x15E5E)]:
+        memory(pc,0,offset);operand(at[pc],1,address=address)
+    operand(at[0xE7D0],0,address=0x15E5E);operand(at[0xE7D0],1,register='D0')
+    operand(at[0xE7D6],1,register='D0')
+    if at[0xE7D6]['operand_facts'][0].get('immediate_value')!=0x4000:
+        raise ValueError('draw return near threshold differs')
+    # The near arm has no intervening call or write to the loaded A1. The
+    # separately checked far arm is not folded into this value identity.
+    near=window(rows,0xE7B6,0xE7DC)
+    if any(p.get('direct_register')=='A1'and p.get('access')=='register_write'
+           for r in near for p in r['operand_facts']):
+        raise ValueError('draw return callback register was overwritten')
+    call=at[0xE80E]['operand_facts'][0]
+    if (not call['memory']or call['base_register']!='A1'or call['indexed']or call['ea_update']
+            or not call['displacement_known']or call['displacement']):
+        raise ValueError('draw return callback call differs')
+    for pc,target in [(0xE792,0xE814),(0xE79C,0xE7A0),(0xE7A2,0xE7A6),
+                       (0xE7A8,0xE814),(0xE7AE,0xE814),(0xE7DA,0xE80E),(0xE80A,0xE810)]:
+        selected=[e for e in edges if e['source_offset']+0x800==pc]
+        expected={('jump'if pc==0xE80A else'branch',target-0x800)}
+        if pc!=0xE80A:expected.add(('fallthrough',pc+at[pc]['size']-0x800))
+        if (len(selected)!=len(expected)or any(e['status']!='resolved'or e['target_section_index']!=0 for e in selected)
+                or {(e['kind'],e['target_offset'])for e in selected}!=expected):
+            raise ValueError('draw return branch differs')
+    roots=[(0xE6F0,'A0',0xE816),(0xE6F4,'A1',0xEB16),(0xE706,'A0',0xE816),
+           (0xE770,'A1',0xE816),(0xE774,'A0',0xEB16)]
+    for pc,reg,address in roots:
+        row=at.get(pc)
+        if row is None or row.get('provenance')!='accepted_instruction':
+            raise ValueError('draw return copy root missing')
+        operation(row,'lea');operand(row,0,address=address,width=4);operand(row,1,register=reg,width=4)
+    calls=[e for e in edges if e['source_offset']+0x800==0xE80E and e['kind']=='call']
+    targets=sorted({e['target_offset']for e in calls if e['status']=='resolved'and e['target_section_index']==0})
+    effects=[]
+    for target in targets:
+        selected=[s for s in summaries if s['callable_kind']=='direct'
+                  and s['callable_section_index']==0 and s['entry_offset']==target]
+        if len(selected)!=1:raise ValueError('draw return target needs its individual native summary')
+        summary=selected[0]
+        native=summary['effects'];registers=native['registers']
+        compact={'state':registers['state']}
+        for kind in ['preserved','clobbered','unknown']:
+            group=[r['location']['register']for r in registers.get('locations',[])if r['effect']==kind]
+            if group:compact[kind]=group
+        effects.append({'runtime':target+0x800,'function_summary_id':summary['function_summary_id'],
+                        'terminal_reason':summary['terminal_reason'],'registers':compact,
+                        'memory_state':native['memory']['state'],'escape_state':native['escapes']['state'],
+                        'native_effects_sha256':hashlib.sha256(json.dumps(native,sort_keys=True).encode()).hexdigest()})
+    return {'view_pointer_byte_span':[6,10],'near_call_runtime':0xE80E,
+            'near_call_A1_equals_current_row_LONG':True,'loaded_value_closed':False,
+            'frame_runtime':0xE7B6,'restore_runtime':0xE810,'frame_bytes':64,
+            'snapshot_overwritten_entry_registers':['D0.W','D1.W','D2.W','A1'],
+            'restore_requires_ordinary_return_and_intact_frame':True,
+            'unconditional_entry_register_preservation':False,
+            'memory_restored_by_register_reload':False,
+            'view_root_runtime':0xE816,'backup_root_runtime':0xEB16,
+            'snapshot_bytes_per_input_count':16,'restore_bytes_per_reloaded_count':16,
+            'byte_equality_count_bound':16,'copy_spans_disjoint_within_bound':0xE816+16*16<=0xEB16,
+            'conditional_multi_row_return':{'conditions':['Ordinary initialized stack/row contracts',
+                '2 <= input N <= 16 and 1 <= reloaded M <= 16; post-draw M bound is not proved',
+                'All draws return normally with save frames intact','Positive reloaded count M',
+                'No interfering writes during the restore copy'],
+                'D7.W':65535,'A0':'backup + 16*M','A1':'view + 16*M',
+                'restored_bytes_match_original_snapshot_only_if':'M=N and backup bytes unchanged'},
+            'conditional_single_row_return':{'D7.W':0,'backup_restore_performed':False,
+                'condition':'Draw helper returns normally with its save frame intact'},
+            'global_count_or_record_preservation_proved':False,
+            'target_effects':effects,'unresolved_call_edges':sum(e['status']=='unresolved'for e in calls),
+            'individual_effects_close_dispatch':False}
+
+
 def panel_mask_inventory(rows):
     """Inventory explicit D6 effects; entry/branch dominance is source-reviewed."""
     block = window(rows, 0x1FA32, 0x1FC86)
@@ -877,6 +985,9 @@ def collect(artifact, payload, *, full=False):
             if payload[at:at+row['size']].hex() != row['bytes'].lower():
                 raise ValueError('frame instruction bytes differ')
         result['frame_inventory'] = frame_inventory(complete)
+        result['accepted_code_coordinates_and_bytes_sha256']=hashlib.sha256(json.dumps(
+            [(r['source_offset'],r['size'],r['bytes'].lower())for r in complete],
+            separators=(',',':')).encode()).hexdigest()
         result['body_work_chain'] = body_work_chain(complete)
         result['glyph_stream_inventory'] = glyph_stream_inventory(complete)
         result['fixed_point_receiver'] = fixed_point_receiver(complete)
@@ -909,6 +1020,23 @@ def collect(artifact, payload, *, full=False):
                 raise ValueError('scenery copy edge query incomplete')
             copy_edges.extend(page['items'])
         result['scenery_record_copy_contract'] = scenery_record_copy_contract(complete,copy_edges)
+        return_edges=list(copy_edges)
+        for pc in [0xE792,0xE79C,0xE7A2,0xE7A8,0xE7AE,0xE7DA,0xE80A,0xE80E]:
+            page=artifact.query_payload('edges',section_index=0,source_offset=pc-0x800,
+                                        direction='outgoing',limit=100)
+            if page['has_more']:raise ValueError('draw return edge query incomplete')
+            return_edges.extend(page['items'])
+        for pc in [0xE6F0,0xE6F4,0xE706,0xE770,0xE774]:
+            row=next(r for r in complete if r['source_offset']+0x800==pc)
+            page=artifact.query_payload('references',section_index=0,source_offset=pc-0x800,
+                                        direction='outgoing',limit=100)
+            if page['has_more']:raise ValueError('draw return root query incomplete')
+            row['resolved_reference_addresses']=[{'operand_index':e['operand_index'],'has_address':True,
+                'address':e['target_offset']+0x800}for e in page['items']
+                if e.get('target_section_index')==0 and not e.get('comment_only')and e.get('operand_index')is not None]
+        analysis=artifact.analysis_payload()[0]
+        result['packed_draw_return_contract']=packed_draw_return_contract(complete,return_edges,
+            analysis['sections'][0]['function_summaries'])
         result['panel_mask_inventory'] = panel_mask_inventory(complete)
         result['panel_text_receipt'] = panel_text_receipt(payload,
             (Path(__file__).resolve().parents[1]/'targets/amiga_raw_foft/assets/dataGraphics380_1.bin').read_bytes())
