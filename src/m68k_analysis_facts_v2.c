@@ -8145,6 +8145,10 @@ static int trace_callback_site_linear_state(const M68kFactsV2RelocationLookup *,
     const M68kDecodeSectionIR *, const M68kDecodeCandidate *, const uint8_t *,
     Arena *, M68kFactsV2TraceState *);
 
+static int callback_fragment_index(const M68kDecodeCandidate *,size_t,uint8_t *,uint8_t *,int32_t *);
+static int collect_callback_fragment_targets(Arena *,M68kFactsV2CallbackFieldTargets *,
+    size_t,const M68kDecodeCandidate *,int,int32_t);
+
 static int collect_receiver_callback_targets(M68kDecodeIR *decode, const M68kRuntimeAddressSpace *runtime,
     Arena *arena, M68kFactsV2CallbackFieldTargets *targets, uint8_t **accepted_start, uint8_t **accepted_bytes,
     uint8_t cpu, size_t section_index, const M68kDecodeCandidate *input) {
@@ -8210,6 +8214,18 @@ static int collect_callback_field_target_from_store(M68kDecodeIR *decode,
     uint8_t **accepted_bytes, uint8_t max_cpu, size_t section_index, const M68kDecodeSectionIR *section,
     const M68kDecodeCandidate *store_candidate) {
   if (!store_candidate) return 0;
+  uint8_t fragment_base,fragment_index;int32_t fragment_disp;
+  if(store_candidate->mnemonic_id==M68K_ASM_MNEMONIC_MOVE && store_candidate->size_suffix=='l' &&
+      store_candidate->operand_count==2U &&
+      callback_fragment_index(store_candidate,0U,&fragment_base,&fragment_index,&fragment_disp)) {
+    M68kFactsV2TraceState fragment_state;
+    int fragment_traced=trace_callback_site_linear_state(relocation_lookup,runtime_addresses,
+      accepted_start,accepted_bytes,section_index,section,store_candidate,
+      targets->entry_boundaries[section_index],arena,&fragment_state);
+    int fragment_known=fragment_traced && (fragment_state.d_low16_known & (1U<<fragment_index));
+    if(collect_callback_fragment_targets(arena,targets,section_index,store_candidate,fragment_known,
+        fragment_known ? (int16_t)fragment_state.d_low16[fragment_index] : 0)!=0) return -1;
+  }
   M68kDecodeCandidate stable=*store_candidate;
   store_candidate=&stable;
   if(collect_receiver_callback_targets(decode,runtime_addresses,arena,targets,accepted_start,accepted_bytes,
@@ -9274,6 +9290,7 @@ static int enqueue_source_bound_absolute_control_target(M68kDecodeIR *decode, co
 
 #include "m68k_staged_record_flow.inc"
 #include "m68k_callback_receiver.inc"
+#include "m68k_callback_fragments.inc"
 
 static int validate_reachable_candidate_for_acceptance(const M68kAnalysisPolicy *policy, M68kFactIR *facts,
     const M68kFactsV2WorkItem *item, const M68kDecodeSectionIR *section,

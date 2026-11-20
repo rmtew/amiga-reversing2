@@ -800,6 +800,24 @@ link. Unsupported forms remain unresolved. Storage-linked sites have status
 handlers start with unknown registers. Store order, future writes, all aliases,
 execution and callee ABI require separate proofs, not a register-name match.
 
+The receiver collector also transports an already discovered callback candidate
+across two adjacent LONG copies when its four bytes straddle their boundary.
+The supported pair has one stable signed WORD data-register index, a uniquely
+resolved in-image source base and a concrete destination, with contiguous source
+and destination spans. Both eight-byte access spans must fit the section.
+A bounded, uniquely entered sequence of LONG moves connects the copies; calls,
+branches, source-base/index changes, EA updates, unknown writes and writes to the unread source or
+already written destination half refuse the relation. Exchange writes to a
+source half already read are allowed. A known selector must agree; an unknown
+selector remains unknown, so candidate transport does not prove a bound,
+reachability, record ownership, the pointer's current value or a closed target
+set. Each candidate retains one complete source value, never a Cartesian product
+of independently discovered halves. The second copy is a completion anchor,
+not an asserted full-pointer store. The existing decode/re-encode, ownership,
+code-target admission and unknown-input policies remain in force. This does not
+model register-carried fragments, two indexed destinations, intervening calls,
+or callback memory preservation.
+
 Native discovery recognizes bounded sentinel-terminated record walkers whose
 handler LONG is loaded immediately before an indirect call/jump. It derives the
 record base, fixed positive stride or header-WORD stride, handler displacement
