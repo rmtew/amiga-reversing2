@@ -102,3 +102,36 @@ Static runtime:
 - `src/m68k_assembler.c`
 - `src/m68k_disassembler.h`
 - `src/m68k_disassembler.c`
+
+## 68000 timing instruction export
+
+On Linux, build with `make src/build/m68k_timing_decode.exe` and run:
+
+```sh
+src/build/m68k_timing_decode.exe hunk game.hunk 0 0x120 0x38 > instructions.jsonl
+src/build/m68k_timing_decode.exe raw section.bin 0 0x120 0x38 > instructions.jsonl
+```
+
+Arguments after the file are zero-based section index, original section byte
+offset, and byte length (decimal or `0x` hexadecimal). In raw mode, the input
+must start at section offset zero; the section index is the caller's identifier.
+Hunk mode also requires an actual CODE section and refuses to read beyond its
+stored bytes. **Provide a range already established as contiguous code.** A
+Hunk CODE section can still contain inline data, and valid-looking encodings do
+not establish code membership. This first slice does not traverse control flow
+or discover accepted ranges; neither format automatically scans an entire file.
+
+One JSON record per instruction reports `section`, `offset`, `byte_count`,
+`bytes` (lowercase hex), `mnemonic`, `size` (or null), `form` (the generated
+canonical ID), and typed `operands`. Operand fields are the native decoder's
+values, not a reparse of rendered source: for example, the immediate effective
+address in `mulu.w #40,d1` is `kind=ea, ea_mode=7, ea_reg=4, value=40`.
+Only fields applicable to the operand kind/mode carry meaning. There is no
+fallback to guessed lengths or other CPU models; a failed decode does not
+publish a partial stream. This command neither times nor modifies the binary.
+
+Run the encoding and admission smoke test with a local vasm:
+
+```sh
+python src/tests/test_timing_decode.py src/build/m68k_timing_decode.exe /path/to/vasmm68k_mot
+```
