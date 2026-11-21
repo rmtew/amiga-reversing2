@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "kind": "byte_projection",
+  "source_sha256": "aca0db39a5657c952c5365e0201ac589cfdb53ea005c88d20a096d5891fae4ff",
+  "evidence": "docs/targets/starglider2-retail-startup.md",
+  "actions": [
+    {
+      "op": "replace",
+      "offset": 2,
+      "before": "8000",
+      "after": "8001"
+    },
+    {
+      "op": "capture",
+      "file": "main_at_amiga_handoff.bin",
+      "size": 419308,
+      "sha256": "334f83ec3bdb30e36b2e5c741b7788e4a3489ee15811d11e1e52ef83bd28a938"
+    }
+  ]
+}

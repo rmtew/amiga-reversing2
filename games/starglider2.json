@@ -112,7 +112,7 @@
     "st_loader_recovery": {
       "kind": "stx_cpu_recovery",
       "input": "6a25ccb01084c666241556e5f98fdfec260415bd9ca259ac688fddcaf99a2d22",
-      "recipe": "targets/atari_st_starglider2_stx/recovery_plan.json",
+      "recipe": "recipes/starglider2/st_loader_recovery.json",
       "recipe_sha256": "db5f4abab4eb7b5749476abae82347ef2854ef58348d77e49eec37451667377d",
       "outputs": {
         "boot_loader_known_prefix.bin": "0a1a4417a5de74def579272d4923495dc89c2081eee2a3d63b5aecca1ff8a781",
@@ -126,7 +126,7 @@
     "st_novella_protection_decode": {
       "kind": "mapped_cpu_recovery",
       "input": "20c19400180d7e846b78aa615b68446293f8ca54015c4f4a42a77f03b24e8260",
-      "recipe": "targets/atari_st_starglider2_stx/protection_plan.json",
+      "recipe": "recipes/starglider2/st_novella_protection_decode.json",
       "recipe_sha256": "d63530061f828f298045b99d11cfb3fc137400cad3c9640ae6657c6c50d3a1cf",
       "outputs": {
         "novella_protection_view.bin": "9be0a7243fce8c7202abb71271994f4f3ef654c15c559f9e1868c86f9c67082d"
@@ -135,7 +135,7 @@
     "retail_ipf_loader_recovery": {
       "kind": "ipf_cpu_recovery",
       "input": "34ad554ee97e3e7ebb9f227cfbf8d5c45251640f4c0e999175d4b56d5ed8d55f",
-      "recipe": "targets/starglider2_retail/recovery_plan.json",
+      "recipe": "recipes/starglider2/retail_ipf_loader_recovery.json",
       "recipe_sha256": "c9682bf7c03c30aef0850cd3ebad0946b4cd2fb7c7bb84b1dd50902850ee4b53",
       "outputs": {
         "boot_loader_known_prefix.bin": "0a1a4417a5de74def579272d4923495dc89c2081eee2a3d63b5aecca1ff8a781",
@@ -149,7 +149,7 @@
     "retail_amiga_handoff_flags": {
       "kind": "byte_projection",
       "input": "aca0db39a5657c952c5365e0201ac589cfdb53ea005c88d20a096d5891fae4ff",
-      "recipe": "targets/starglider2_retail/amiga_handoff_plan.json",
+      "recipe": "recipes/starglider2/retail_amiga_handoff_flags.json",
       "recipe_sha256": "1218331abf8d67a39aea4f50c8330581e015009ff7fa9193b7203c5e538a93b5",
       "outputs": {
         "main_at_amiga_handoff.bin": "334f83ec3bdb30e36b2e5c741b7788e4a3489ee15811d11e1e52ef83bd28a938"
