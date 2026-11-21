@@ -6,3 +6,5 @@ src/m68k_source_text_util.c
 src/generated/amiga_os_runtime.c
 src/generated/atari_st_os_runtime.c
 src/platform_name_table.c
+src/platform_facts_v2.c
+src/generated/mac_os_runtime.c
