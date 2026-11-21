@@ -7,6 +7,7 @@ goto :main_start
 :shift_to_main
 shift
 :main_start
+if /I "%~1"=="build-timing-decode" goto :build_timing_decode
 call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul
 if errorlevel 1 exit /b %errorlevel%
 
@@ -693,6 +694,10 @@ copy /Y "%ANCIENT_BUILD_EXE%" "%ANCIENT_EXE%" >nul
 if errorlevel 1 exit /b %errorlevel%
 echo Updated %ANCIENT_EXE%
 exit /b 0
+
+:build_timing_decode
+call "%~dp0tools\build_timing_decode.bat"
+exit /b %errorlevel%
 
 :lock_wrap
 set "PYTHON_EXE=%~dp0..\.venv\Scripts\python.exe"

@@ -27,17 +27,14 @@ $(BUILD)/platform_file_cli.exe: $(BUILD)/linux/platform_file_cli.o $(BUILD)/liba
 $(BUILD)/platform_disk_cli.exe: $(BUILD)/linux/platform_disk_cli.o $(BUILD)/libamiga_backend.so
 	$(CC) -o $@ $< -L$(BUILD) -lamiga_backend -Wl,-rpath,'$$ORIGIN' $(LDLIBS)
 # Opt-in standalone consumer of the existing decoder and Hunk reader.
-TIMING_DECODE_SOURCES := tools/m68k_timing_decode_main.c m68k_assembler.c \
-	m68k_assembler_policy.c m68k_decode_ir.c m68k_diagnostics.c m68k_disassembler.c \
-	m68k_instruction_spec.c m68k_object.c m68k_parse_util.c platform_amiga_hunk.c \
-	platform_binary_io.c platform_common.c util_arena.c generated/amiga_hunk_file_runtime.c \
-	generated/m68k_asm_tables.c generated/m68k_form_model.c
+TIMING_DECODE_SOURCE_LIST := src/tools/timing_decode_sources.rsp
+TIMING_DECODE_SOURCES := $(patsubst src/%,%,$(file <$(TIMING_DECODE_SOURCE_LIST)))
 TIMING_DECODE_OBJECTS := $(patsubst %.c,$(BUILD)/linux/timing/%.o,$(TIMING_DECODE_SOURCES))
 $(BUILD)/linux/timing/%.o: src/%.c
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -ffunction-sections -fdata-sections -MMD -MP -c $< -o $@
-$(BUILD)/m68k_timing_decode.exe: $(TIMING_DECODE_OBJECTS)
-	$(CC) -Wl,--gc-sections -o $@ $^ $(LDLIBS)
+$(BUILD)/m68k_timing_decode.exe: $(TIMING_DECODE_OBJECTS) $(TIMING_DECODE_SOURCE_LIST)
+	$(CC) -Wl,--gc-sections -o $@ $(TIMING_DECODE_OBJECTS) $(LDLIBS)
 -include $(TIMING_DECODE_OBJECTS:.o=.d)
 TEST_OBJECTS := $(patsubst src/%.c,$(BUILD)/linux/%.o,$(wildcard src/test_*.c) src/m68k_c_unit_test.c)
 $(BUILD)/m68k_c_unit_tests.exe: $(TEST_OBJECTS) $(BUILD)/libamiga_backend.so

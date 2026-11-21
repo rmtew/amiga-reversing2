@@ -1,0 +1,16 @@
+src/tools/m68k_timing_decode_main.c
+src/m68k_assembler.c
+src/m68k_assembler_policy.c
+src/m68k_decode_ir.c
+src/m68k_diagnostics.c
+src/m68k_disassembler.c
+src/m68k_instruction_spec.c
+src/m68k_object.c
+src/m68k_parse_util.c
+src/platform_amiga_hunk.c
+src/platform_binary_io.c
+src/platform_common.c
+src/util_arena.c
+src/generated/amiga_hunk_file_runtime.c
+src/generated/m68k_asm_tables.c
+src/generated/m68k_form_model.c

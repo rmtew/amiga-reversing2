@@ -105,7 +105,12 @@ Static runtime:
 
 ## 68000 timing instruction export
 
-On Linux, build with `make src/build/m68k_timing_decode.exe` and run:
+From the repository root, build the opt-in executable:
+
+- Linux: `make src/build/m68k_timing_decode.exe`
+- Windows (Python 3 and MSVC x64 Build Tools): `src\build.bat build-timing-decode`
+
+Then run:
 
 ```sh
 src/build/m68k_timing_decode.exe hunk game.hunk 0 0x120 0x38 > instructions.jsonl
@@ -130,8 +135,8 @@ Only fields applicable to the operand kind/mode carry meaning. There is no
 fallback to guessed lengths or other CPU models; a failed decode does not
 publish a partial stream. This command neither times nor modifies the binary.
 
-Run the encoding and admission smoke test with a local vasm:
+Run the smoke test (pass the optional vasm path to add a live encoding check):
 
 ```sh
-python src/tests/test_timing_decode.py src/build/m68k_timing_decode.exe /path/to/vasmm68k_mot
+python src/tests/test_timing_decode.py src/build/m68k_timing_decode.exe [path/to/vasmm68k_mot]
 ```

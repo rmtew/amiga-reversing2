@@ -1,8 +1,9 @@
-"""Native smoke test; supply a built m68k_timing_decode and vasm with M68k/MOT support."""
+"""Smoke test a native m68k_timing_decode, optionally with live vasm encoding."""
 
 import argparse
 import json
 from pathlib import Path
+import struct
 import subprocess
 from tempfile import TemporaryDirectory
 
@@ -10,28 +11,45 @@ from tempfile import TemporaryDirectory
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("decoder", type=Path)
-    parser.add_argument("vasm", type=Path)
+    parser.add_argument("vasm", type=Path, nargs="?")
     args = parser.parse_args()
-    decoder, vasm = (str(path.resolve()) for path in (args.decoder, args.vasm))
+    decoder = str(args.decoder.resolve())
     with TemporaryDirectory() as tmp:
         root = Path(tmp)
         source = root / "encoding.s"
         executable = root / "encoding.hunk"
         raw = root / "encoding.bin"
-        source.write_text(
-            "        section timing,code\n"
-            "        nop\n"
-            "        asl.l #1,d4\n"
-            "        mulu.w #40,d1\n"
-            "        rts\n"
-            "        section table,data\n"
-            "        dc.w $4e71,$4e75\n",
-            encoding="ascii",
-        )
-        subprocess.run(
-            [vasm, "-quiet", "-m68000", "-Fhunkexe", "-o", executable, source],
-            check=True,
-        )
+        # Independently fixed opcode bytes from the vasm encoding test:
+        # NOP, ADD.L (vasm's normal encoding for ASL.L #1,D4), MULU.W #40,D1,
+        # RTS. Hunk storage rounds up to a long; the admitted range does not.
+        code = bytes.fromhex("4e71 d884 c2fc0028 4e75 0000")
+        data = bytes.fromhex("4e71 4e75")
+
+        def longs(*values):
+            return struct.pack(f">{len(values)}I", *values)
+
+        if args.vasm is None:
+            executable.write_bytes(
+                longs(0x3F3, 0, 2, 0, 1, 3, 1)      # HUNK_HEADER, empty names, two sections
+                + longs(0x3E9, len(code) // 4) + code  # HUNK_CODE
+                + longs(0x3F2, 0x3EA, len(data) // 4) + data  # HUNK_END, HUNK_DATA
+                + longs(0x3F2)
+            )
+        else:
+            source.write_text(
+                "        section timing,code\n"
+                "        nop\n"
+                "        asl.l #1,d4\n"
+                "        mulu.w #40,d1\n"
+                "        rts\n"
+                "        section table,data\n"
+                "        dc.w $4e71,$4e75\n",
+                encoding="ascii",
+            )
+            subprocess.run(
+                [str(args.vasm.resolve()), "-quiet", "-m68000", "-Fhunkexe", "-o", executable, source],
+                check=True,
+            )
 
         def decode(fmt, path, section, offset, length, success=True):
             result = subprocess.run(
@@ -67,7 +85,8 @@ def main():
         decode("hunk", executable, 0, 2, 4, success=False)
         decode("hunk", executable, 1, 0, 4, success=False)  # Valid-looking opcodes, DATA.
         decode("hunk", executable, 2, 0, 2, success=False)
-    print("68000 timing decode: raw/Hunk, vasm encoding, typed operands and admission checks passed")
+    fixture = "vasm encoding" if args.vasm else "fixed byte fixture"
+    print(f"68000 timing decode: raw/Hunk, {fixture}, typed operands and admission checks passed")
 
 
 if __name__ == "__main__":

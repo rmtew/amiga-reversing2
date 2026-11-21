@@ -102,9 +102,6 @@ int main(int argc, char **argv) {
   const uint8_t *code = NULL;
   M68kObject object = {0};
   M68kDiagList diagnostics = {0};
-  FILE *staging = NULL;
-  unsigned char buffer[4096];
-  size_t count;
   int result = EXIT_FAILURE;
 
   if (argc != 6 || (strcmp(argv[1], "raw") != 0 && strcmp(argv[1], "hunk") != 0) ||
@@ -139,33 +136,25 @@ int main(int argc, char **argv) {
     code = hunk->data + start;
   }
 
-  /* Failed admission never leaves valid-looking partial JSONL on stdout. */
-  staging = tmpfile();
-  if (staging == NULL) {
-    perror("Cannot stage decoded instructions");
-    goto done;
-  }
-  for (cursor = 0; cursor < length;) {
-    M68kDisasmResult insn = m68k_disassemble_one_for_cpu(code + cursor, length - cursor,
-      M68K_ASM_CPU_68000, (M68kDiagSink){0});
-    if (insn.byte_count == 0U || insn.byte_count > length - cursor ||
-        insn.canonical_form_id == M68K_FORM_ID_NONE) {
-      fprintf(stderr, "No canonical 68000 instruction at section %" PRIu32 " offset 0x%" PRIx32 "\n",
-              section, start + cursor);
-      goto done;
+  /* Validate the whole immutable range before emitting any output. This
+   * avoids partial JSONL on a decode error without requiring a temp file. */
+  for (int emit = 0; emit <= 1; ++emit) {
+    for (cursor = 0; cursor < length;) {
+      M68kDisasmResult insn = m68k_disassemble_one_for_cpu(code + cursor, length - cursor,
+        M68K_ASM_CPU_68000, (M68kDiagSink){0});
+      if (insn.byte_count == 0U || insn.byte_count > length - cursor ||
+          insn.canonical_form_id == M68K_FORM_ID_NONE) {
+        fprintf(stderr, "No canonical 68000 instruction at section %" PRIu32 " offset 0x%" PRIx32 "\n",
+                section, start + cursor);
+        goto done;
+      }
+      if (emit) write_instruction(stdout, &insn, code + cursor, section, start + cursor);
+      cursor += (uint32_t)insn.byte_count;
     }
-    write_instruction(staging, &insn, code + cursor, section, start + cursor);
-    cursor += (uint32_t)insn.byte_count;
   }
-  if (!ferror(staging) && fseek(staging, 0L, SEEK_SET) == 0) {
-    while ((count = fread(buffer, 1U, sizeof(buffer), staging)) != 0U) {
-      if (fwrite(buffer, 1U, count, stdout) != count) goto done;
-    }
-    if (!ferror(staging) && fflush(stdout) == 0) result = EXIT_SUCCESS;
-  }
+  if (!ferror(stdout) && fflush(stdout) == 0) result = EXIT_SUCCESS;
 
 done:
-  if (staging != NULL) fclose(staging);
   m68k_object_destroy(&object);
   free(raw);
   return result;

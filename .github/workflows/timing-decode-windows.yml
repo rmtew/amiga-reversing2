@@ -1,0 +1,34 @@
+name: Windows timing decoder smoke
+
+on:
+  push:
+    paths:
+      - 'src/**'
+      - 'experiments/m68k-cycle/**'
+      - '.github/workflows/timing-decode-windows.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'experiments/m68k-cycle/**'
+      - '.github/workflows/timing-decode-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  timing-decode:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build the MSVC x64 decoder
+        shell: cmd
+        run: call src\build.bat build-timing-decode
+      - name: Decode known raw and Hunk instructions
+        run: python src/tests/test_timing_decode.py src/build/m68k_timing_decode.exe
+      - name: Check Python timing and proof rules
+        run: python -m unittest discover -s experiments/m68k-cycle
