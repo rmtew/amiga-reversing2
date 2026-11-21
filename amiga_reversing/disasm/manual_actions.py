@@ -873,6 +873,16 @@ def _manual_labels_share_mapped_source(
     return matches == {source_range[1]}
 
 
+def _entity_declares_data(entity: SeededEntityMetadata) -> bool:
+    """Imported bare names are address facts, not code/data classifications."""
+    return any(getattr(entity, key) is not None for key in (
+        "type", "end", "unit", "subtype", "encoding", "struct_name",
+        "field_name", "field_type", "c_type", "pointer_struct",
+        "value_kind", "value_domain", "pointer_address_domain",
+        "pointer_symbol_group", "source_owner_start", "source_owner_size",
+    ))
+
+
 def _manual_label_restates_source_metadata(label, metadata):
     """An explicit source global may restate one imported bare-label identity.
 
@@ -893,13 +903,7 @@ def _manual_label_restates_source_metadata(label, metadata):
     for item in declarations:
         if (item.hunk, item.addr) != location[:2]:
             return False
-        if isinstance(item, SeededEntityMetadata) and any(
-            getattr(item, key) is not None
-            for key in ("type", "end", "unit", "subtype", "encoding", "struct_name",
-                        "field_name", "field_type", "c_type", "pointer_struct",
-                        "value_kind", "value_domain", "pointer_address_domain",
-                        "pointer_symbol_group", "source_owner_start", "source_owner_size")
-        ):
+        if isinstance(item, SeededEntityMetadata) and _entity_declares_data(item):
             return False
     return True
 
@@ -1108,6 +1112,8 @@ def _manual_seed_metadata_conflict_items(
             entrypoint.name,
         ))
     for entity in metadata.seeded_entities:
+        if not _entity_declares_data(entity):
+            continue
         end = entity.end if entity.end is not None and entity.end > entity.addr else entity.addr + 1
         stronger_id = f"seeded_entity:h{entity.hunk}:${entity.addr:08x}"
         stronger_ranges.append((ManualSeedKind.DATA, stronger_id, entity.hunk, entity.addr, end, entity.name))

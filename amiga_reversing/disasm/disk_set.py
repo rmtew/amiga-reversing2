@@ -245,7 +245,7 @@ class DiskSet:
     package: dict
 
     @classmethod
-    def load(cls, root, *, project_root):
+    def load(cls, root, *, project_root, require_source_package=True):
         root = Path(root)
         if root.is_symlink():
             raise ValueError("disk-set target cannot be a symlink")
@@ -276,10 +276,18 @@ class DiskSet:
             raise ValueError("invalid disk-set manifest")
         identity(m["project_id"])
         identity(m["build_id"])
-        package = load_published_source_package(root)
+        if require_source_package:
+            package = load_published_source_package(root)
+            files = validate_source_package(package)
+        else:
+            # Catalog intake validates the complete replay/ownership contract.
+            # Produced files are required by source build and publication paths.
+            from .source_package import validate_source_package_manifest
+            record = json.loads(file_at(root, "source-package-manifest.json").read_bytes())
+            files = validate_source_package_manifest(record["manifest"], record["sha256"])
+            package = {"manifest": record["manifest"], "sha256": record["sha256"], "files": []}
         if package["sha256"] != sha(m["package_sha256"]):
             raise ValueError("stale disk-set source package")
-        files = validate_source_package(package)
         for key in ("media", "members"):
             if not isinstance(m[key], list) or not 1 <= len(m[key]) <= 256:
                 raise ValueError("invalid disk-set collection")
@@ -785,6 +793,38 @@ class DiskSet:
             "source_offset_bias": bias,
             "coordinate_scope": "analysis_owner",
         }
+
+    def recover_member_package(self, member_id, media_paths):
+        """Replay a recovered member and export without a previous rendered package."""
+        from .c_backend import listing_artifact_source_projection_with_c_backend_profile
+        from .disk_set_state import _verify_snapshot_values
+        from .facts_v2_source_refusal import facts_v2_source_refused
+        from .source_package import build_source_package, collect_package_includes
+
+        owner, _ = self.owner(member_id)
+        member = self.members[owner]
+        if member["analysis"] is None:
+            raise ValueError("member has no replayable analysis")
+        values, _, _ = self.recover(media_paths)
+        _verify_snapshot_values(self, values, {owner})
+        source, metadata = self._analysis_input(owner, values)
+        text, profile, native = listing_artifact_source_projection_with_c_backend_profile(
+            source, metadata_path=metadata, project_root=self.project_root,
+            use_persisted_policy=True)
+        if facts_v2_source_refused(profile):
+            raise ValueError("native disk-set member source projection refused")
+        includes = self.project_root / "ext" / "amiga_includes" / "ndk_2.0" / "include"
+        if self.manifest["platform"] == "atari-st":
+            includes = self.project_root / "ext" / "atarist_includes" / "devpac_3_10" / "include"
+        payload = {
+            "filename": member["source"], "source_text": text, "target": owner,
+            "assembler_profile": "vasm", "metadata_hash": member["analysis"]["metadata"]["sha256"],
+            "target_identity_sha256": member["sha256"],
+        }
+        return build_source_package(
+            payload, native["assets"] if native else [],
+            self.package["manifest"]["policy"]["minimum_asset_size"],
+            includes=collect_package_includes(text, includes))
 
     def regenerate(self, media_paths):
         """Compare native member projections with the one owned source bundle."""

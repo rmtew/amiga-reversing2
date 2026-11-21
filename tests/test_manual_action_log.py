@@ -2216,3 +2216,25 @@ def test_new_orphan_element_is_atomic_but_historical_orphan_can_be_undone(tmp_pa
     projection = load_manual_projection(target, binary_source=source)
     assert projection.review_state == 'clear'
     assert 'legacy-orphan' in projection.inactive_action_ids
+
+
+def test_required_code_seed_can_classify_imported_bare_label(tmp_path):
+    target_dir = tmp_path / "target"
+    target_dir.mkdir()
+    _append_jsonl(target_dir / MANUAL_ACTION_LOG_FILE_NAME, [
+        {"record": "manual_action_log_header", "version": 1, "target_identity": {}},
+        _action("a1", 1, "create_manual_seed",
+                seed={"seed_id": "code", "kind": "code", "mode": "required", "hunk": 0, "addr": 4}),
+    ])
+    bare = SeededEntityMetadata(
+        addr=4, hunk=0, name="imported_name",
+        seed_origin=TargetMetadataSeedOrigin.MANUAL_ANALYSIS,
+        review_status=TargetMetadataReviewStatus.SEEDED, citation="imported-label")
+    metadata = TargetMetadata(target_type="program", entry_register_seeds=(), seeded_entities=(bare,))
+    projection = load_manual_projection(target_dir, stronger_metadata=metadata)
+    assert projection.review_state == "clear"
+    assert projection.active_action_ids == ("a1",)
+    # An explicit typed declaration at the same location must still block.
+    from dataclasses import replace
+    typed = replace(metadata, seeded_entities=(replace(bare, type="bytes", end=8),))
+    assert load_manual_projection(target_dir, stronger_metadata=typed).review_state == "blocked"

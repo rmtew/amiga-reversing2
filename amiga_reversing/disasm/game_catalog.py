@@ -103,7 +103,7 @@ def validate(payload, root):
             object_keys(context, 'kind owner member')
             from .disk_set import DiskSet
             owner_id, member_id = identity(context['owner']), identity(context['member'])
-            owner = DiskSet.load(root/'targets'/owner_id, project_root=root)
+            owner = DiskSet.load(root/'targets'/owner_id, project_root=root, require_source_package=False)
             member = owner.members.get(member_id)
             if (member is None or member['sha256'] != binding['artifact']
                     or member['size'] != artifacts[binding['artifact']]['size']

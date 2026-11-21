@@ -561,3 +561,57 @@ def test_projects_report_broken_sibling_without_blocking_valid_owner(tmp_path):
     with pytest.raises(FileNotFoundError, match="Missing manifest.json"):
         get_project(broken.name, project)
     assert {p.name: p.read_bytes() for p in broken.iterdir()} == before
+
+
+def test_recovery_contract_does_not_read_generated_source(tmp_path):
+    project, target, paths, manifest = fixture(tmp_path)
+    published = DiskSet.load(target, project_root=project)
+    for record in published.package["manifest"]["files"]:
+        (target / record["path"]).unlink()
+    contract = DiskSet.load(target, project_root=project, require_source_package=False)
+    assert contract.manifest == published.manifest
+    recovered, _, _ = contract.recover(paths)
+    assert set(recovered) == set(contract.members)
+    with pytest.raises(ValueError, match="Existing source package"):
+        DiskSet.load(target, project_root=project)
+    with pytest.raises(ValueError):
+        contract.regenerate(paths)
+
+
+def test_recovery_contract_rejects_stale_manifest_and_recipe(tmp_path):
+    project, target, paths, manifest = fixture(tmp_path)
+    package_path = target / "source-package-manifest.json"
+    original = package_path.read_bytes()
+    package = json.loads(original)
+    package["manifest"]["files"][0]["size"] += 1
+    package_path.write_text(json.dumps(package))
+    with pytest.raises(ValueError, match="integrity"):
+        DiskSet.load(target, project_root=project, require_source_package=False)
+    package_path.write_bytes(original)
+    recipe = target / manifest["media"][0]["recipe"]["path"]
+    recipe.write_text("{}")
+    with pytest.raises(ValueError, match="stale disk-set file identity"):
+        DiskSet.load(target, project_root=project, require_source_package=False)
+
+
+def test_recovered_member_export_uses_verified_input_without_old_package(tmp_path, monkeypatch):
+    from amiga_reversing.disasm import c_backend
+    from amiga_reversing.disasm.source_package import validate_source_package
+    project, target, paths, manifest = fixture(tmp_path)
+    owner = DiskSet.load(target, project_root=project)
+    for record in owner.package["manifest"]["files"]:
+        (target / record["path"]).unlink()
+    recovered = DiskSet.load(target, project_root=project, require_source_package=False)
+    seen = []
+    def render(source, **options):
+        seen.append(source.read_bytes())
+        return " SECTION code,code\n ORG $1000\n moveq #7,d0\n rts\n", {}, {"assets": []}
+    monkeypatch.setattr(c_backend, "listing_artifact_source_projection_with_c_backend_profile", render)
+    package = recovered.recover_member_package("main", paths)
+    assert len(seen) == 1
+    assert digest(seen[0]) == recovered.members["main"]["sha256"]
+    assert set(validate_source_package(package)) == {recovered.members["main"]["source"]}
+    corrupt = tmp_path / "wrong.adf"
+    corrupt.write_bytes(b"wrong")
+    with pytest.raises(ValueError):
+        recovered.recover_member_package("main", {**paths, "dos": corrupt})

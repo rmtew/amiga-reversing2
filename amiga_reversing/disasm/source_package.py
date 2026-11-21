@@ -154,9 +154,39 @@ def extend_source_package(package: dict[str, Any], records: list[dict[str, Any]]
     return result
 
 
+def validate_source_package_manifest(manifest: dict[str, Any], expected_sha256: str) -> set[str]:
+    """Validate ownership and identities without reading produced source bytes."""
+    if manifest.get("schema") != SCHEMA or expected_sha256 != _hash(_json(manifest)):
+        raise ValueError("Source package manifest integrity mismatch")
+    records = manifest.get("files")
+    if not isinstance(records, list):
+        raise ValueError("Source package file inventory mismatch")
+    paths = set()
+    folded = set()
+    for record in records:
+        path = _path(record["path"])
+        if path.lower() in folded or path.lower() == MANIFEST:
+            raise ValueError("Duplicate or reserved package path")
+        if type(record.get("size")) is not int or record["size"] < 0:
+            raise ValueError("Invalid package file size")
+        if not re.fullmatch(r"[0-9a-f]{64}", str(record.get("sha256", ""))):
+            raise ValueError("Invalid package file identity")
+        paths.add(path)
+        folded.add(path.lower())
+    occupied = folded | {MANIFEST}
+    for path in folded:
+        components = path.split("/")
+        if any("/".join(components[:index]) in occupied for index in range(1, len(components))):
+            raise ValueError("Package file/directory path collision")
+    if "/" in _path(manifest["source"]) or manifest["source"] not in paths:
+        raise ValueError("Source package entry point missing")
+    return paths
+
+
 def validate_source_package(package: dict[str, Any]) -> dict[str, bytes]:
     """Validate all bytes before writing or invoking either assembler."""
     manifest = package["manifest"]
+    validate_source_package_manifest(manifest, package["sha256"])
     if manifest.get("schema") != SCHEMA or package["sha256"] != _hash(_json(manifest)):
         raise ValueError("Source package manifest integrity mismatch")
     files = {}
