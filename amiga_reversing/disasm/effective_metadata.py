@@ -2954,6 +2954,10 @@ def _apply_manual_seed_projection(
     # field; broad/partial overlaps and pointer identities keep their owners.
     typed_entities_by_element = {}
     for layout in effective_data_block_layouts:
+        from .record_lists import preserved_list_owner_span
+        list_owner_span = (preserved_list_owner_span(asdict(layout))
+                           if any((e.type_binding or {}).get('record_list_preserve_source_owner') is not None
+                                  for e in layout.elements) else None)
         for element in layout.elements:
             binding = element.type_binding or {}
             if binding.get("record_contract") is not None:
@@ -2969,6 +2973,15 @@ def _apply_manual_seed_projection(
                 (compact,) if compact is not None
                 else _data_block_bound_struct_entities(layout, element, merged_custom_structs)
             )
+            # One checked list partitions a pre-existing complete source array.
+            # Its public root still owns that array, rather than only run zero.
+            # Keep leaf widths/types and independent interior names unchanged.
+            if list_owner_span and element.offset == 0:
+                entities = typed_entities_by_element[(layout.layout_id, element.offset)]
+                if entities and entities[0].name and entities[0].addr == list_owner_span[0]:
+                    typed_entities_by_element[(layout.layout_id, element.offset)] = (
+                        replace(entities[0],source_owner_start=list_owner_span[0],
+                                source_owner_size=list_owner_span[1]),*entities[1:])
             if (binding.get('record_list_preserve_scalar_names') is True
                     or binding.get('record_preserve_scalar_names') is True):
                 typed_entities_by_element[(layout.layout_id, element.offset)] = _record_list_scalar_names(

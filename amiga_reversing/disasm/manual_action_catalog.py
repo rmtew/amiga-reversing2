@@ -1278,7 +1278,11 @@ def listing_range_catalog_manual_payload(
             for subrange_rows in _range_action_subrange_rows(action, rows_list)
         ]
     if action.get("action") == "declare_manual_record_list":
-        from .record_lists import record_list_plan, validate_record_list, scalar_grid_source
+        from .record_lists import (
+            record_list_plan,
+            scalar_grid_source,
+            validate_record_list,
+        )
         subranges = _range_action_subrange_rows(action, rows_list)
         if len(subranges) != 1 or set(user_params) != {"record_types", "runs"}:
             raise ValueError("record list requires one owner, explicit record_types and runs")
@@ -1308,10 +1312,11 @@ def listing_range_catalog_manual_payload(
             element['type_binding']['record_contract'] = shape
             element['type_binding']['record_list_field_presentation'] = True
             element['type_binding']['record_list_preserve_scalar_names'] = True
+            element['type_binding']['record_list_preserve_source_owner'] = True
             elements.append(element)
             cursor += width
-        payload = dict(custom_structs=sorted(shapes.values(), key=lambda t: t['name']),
-                       runs=runs, data_block_elements=elements, source_array=source)
+        payload = {'custom_structs':sorted(shapes.values(), key=lambda t: t['name']),
+                   'runs':runs, 'data_block_elements':elements, 'source_array':source}
         validate_record_list(payload, owner)
         return [('declare_manual_record_list', payload)]
     if action.get("action") == "declare_manual_record_array":

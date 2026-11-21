@@ -98,6 +98,9 @@ def validate_record_list(payload, layout):
     names = [(e.get('type_binding') or {}).get('record_list_preserve_scalar_names') for e in elements]
     if not (all(mode is None for mode in names) or all(mode is True for mode in names)):
         raise ValueError('record list scalar-name preservation must be explicit and uniform')
+    owners = [(e.get('type_binding') or {}).get('record_list_preserve_source_owner') for e in elements]
+    if not (all(mode is None for mode in owners) or all(mode is True for mode in owners)):
+        raise ValueError('record list source-owner preservation must be explicit and uniform')
     prior = layout.get('elements', [])
     source = payload['source_array']
     if not isinstance(source, Mapping):
@@ -137,6 +140,7 @@ def validate_record_list(payload, layout):
         span = shape['size'] * count
         preserve_names = (element.get('type_binding') or {}).get('record_list_preserve_scalar_names')
         presentation = (element.get('type_binding') or {}).get('record_list_field_presentation')
+        preserve_owner = (element.get('type_binding') or {}).get('record_list_preserve_source_owner')
         if presentation is not None and presentation is not True:
             raise ValueError('record list field presentation must be explicit true or legacy absent')
         if (element.get('layout_id') != layout['layout_id']
@@ -167,5 +171,45 @@ def validate_record_list(payload, layout):
             element['type_binding']['record_list_field_presentation'] = True
         if preserve_names is True:
             element['type_binding']['record_list_preserve_scalar_names'] = True
+        if preserve_owner is True:
+            element['type_binding']['record_list_preserve_source_owner'] = True
         cursor += span
     return shapes
+
+
+def preserved_list_owner_span(layout):
+    """Revalidate the complete original array before retaining its public extent.
+
+    Historical bindings omit this presentation fact and keep their old snapshots.
+    No new data item, allocation, pointee or runtime lifetime is inferred.
+    """
+    elements = list(layout.get('elements', []))
+    flags = [(e.get('type_binding') or {}).get('record_list_preserve_source_owner') for e in elements]
+    if not any(f is not None for f in flags):
+        return None
+    if not flags or not all(f is True for f in flags):
+        raise ValueError('record list source-owner preservation must be explicit and uniform')
+    types = {}
+    runs = []
+    for e in elements:
+        binding = e.get('type_binding') or {}
+        shape = binding.get('record_contract')
+        if not isinstance(shape, Mapping) or binding.get('bound_type_id') != shape.get('name'):
+            raise ValueError('record list source owner lost its record contract')
+        if shape['name'] in types and types[shape['name']] != shape:
+            raise ValueError('record list source owner has conflicting types')
+        types[shape['name']] = shape
+        runs.append({'record_type':shape['name'],'count':e.get('array_count')})
+    source = (elements[0].get('provenance') or {}).get('record_list_source_array')
+    for index, element in enumerate(elements):
+        provenance = element.get('provenance')
+        if (not isinstance(provenance, Mapping)
+                or type(provenance.get('record_list_run')) is not int
+                or provenance['record_list_run'] != index
+                or not provenance.get('record_list_id')
+                or provenance.get('record_list_source_array') != source):
+            raise ValueError('record list source owner lost its partition provenance')
+    payload = {'custom_structs':list(types.values()),'runs':runs,
+               'data_block_elements':deepcopy(elements),'source_array':deepcopy(source)}
+    validate_record_list(payload,layout)
+    return layout['source_start'],source['width']

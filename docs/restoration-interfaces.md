@@ -2186,6 +2186,22 @@ proved list through the normal catalog records a field-presentation upgrade;
 undo restores the historical source. The existing snapshot guard is neither
 skipped nor weakened to accommodate a renderer change.
 
+New list declarations also carry `record_list_preserve_source_owner: true`.
+After revalidating the complete ordered partition and its original primitive
+array witness, the first named projected leaf retains that array's full public
+source extent. The leaf's emitted width, record/field types, independent interior
+names and bytes stay unchanged. This allows ordinary mapped data pointers to
+name interior list bytes through the original root, rather than falling back to
+numbers after the list is split into record runs. It is a source-reference
+extent, not an allocation, live receiver, pointee or code-target claim. The
+existing unique mapping, encoded-value, ownership and emitted-label checks
+still decide each pointer; null/unmapped/ambiguous values remain literal.
+Historical list actions without this fact retain their prior projection and
+snapshots. Re-declaring the same checked list records the upgrade through the
+normal journal; undo restores the earlier extent and source. Mixed/false flags,
+missing or inconsistent partition provenance and changed source-array or run
+bounds are rejected before projecting a wider root.
+
 New list declarations also carry `record_list_preserve_scalar_names: true`.
 A unique, independent untyped scalar name at an exact interior field address,
 width, unit and source section remains that field's source symbol; its new
