@@ -5,6 +5,8 @@ if not defined AMIGA_BUILD_LOCK_HELD goto :lock_wrap
 :main
 goto :main_start
 :shift_to_main
+rem Preserve %0 for the opt-in launcher path before SHIFT changes it.
+if /I "%~2"=="build-timing-decode" goto :build_timing_decode
 shift
 :main_start
 if /I "%~1"=="build-timing-decode" goto :build_timing_decode
