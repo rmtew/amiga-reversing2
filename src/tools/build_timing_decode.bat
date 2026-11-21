@@ -16,9 +16,11 @@ if errorlevel 1 exit /b %errorlevel%
 set "OBJDIR=src\build\msvc\timing"
 if not exist "%OBJDIR%" mkdir "%OBJDIR%"
 if not exist "%OBJDIR%" goto :build_error
+rem LINK checks references from discarded COMDATs, unlike the ELF target.
+rem Supply the remaining dependencies from the regular disassembler link.
 cl /nologo /W4 /WX /std:c11 /D_CRT_SECURE_NO_WARNINGS /O2 /Gy /Gw /I src ^
     /Fe:src\build\m68k_timing_decode.exe /Fo%OBJDIR%\ ^
-    @src\tools\timing_decode_sources.rsp /link /INCREMENTAL:NO /OPT:REF bcrypt.lib
+    @src\tools\timing_decode_sources.rsp @src\tools\timing_decode_msvc_deps.rsp /link /INCREMENTAL:NO /OPT:REF bcrypt.lib
 set "STATUS=%errorlevel%"
 popd
 exit /b %STATUS%

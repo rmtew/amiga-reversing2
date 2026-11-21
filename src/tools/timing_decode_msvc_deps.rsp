@@ -1,0 +1,8 @@
+src/m68k_simulator.c
+src/m68k_ir.c
+src/m68k_ir_codec.c
+src/m68k_plain_parse.c
+src/m68k_source_text_util.c
+src/generated/amiga_os_runtime.c
+src/generated/atari_st_os_runtime.c
+src/platform_name_table.c
