@@ -96,6 +96,50 @@ static void write_instruction(FILE *output, const M68kDisasmResult *insn,
   fputs("]}\n", output);
 }
 
+static const M68kSymbol *defined_symbol(const M68kObject *object, const char *name) {
+  const M68kSymbol *match = NULL;
+  for (size_t i = 0; i < object->symbol_count; ++i) {
+    const M68kSymbol *candidate = &object->symbols[i];
+    if (!candidate->defined || strcmp(candidate->name, name) != 0) continue;
+    if (match != NULL) return NULL;
+    match = candidate;
+  }
+  return match;
+}
+
+static int named_bounds(const char *path, const char *first, const char *limit) {
+  const M68kSection *hunk;
+  const M68kSymbol *begin, *end;
+  M68kObject object = {0};
+  M68kDiagList diagnostics = {0};
+  int status = EXIT_FAILURE;
+  if (m68k_object_create(&object) != 0 ||
+      M68K_BACKEND_AMIGA_HUNK.read_file(path, &object, m68k_diag_sink(&diagnostics)) != 0) {
+    fputs("Cannot read executable Hunk for named bounds\n", stderr);
+    goto done;
+  }
+  begin = defined_symbol(&object, first);
+  end = defined_symbol(&object, limit);
+  if (!begin || !end || begin->section_index != end->section_index ||
+      begin->section_index >= object.section_count || begin->value >= end->value ||
+      ((begin->value | end->value) & 1U)) {
+    fputs("Bounds need defined, increasing even symbols in one section\n", stderr);
+    goto done;
+  }
+  hunk = &object.sections[begin->section_index];
+  if (hunk->kind != M68K_SECTION_CODE || !hunk->data || end->value > hunk->data_size) {
+    fputs("Named bounds are not in stored CODE bytes\n", stderr);
+    goto done;
+  }
+  printf("{\"section\":%zu,\"start\":%" PRIu32 ",\"length\":%" PRIu32 "}\n",
+         begin->section_index, begin->value, end->value - begin->value);
+  if (!ferror(stdout) && fflush(stdout) == 0) status = EXIT_SUCCESS;
+
+done:
+  m68k_object_destroy(&object);
+  return status;
+}
+
 int main(int argc, char **argv) {
   uint32_t section, start, length, cursor;
   uint8_t *raw = NULL;
@@ -104,11 +148,16 @@ int main(int argc, char **argv) {
   M68kDiagList diagnostics = {0};
   int result = EXIT_FAILURE;
 
+  if (argc == 5 && strcmp(argv[1], "bounds") == 0) {
+    return named_bounds(argv[2], argv[3], argv[4]);
+  }
+
   if (argc != 6 || (strcmp(argv[1], "raw") != 0 && strcmp(argv[1], "hunk") != 0) ||
       parse_number(argv[3], &section) != 0 || parse_number(argv[4], &start) != 0 ||
       parse_number(argv[5], &length) != 0 || (start & 1U) != 0U || (length & 1U) != 0U ||
       length == 0U || start > UINT32_MAX - length) {
     fprintf(stderr, "Usage: m68k_timing_decode raw|hunk FILE SECTION START LENGTH\n"
+                    "       m68k_timing_decode bounds HUNK START_SYMBOL END_SYMBOL\n"
                     "Supply a nonempty, word-aligned range of established 68000 code.\n");
     return EXIT_FAILURE;
   }

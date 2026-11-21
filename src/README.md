@@ -113,6 +113,7 @@ From the repository root, build the opt-in executable:
 Then run:
 
 ```sh
+src/build/m68k_timing_decode.exe bounds game.hunk routine_start routine_end
 src/build/m68k_timing_decode.exe hunk game.hunk 0 0x120 0x38 > instructions.jsonl
 src/build/m68k_timing_decode.exe raw section.bin 0 0x120 0x38 > instructions.jsonl
 ```
@@ -125,6 +126,11 @@ stored bytes. **Provide a range already established as contiguous code.** A
 Hunk CODE section can still contain inline data, and valid-looking encodings do
 not establish code membership. This first slice does not traverse control flow
 or discover accepted ranges; neither format automatically scans an entire file.
+
+The `bounds` command resolves two defined Hunk symbols to a single
+`{"section":...,"start":...,"length":...}` record. They must delimit
+increasing even offsets in the same stored CODE section. It does not infer
+routine membership or rule out extra entries; names are supplied by the caller.
 
 One JSON record per instruction reports `section`, `offset`, `byte_count`,
 `bytes` (lowercase hex), `mnemonic`, `size` (or null), `form` (the generated

@@ -28,21 +28,30 @@ def main():
         def longs(*values):
             return struct.pack(f">{len(values)}I", *values)
 
+        def symbol(name, value):
+            text = name.encode("ascii")
+            words = (len(text) + 3) // 4
+            return longs(words) + text.ljust(words * 4, b"\0") + longs(value)
+
         if args.vasm is None:
             executable.write_bytes(
                 longs(0x3F3, 0, 2, 0, 1, 3, 1)      # HUNK_HEADER, empty names, two sections
                 + longs(0x3E9, len(code) // 4) + code  # HUNK_CODE
+                + longs(0x3F0) + symbol("fixture_start", 2) + symbol("fixture_end", 10) + longs(0)
                 + longs(0x3F2, 0x3EA, len(data) // 4) + data  # HUNK_END, HUNK_DATA
-                + longs(0x3F2)
+                + longs(0x3F0) + symbol("fixture_data", 0) + longs(0, 0x3F2)
             )
         else:
             source.write_text(
                 "        section timing,code\n"
                 "        nop\n"
+                "fixture_start:\n"
                 "        asl.l #1,d4\n"
                 "        mulu.w #40,d1\n"
                 "        rts\n"
+                "fixture_end:\n"
                 "        section table,data\n"
+                "fixture_data:\n"
                 "        dc.w $4e71,$4e75\n",
                 encoding="ascii",
             )
@@ -62,6 +71,20 @@ def main():
                 return []
             assert result.returncode == 0, result.stderr
             return [json.loads(line) for line in result.stdout.splitlines()]
+
+        def bounds(first, limit, success=True):
+            found = subprocess.run([decoder, "bounds", executable, first, limit],
+                                   capture_output=True, text=True)
+            if not success:
+                assert found.returncode != 0 and not found.stdout, found
+                return
+            assert found.returncode == 0, found.stderr
+            return json.loads(found.stdout)
+
+        assert bounds("fixture_start", "fixture_end") == {"section": 0, "start": 2, "length": 8}
+        bounds("fixture_end", "fixture_start", success=False)
+        bounds("fixture_start", "fixture_data", success=False)
+        bounds("missing", "fixture_end", success=False)
 
         rows = decode("hunk", executable, 0, 2, 8)
         assert [(r["section"], r["offset"], r["byte_count"], r["bytes"], r["mnemonic"], r["size"])
