@@ -90,3 +90,7 @@ This produces `tools/vasmm68k_mot.exe`, used for round-trip verification.
 
 - **Source:** http://sun.hasenbraten.de/vasm/
 - **License:** Free for non-commercial use
+
+## Optional manual extraction dependency
+
+Install the `manuals` extra to use the PDF extraction scripts. Existing knowledge-based replay and source export do not require PyMuPDF. This dependency is not vendored; its licensing and manual-source permissions require separate review.
