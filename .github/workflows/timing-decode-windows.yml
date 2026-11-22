@@ -31,4 +31,6 @@ jobs:
       - name: Decode known raw and Hunk instructions
         run: python src/tests/test_timing_decode.py src/build/m68k_timing_decode.exe
       - name: Check Python timing and proof rules
+        env:
+          M68K_TIMING_DECODER: src/build/m68k_timing_decode.exe
         run: python -m unittest discover -s experiments/m68k-cycle

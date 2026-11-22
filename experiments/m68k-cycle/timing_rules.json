@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "cpu": "68000",
+  "source": {
+    "title": "Motorola MC68000 8-/16-/32-Bit Microprocessors User's Manual, chapter 8",
+    "url": "https://www.nxp.com/docs/en/reference-manual/MC68000UM.pdf",
+    "provenance": "Maintainer-asserted small experimental subset of tables 8-3 through 8-9 and 8-13; not used by the production decoder or generator. Manual table cells and operand formulas lack a single unambiguous machine-readable layout."
+  },
+  "rules": {
+    "multiply": {"base": 38, "per_bit": 2, "source_word_bits": 16, "source_register_reads": 1, "immediate_ea": [4, 1]},
+    "divide_max": {"divs": 158, "divu": 140, "source_register_reads": 1, "immediate_ea": [4, 1]},
+    "register_shift": {"byte_word": 6, "long": 8, "per_count": 2, "register_modulus": 64, "zero_immediate_means": 8, "bus_reads": 1},
+    "branch": {"short_taken": [10, 2, 0], "short_not_taken": [8, 1, 0], "word_taken": [10, 2, 0], "word_not_taken": [12, 2, 0], "bsr": [18, 2, 2], "db_taken": [10, 2, 0], "db_true": [12, 2, 0], "db_expired": [14, 3, 0]},
+    "register_quick": {"byte_word": [4, 1, 0], "long": [8, 1, 0]},
+    "register_add_sub": {"byte_word": [4, 1, 0], "long": [8, 1, 0]},
+    "immediate_data": {"byte_word": [8, 2, 0], "long_compare": [14, 3, 0], "long_add_sub": [16, 3, 0]},
+    "move_to_register": {"from_register": [4, 1, 0], "immediate_byte_word": [8, 2, 0], "immediate_long": [12, 3, 0]},
+    "single_register": {"clocks_reads_writes": [4, 1, 0]},
+    "rts": {"clocks_reads_writes": [16, 4, 0]}
+  }
+}
