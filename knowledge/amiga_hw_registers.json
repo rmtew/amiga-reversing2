@@ -1,0 +1,8626 @@
+{
+  "base_address": "0xDFF000",
+  "fact_projection": {
+    "schema": "amiga-hardware-facts-v1",
+    "source_sha256": "02a373aaeed48fa065e205983e29ec054ea21f9d7473107bfb3464e8e2bde4af",
+    "function_encoding": "canonical-reader-predicate-vocabulary"
+  },
+  "registers": [
+    {
+      "name": "BLTDDAT",
+      "address": "0x000",
+      "address_68k": "0xDFF000",
+      "access": "ER",
+      "chip": "A",
+      "dma_only": true,
+      "copper_protected": true,
+      "function": "destination",
+      "bits": []
+    },
+    {
+      "name": "DMACONR",
+      "address": "0x002",
+      "address_68k": "0xDFF002",
+      "access": "R",
+      "chip": "AP",
+      "copper_protected": true,
+      "function": "dma",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SET/CLR"
+        },
+        {
+          "bit": 14,
+          "name": "BBUSY"
+        },
+        {
+          "bit": 13,
+          "name": "BZERO"
+        },
+        {
+          "bit": 12,
+          "name": "X"
+        },
+        {
+          "bit": 11,
+          "name": "X"
+        },
+        {
+          "bit": 10,
+          "name": "BLTPRI"
+        },
+        {
+          "bit": 9,
+          "name": "DMAEN"
+        },
+        {
+          "bit": 8,
+          "name": "BPLEN"
+        },
+        {
+          "bit": 7,
+          "name": "COPEN"
+        },
+        {
+          "bit": 6,
+          "name": "BLTEN"
+        },
+        {
+          "bit": 5,
+          "name": "SPREN"
+        },
+        {
+          "bit": 4,
+          "name": "DSKEN"
+        },
+        {
+          "bit": 3,
+          "name": "AUD3EN"
+        },
+        {
+          "bit": 2,
+          "name": "AUD2EN"
+        },
+        {
+          "bit": 1,
+          "name": "AUD1EN"
+        },
+        {
+          "bit": 0,
+          "name": "AUD0EN"
+        }
+      ]
+    },
+    {
+      "name": "VPOSR",
+      "address": "0x004",
+      "address_68k": "0xDFF004",
+      "access": "R",
+      "chip": "A",
+      "ecs": true,
+      "copper_protected": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "USE"
+        },
+        {
+          "bit": 14,
+          "name": "LOF--"
+        },
+        {
+          "bit": 8,
+          "name": "--,--"
+        },
+        {
+          "bit": 1,
+          "name": "V8"
+        }
+      ]
+    },
+    {
+      "name": "VHPOSR",
+      "address": "0x006",
+      "address_68k": "0xDFF006",
+      "access": "R",
+      "chip": "A",
+      "copper_protected": true,
+      "function": "beam",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "USE"
+        },
+        {
+          "bit": 14,
+          "name": "V7"
+        },
+        {
+          "bit": 13,
+          "name": "V6"
+        },
+        {
+          "bit": 12,
+          "name": "V5"
+        },
+        {
+          "bit": 11,
+          "name": "V4"
+        },
+        {
+          "bit": 10,
+          "name": "V3"
+        },
+        {
+          "bit": 9,
+          "name": "V2"
+        },
+        {
+          "bit": 8,
+          "name": "V1"
+        },
+        {
+          "bit": 7,
+          "name": "V0,H8"
+        },
+        {
+          "bit": 6,
+          "name": "H7"
+        },
+        {
+          "bit": 5,
+          "name": "H6"
+        },
+        {
+          "bit": 4,
+          "name": "H5"
+        },
+        {
+          "bit": 3,
+          "name": "H4"
+        },
+        {
+          "bit": 2,
+          "name": "H3"
+        },
+        {
+          "bit": 1,
+          "name": "H2"
+        },
+        {
+          "bit": 0,
+          "name": "H1"
+        }
+      ]
+    },
+    {
+      "name": "DSKDATR",
+      "address": "0x008",
+      "address_68k": "0xDFF008",
+      "access": "ER",
+      "chip": "P",
+      "dma_only": true,
+      "copper_protected": true,
+      "function": "disk",
+      "bits": []
+    },
+    {
+      "name": "JOY0DAT",
+      "address": "0x00A",
+      "address_68k": "0xDFF00A",
+      "access": "R",
+      "chip": "D",
+      "copper_protected": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "Y7"
+        },
+        {
+          "bit": 14,
+          "name": "Y6"
+        },
+        {
+          "bit": 13,
+          "name": "Y5"
+        },
+        {
+          "bit": 12,
+          "name": "Y4"
+        },
+        {
+          "bit": 11,
+          "name": "Y3"
+        },
+        {
+          "bit": 10,
+          "name": "Y2"
+        },
+        {
+          "bit": 9,
+          "name": "Y1"
+        },
+        {
+          "bit": 8,
+          "name": "Y0"
+        },
+        {
+          "bit": 7,
+          "name": "X7"
+        },
+        {
+          "bit": 6,
+          "name": "X6"
+        },
+        {
+          "bit": 5,
+          "name": "X5"
+        },
+        {
+          "bit": 4,
+          "name": "X4"
+        },
+        {
+          "bit": 3,
+          "name": "X3"
+        },
+        {
+          "bit": 2,
+          "name": "X2"
+        },
+        {
+          "bit": 1,
+          "name": "X1"
+        },
+        {
+          "bit": 0,
+          "name": "X0"
+        }
+      ]
+    },
+    {
+      "name": "JOY1DAT",
+      "address": "0x00C",
+      "address_68k": "0xDFF00C",
+      "access": "R",
+      "chip": "D",
+      "copper_protected": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "Y7"
+        },
+        {
+          "bit": 14,
+          "name": "Y6"
+        },
+        {
+          "bit": 13,
+          "name": "Y5"
+        },
+        {
+          "bit": 12,
+          "name": "Y4"
+        },
+        {
+          "bit": 11,
+          "name": "Y3"
+        },
+        {
+          "bit": 10,
+          "name": "Y2"
+        },
+        {
+          "bit": 9,
+          "name": "Y1"
+        },
+        {
+          "bit": 8,
+          "name": "Y0"
+        },
+        {
+          "bit": 7,
+          "name": "X7"
+        },
+        {
+          "bit": 6,
+          "name": "X6"
+        },
+        {
+          "bit": 5,
+          "name": "X5"
+        },
+        {
+          "bit": 4,
+          "name": "X4"
+        },
+        {
+          "bit": 3,
+          "name": "X3"
+        },
+        {
+          "bit": 2,
+          "name": "X2"
+        },
+        {
+          "bit": 1,
+          "name": "X1"
+        },
+        {
+          "bit": 0,
+          "name": "X0"
+        }
+      ]
+    },
+    {
+      "name": "CLXDAT",
+      "address": "0x00E",
+      "address_68k": "0xDFF00E",
+      "access": "R",
+      "chip": "D",
+      "copper_protected": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "not"
+        },
+        {
+          "bit": 14,
+          "name": "Sprite"
+        },
+        {
+          "bit": 13,
+          "name": "Sprite"
+        },
+        {
+          "bit": 12,
+          "name": "Sprite"
+        },
+        {
+          "bit": 11,
+          "name": "Sprite"
+        },
+        {
+          "bit": 10,
+          "name": "Sprite"
+        },
+        {
+          "bit": 9,
+          "name": "Sprite"
+        },
+        {
+          "bit": 8,
+          "name": "Playfield"
+        },
+        {
+          "bit": 7,
+          "name": "Playfield"
+        },
+        {
+          "bit": 6,
+          "name": "Playfield"
+        },
+        {
+          "bit": 5,
+          "name": "Playfield"
+        },
+        {
+          "bit": 4,
+          "name": "Playfield"
+        },
+        {
+          "bit": 3,
+          "name": "Playfield"
+        },
+        {
+          "bit": 2,
+          "name": "Playfield"
+        },
+        {
+          "bit": 1,
+          "name": "Playfield"
+        },
+        {
+          "bit": 0,
+          "name": "Playfield"
+        }
+      ]
+    },
+    {
+      "name": "ADKCONR",
+      "address": "0x010",
+      "address_68k": "0xDFF010",
+      "access": "R",
+      "chip": "P",
+      "copper_protected": true,
+      "function": "audio | disk",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SET/CLR"
+        },
+        {
+          "bit": 14,
+          "name": "PRECOMP"
+        },
+        {
+          "bit": 13,
+          "name": "PRECOMP"
+        }
+      ]
+    },
+    {
+      "name": "POT0DAT",
+      "address": "0x012",
+      "address_68k": "0xDFF012",
+      "access": "R",
+      "chip": "P",
+      "ecs": true,
+      "copper_protected": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "Y7"
+        },
+        {
+          "bit": 14,
+          "name": "Y6"
+        },
+        {
+          "bit": 13,
+          "name": "Y5"
+        },
+        {
+          "bit": 12,
+          "name": "Y4"
+        },
+        {
+          "bit": 11,
+          "name": "Y3"
+        },
+        {
+          "bit": 10,
+          "name": "Y2"
+        },
+        {
+          "bit": 9,
+          "name": "Y1"
+        },
+        {
+          "bit": 8,
+          "name": "Y0"
+        },
+        {
+          "bit": 7,
+          "name": "X7"
+        },
+        {
+          "bit": 6,
+          "name": "X6"
+        },
+        {
+          "bit": 5,
+          "name": "X5"
+        },
+        {
+          "bit": 4,
+          "name": "X4"
+        },
+        {
+          "bit": 3,
+          "name": "X3"
+        },
+        {
+          "bit": 2,
+          "name": "X2"
+        },
+        {
+          "bit": 1,
+          "name": "X1"
+        },
+        {
+          "bit": 0,
+          "name": "X0"
+        }
+      ]
+    },
+    {
+      "name": "POT1DAT",
+      "address": "0x014",
+      "address_68k": "0xDFF014",
+      "access": "R",
+      "chip": "P",
+      "ecs": true,
+      "copper_protected": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "Y7"
+        },
+        {
+          "bit": 14,
+          "name": "Y6"
+        },
+        {
+          "bit": 13,
+          "name": "Y5"
+        },
+        {
+          "bit": 12,
+          "name": "Y4"
+        },
+        {
+          "bit": 11,
+          "name": "Y3"
+        },
+        {
+          "bit": 10,
+          "name": "Y2"
+        },
+        {
+          "bit": 9,
+          "name": "Y1"
+        },
+        {
+          "bit": 8,
+          "name": "Y0"
+        },
+        {
+          "bit": 7,
+          "name": "X7"
+        },
+        {
+          "bit": 6,
+          "name": "X6"
+        },
+        {
+          "bit": 5,
+          "name": "X5"
+        },
+        {
+          "bit": 4,
+          "name": "X4"
+        },
+        {
+          "bit": 3,
+          "name": "X3"
+        },
+        {
+          "bit": 2,
+          "name": "X2"
+        },
+        {
+          "bit": 1,
+          "name": "X1"
+        },
+        {
+          "bit": 0,
+          "name": "X0"
+        }
+      ]
+    },
+    {
+      "name": "POTGOR",
+      "address": "0x016",
+      "address_68k": "0xDFF016",
+      "access": "R",
+      "chip": "P",
+      "copper_protected": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "OUTRY"
+        },
+        {
+          "bit": 14,
+          "name": "DATRY"
+        },
+        {
+          "bit": 13,
+          "name": "OUTRX"
+        },
+        {
+          "bit": 12,
+          "name": "DATRX"
+        },
+        {
+          "bit": 11,
+          "name": "OUTLY"
+        },
+        {
+          "bit": 10,
+          "name": "DATLY"
+        },
+        {
+          "bit": 9,
+          "name": "OUTLX"
+        },
+        {
+          "bit": 8,
+          "name": "DATLX"
+        },
+        {
+          "bit": 7,
+          "name": "0"
+        },
+        {
+          "bit": 6,
+          "name": "0"
+        },
+        {
+          "bit": 5,
+          "name": "0"
+        },
+        {
+          "bit": 4,
+          "name": "0"
+        },
+        {
+          "bit": 3,
+          "name": "0"
+        },
+        {
+          "bit": 2,
+          "name": "0"
+        },
+        {
+          "bit": 1,
+          "name": "0"
+        },
+        {
+          "bit": 0,
+          "name": "START"
+        }
+      ]
+    },
+    {
+      "name": "SERDATR",
+      "address": "0x018",
+      "address_68k": "0xDFF018",
+      "access": "R",
+      "chip": "P",
+      "copper_protected": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "0"
+        },
+        {
+          "bit": 14,
+          "name": "0"
+        },
+        {
+          "bit": 13,
+          "name": "0"
+        },
+        {
+          "bit": 12,
+          "name": "0"
+        },
+        {
+          "bit": 11,
+          "name": "0"
+        },
+        {
+          "bit": 10,
+          "name": "0"
+        },
+        {
+          "bit": 9,
+          "name": "S"
+        },
+        {
+          "bit": 8,
+          "name": "D8"
+        },
+        {
+          "bit": 7,
+          "name": "D7"
+        },
+        {
+          "bit": 6,
+          "name": "D6"
+        },
+        {
+          "bit": 5,
+          "name": "D5"
+        },
+        {
+          "bit": 4,
+          "name": "D4"
+        },
+        {
+          "bit": 3,
+          "name": "D3"
+        },
+        {
+          "bit": 2,
+          "name": "D2"
+        },
+        {
+          "bit": 1,
+          "name": "D1"
+        },
+        {
+          "bit": 0,
+          "name": "D0"
+        },
+        {
+          "bit": 15,
+          "name": "OVRUN"
+        },
+        {
+          "bit": 14,
+          "name": "RBF"
+        },
+        {
+          "bit": 13,
+          "name": "TBE"
+        },
+        {
+          "bit": 12,
+          "name": "TSRE"
+        },
+        {
+          "bit": 11,
+          "name": "RXD"
+        },
+        {
+          "bit": 10,
+          "name": "0"
+        },
+        {
+          "bit": 9,
+          "name": "STP"
+        },
+        {
+          "bit": 8,
+          "name": "STP-DB8"
+        },
+        {
+          "bit": 7,
+          "name": "DB7"
+        },
+        {
+          "bit": 6,
+          "name": "DB6"
+        },
+        {
+          "bit": 5,
+          "name": "DB5"
+        },
+        {
+          "bit": 4,
+          "name": "DB4"
+        },
+        {
+          "bit": 3,
+          "name": "DB3"
+        },
+        {
+          "bit": 2,
+          "name": "DB2"
+        },
+        {
+          "bit": 1,
+          "name": "DB1"
+        },
+        {
+          "bit": 0,
+          "name": "DB0"
+        }
+      ]
+    },
+    {
+      "name": "DSKBYTR",
+      "address": "0x01A",
+      "address_68k": "0xDFF01A",
+      "access": "R",
+      "chip": "P",
+      "copper_protected": true,
+      "function": "disk",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "DSKBYT"
+        },
+        {
+          "bit": 14,
+          "name": "DMAON"
+        },
+        {
+          "bit": 13,
+          "name": "DISKWRITE"
+        },
+        {
+          "bit": 12,
+          "name": "WORDEQUAL"
+        },
+        {
+          "bit": 11,
+          "name": "X"
+        },
+        {
+          "bit": 10,
+          "name": "X"
+        },
+        {
+          "bit": 9,
+          "name": "X"
+        },
+        {
+          "bit": 8,
+          "name": "X"
+        },
+        {
+          "bit": 7,
+          "name": "DATA"
+        },
+        {
+          "bit": 6,
+          "name": "DATA"
+        },
+        {
+          "bit": 5,
+          "name": "DATA"
+        },
+        {
+          "bit": 4,
+          "name": "DATA"
+        },
+        {
+          "bit": 3,
+          "name": "DATA"
+        },
+        {
+          "bit": 2,
+          "name": "DATA"
+        },
+        {
+          "bit": 1,
+          "name": "DATA"
+        },
+        {
+          "bit": 0,
+          "name": "DATA"
+        }
+      ]
+    },
+    {
+      "name": "INTENAR",
+      "address": "0x01C",
+      "address_68k": "0xDFF01C",
+      "access": "R",
+      "chip": "P",
+      "copper_protected": true,
+      "function": "interrupt",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SET/CLR"
+        },
+        {
+          "bit": 14,
+          "name": "INTEN"
+        },
+        {
+          "bit": 13,
+          "name": "EXTER",
+          "level": 6
+        },
+        {
+          "bit": 12,
+          "name": "DSKSYN",
+          "level": 5
+        },
+        {
+          "bit": 11,
+          "name": "RBF",
+          "level": 5
+        },
+        {
+          "bit": 10,
+          "name": "AUD3",
+          "level": 4
+        },
+        {
+          "bit": 9,
+          "name": "AUD2",
+          "level": 4
+        },
+        {
+          "bit": 8,
+          "name": "AUD1",
+          "level": 4
+        },
+        {
+          "bit": 7,
+          "name": "AUD0",
+          "level": 4
+        },
+        {
+          "bit": 6,
+          "name": "BLIT",
+          "level": 3
+        },
+        {
+          "bit": 5,
+          "name": "VERTB",
+          "level": 3
+        },
+        {
+          "bit": 4,
+          "name": "COPER",
+          "level": 3
+        },
+        {
+          "bit": 3,
+          "name": "PORTS",
+          "level": 2
+        },
+        {
+          "bit": 2,
+          "name": "SOFT",
+          "level": 1
+        },
+        {
+          "bit": 1,
+          "name": "DSKBLK",
+          "level": 1
+        },
+        {
+          "bit": 0,
+          "name": "TBE",
+          "level": 1
+        }
+      ]
+    },
+    {
+      "name": "INTREQR",
+      "address": "0x01E",
+      "address_68k": "0xDFF01E",
+      "access": "R",
+      "chip": "P",
+      "copper_protected": true,
+      "function": "interrupt",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SET/CLR"
+        },
+        {
+          "bit": 14,
+          "name": "INTEN"
+        },
+        {
+          "bit": 13,
+          "name": "EXTER",
+          "level": 6
+        },
+        {
+          "bit": 12,
+          "name": "DSKSYN",
+          "level": 5
+        },
+        {
+          "bit": 11,
+          "name": "RBF",
+          "level": 5
+        },
+        {
+          "bit": 10,
+          "name": "AUD3",
+          "level": 4
+        },
+        {
+          "bit": 9,
+          "name": "AUD2",
+          "level": 4
+        },
+        {
+          "bit": 8,
+          "name": "AUD1",
+          "level": 4
+        },
+        {
+          "bit": 7,
+          "name": "AUD0",
+          "level": 4
+        },
+        {
+          "bit": 6,
+          "name": "BLIT",
+          "level": 3
+        },
+        {
+          "bit": 5,
+          "name": "VERTB",
+          "level": 3
+        },
+        {
+          "bit": 4,
+          "name": "COPER",
+          "level": 3
+        },
+        {
+          "bit": 3,
+          "name": "PORTS",
+          "level": 2
+        },
+        {
+          "bit": 2,
+          "name": "SOFT",
+          "level": 1
+        },
+        {
+          "bit": 1,
+          "name": "DSKBLK",
+          "level": 1
+        },
+        {
+          "bit": 0,
+          "name": "TBE",
+          "level": 1
+        }
+      ]
+    },
+    {
+      "name": "DSKPTH",
+      "address": "0x020",
+      "address_68k": "0xDFF020",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "pointer_pair": true,
+      "copper_protected": true,
+      "function": "pointer | disk pointer | disk",
+      "bits": []
+    },
+    {
+      "name": "DSKPTL",
+      "address": "0x022",
+      "address_68k": "0xDFF022",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "copper_protected": true,
+      "function": "pointer | disk pointer | disk",
+      "bits": []
+    },
+    {
+      "name": "DSKLEN",
+      "address": "0x024",
+      "address_68k": "0xDFF024",
+      "access": "W",
+      "chip": "P",
+      "copper_protected": true,
+      "function": "disk",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "DMAEN"
+        },
+        {
+          "bit": 14,
+          "name": "WRITE"
+        },
+        {
+          "bit": 13,
+          "name": "LENGTH"
+        },
+        {
+          "bit": 12,
+          "name": "LENGTH"
+        },
+        {
+          "bit": 11,
+          "name": "LENGTH"
+        },
+        {
+          "bit": 10,
+          "name": "LENGTH"
+        },
+        {
+          "bit": 9,
+          "name": "LENGTH"
+        },
+        {
+          "bit": 8,
+          "name": "LENGTH"
+        },
+        {
+          "bit": 7,
+          "name": "LENGTH"
+        },
+        {
+          "bit": 6,
+          "name": "LENGTH"
+        },
+        {
+          "bit": 5,
+          "name": "LENGTH"
+        },
+        {
+          "bit": 4,
+          "name": "LENGTH"
+        },
+        {
+          "bit": 3,
+          "name": "LENGTH"
+        },
+        {
+          "bit": 2,
+          "name": "LENGTH"
+        },
+        {
+          "bit": 1,
+          "name": "LENGTH"
+        },
+        {
+          "bit": 0,
+          "name": "LENGTH"
+        }
+      ]
+    },
+    {
+      "name": "DSKDAT",
+      "address": "0x026",
+      "address_68k": "0xDFF026",
+      "access": "W",
+      "chip": "P",
+      "dma_only": true,
+      "copper_protected": true,
+      "function": "dma | disk",
+      "bits": []
+    },
+    {
+      "name": "REFPTR",
+      "address": "0x028",
+      "address_68k": "0xDFF028",
+      "access": "W",
+      "chip": "A",
+      "dma_only": true,
+      "copper_protected": true,
+      "function": "pointer",
+      "bits": []
+    },
+    {
+      "name": "VPOSW",
+      "address": "0x02A",
+      "address_68k": "0xDFF02A",
+      "access": "W",
+      "chip": "A",
+      "copper_protected": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "USE"
+        },
+        {
+          "bit": 14,
+          "name": "LOF--"
+        },
+        {
+          "bit": 8,
+          "name": "--,--"
+        },
+        {
+          "bit": 1,
+          "name": "V8"
+        }
+      ]
+    },
+    {
+      "name": "VHPOSW",
+      "address": "0x02C",
+      "address_68k": "0xDFF02C",
+      "access": "W",
+      "chip": "A",
+      "copper_protected": true,
+      "function": "beam",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "USE"
+        },
+        {
+          "bit": 14,
+          "name": "V7"
+        },
+        {
+          "bit": 13,
+          "name": "V6"
+        },
+        {
+          "bit": 12,
+          "name": "V5"
+        },
+        {
+          "bit": 11,
+          "name": "V4"
+        },
+        {
+          "bit": 10,
+          "name": "V3"
+        },
+        {
+          "bit": 9,
+          "name": "V2"
+        },
+        {
+          "bit": 8,
+          "name": "V1"
+        },
+        {
+          "bit": 7,
+          "name": "V0,H8"
+        },
+        {
+          "bit": 6,
+          "name": "H7"
+        },
+        {
+          "bit": 5,
+          "name": "H6"
+        },
+        {
+          "bit": 4,
+          "name": "H5"
+        },
+        {
+          "bit": 3,
+          "name": "H4"
+        },
+        {
+          "bit": 2,
+          "name": "H3"
+        },
+        {
+          "bit": 1,
+          "name": "H2"
+        },
+        {
+          "bit": 0,
+          "name": "H1"
+        }
+      ]
+    },
+    {
+      "name": "COPCON",
+      "address": "0x02E",
+      "address_68k": "0xDFF02E",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "copper_protected": true,
+      "function": "coprocessor",
+      "bits": [
+        {
+          "bit": 1,
+          "name": "CDANG"
+        }
+      ]
+    },
+    {
+      "name": "SERDAT",
+      "address": "0x030",
+      "address_68k": "0xDFF030",
+      "access": "W",
+      "chip": "P",
+      "copper_protected": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "0"
+        },
+        {
+          "bit": 14,
+          "name": "0"
+        },
+        {
+          "bit": 13,
+          "name": "0"
+        },
+        {
+          "bit": 12,
+          "name": "0"
+        },
+        {
+          "bit": 11,
+          "name": "0"
+        },
+        {
+          "bit": 10,
+          "name": "0"
+        },
+        {
+          "bit": 9,
+          "name": "S"
+        },
+        {
+          "bit": 8,
+          "name": "D8"
+        },
+        {
+          "bit": 7,
+          "name": "D7"
+        },
+        {
+          "bit": 6,
+          "name": "D6"
+        },
+        {
+          "bit": 5,
+          "name": "D5"
+        },
+        {
+          "bit": 4,
+          "name": "D4"
+        },
+        {
+          "bit": 3,
+          "name": "D3"
+        },
+        {
+          "bit": 2,
+          "name": "D2"
+        },
+        {
+          "bit": 1,
+          "name": "D1"
+        },
+        {
+          "bit": 0,
+          "name": "D0"
+        },
+        {
+          "bit": 15,
+          "name": "OVRUN"
+        },
+        {
+          "bit": 14,
+          "name": "RBF"
+        },
+        {
+          "bit": 13,
+          "name": "TBE"
+        },
+        {
+          "bit": 12,
+          "name": "TSRE"
+        },
+        {
+          "bit": 11,
+          "name": "RXD"
+        },
+        {
+          "bit": 10,
+          "name": "0"
+        },
+        {
+          "bit": 9,
+          "name": "STP"
+        },
+        {
+          "bit": 8,
+          "name": "STP-DB8"
+        },
+        {
+          "bit": 7,
+          "name": "DB7"
+        },
+        {
+          "bit": 6,
+          "name": "DB6"
+        },
+        {
+          "bit": 5,
+          "name": "DB5"
+        },
+        {
+          "bit": 4,
+          "name": "DB4"
+        },
+        {
+          "bit": 3,
+          "name": "DB3"
+        },
+        {
+          "bit": 2,
+          "name": "DB2"
+        },
+        {
+          "bit": 1,
+          "name": "DB1"
+        },
+        {
+          "bit": 0,
+          "name": "DB0"
+        }
+      ]
+    },
+    {
+      "name": "SERPER",
+      "address": "0x032",
+      "address_68k": "0xDFF032",
+      "access": "W",
+      "chip": "P",
+      "copper_protected": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "LONG"
+        },
+        {
+          "bit": 14,
+          "name": "RATE"
+        },
+        {
+          "bit": 13,
+          "name": "RATE"
+        },
+        {
+          "bit": 12,
+          "name": "RATE"
+        },
+        {
+          "bit": 11,
+          "name": "RATE"
+        },
+        {
+          "bit": 10,
+          "name": "RATE"
+        },
+        {
+          "bit": 9,
+          "name": "RATE"
+        },
+        {
+          "bit": 8,
+          "name": "RATE"
+        },
+        {
+          "bit": 7,
+          "name": "RATE"
+        },
+        {
+          "bit": 6,
+          "name": "RATE"
+        },
+        {
+          "bit": 5,
+          "name": "RATE"
+        },
+        {
+          "bit": 4,
+          "name": "RATE"
+        },
+        {
+          "bit": 3,
+          "name": "RATE"
+        },
+        {
+          "bit": 2,
+          "name": "RATE"
+        },
+        {
+          "bit": 1,
+          "name": "RATE"
+        },
+        {
+          "bit": 0,
+          "name": "RATE"
+        }
+      ]
+    },
+    {
+      "name": "POTGO",
+      "address": "0x034",
+      "address_68k": "0xDFF034",
+      "access": "W",
+      "chip": "P",
+      "copper_protected": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "OUTRY"
+        },
+        {
+          "bit": 14,
+          "name": "DATRY"
+        },
+        {
+          "bit": 13,
+          "name": "OUTRX"
+        },
+        {
+          "bit": 12,
+          "name": "DATRX"
+        },
+        {
+          "bit": 11,
+          "name": "OUTLY"
+        },
+        {
+          "bit": 10,
+          "name": "DATLY"
+        },
+        {
+          "bit": 9,
+          "name": "OUTLX"
+        },
+        {
+          "bit": 8,
+          "name": "DATLX"
+        },
+        {
+          "bit": 7,
+          "name": "0"
+        },
+        {
+          "bit": 6,
+          "name": "0"
+        },
+        {
+          "bit": 5,
+          "name": "0"
+        },
+        {
+          "bit": 4,
+          "name": "0"
+        },
+        {
+          "bit": 3,
+          "name": "0"
+        },
+        {
+          "bit": 2,
+          "name": "0"
+        },
+        {
+          "bit": 1,
+          "name": "0"
+        },
+        {
+          "bit": 0,
+          "name": "START"
+        }
+      ]
+    },
+    {
+      "name": "JOYTEST",
+      "address": "0x036",
+      "address_68k": "0xDFF036",
+      "access": "W",
+      "chip": "D",
+      "copper_protected": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "Y7"
+        },
+        {
+          "bit": 14,
+          "name": "Y6"
+        },
+        {
+          "bit": 13,
+          "name": "Y5"
+        },
+        {
+          "bit": 12,
+          "name": "Y4"
+        },
+        {
+          "bit": 11,
+          "name": "Y3"
+        },
+        {
+          "bit": 10,
+          "name": "Y2"
+        },
+        {
+          "bit": 9,
+          "name": "xx"
+        },
+        {
+          "bit": 8,
+          "name": "xx"
+        },
+        {
+          "bit": 7,
+          "name": "X7"
+        },
+        {
+          "bit": 6,
+          "name": "X6"
+        },
+        {
+          "bit": 5,
+          "name": "X5"
+        },
+        {
+          "bit": 4,
+          "name": "X4"
+        },
+        {
+          "bit": 3,
+          "name": "X3"
+        },
+        {
+          "bit": 2,
+          "name": "X2"
+        },
+        {
+          "bit": 1,
+          "name": "xx"
+        },
+        {
+          "bit": 0,
+          "name": "xx"
+        }
+      ]
+    },
+    {
+      "name": "STREQU",
+      "address": "0x038",
+      "address_68k": "0xDFF038",
+      "access": "S",
+      "chip": "D",
+      "dma_only": true,
+      "copper_protected": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "STRVBL",
+      "address": "0x03A",
+      "address_68k": "0xDFF03A",
+      "access": "S",
+      "chip": "D",
+      "dma_only": true,
+      "copper_protected": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "STRHOR",
+      "address": "0x03C",
+      "address_68k": "0xDFF03C",
+      "access": "S",
+      "chip": "DP",
+      "dma_only": true,
+      "copper_protected": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "STRLONG",
+      "address": "0x03E",
+      "address_68k": "0xDFF03E",
+      "access": "S",
+      "chip": "D",
+      "ecs": true,
+      "dma_only": true,
+      "copper_protected": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "BLTCON0",
+      "address": "0x040",
+      "address_68k": "0xDFF040",
+      "access": "W",
+      "chip": "A",
+      "copper_danger": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "ASH3"
+        },
+        {
+          "bit": 14,
+          "name": "ASH2"
+        },
+        {
+          "bit": 13,
+          "name": "ASH1"
+        },
+        {
+          "bit": 12,
+          "name": "ASA0"
+        },
+        {
+          "bit": 11,
+          "name": "USEA"
+        },
+        {
+          "bit": 10,
+          "name": "USEB"
+        },
+        {
+          "bit": 9,
+          "name": "USEC"
+        },
+        {
+          "bit": 8,
+          "name": "USED"
+        },
+        {
+          "bit": 7,
+          "name": "LF7"
+        },
+        {
+          "bit": 6,
+          "name": "LF6"
+        },
+        {
+          "bit": 5,
+          "name": "LF5"
+        },
+        {
+          "bit": 4,
+          "name": "LF4"
+        },
+        {
+          "bit": 3,
+          "name": "LF3"
+        },
+        {
+          "bit": 2,
+          "name": "LF2"
+        },
+        {
+          "bit": 1,
+          "name": "LF1"
+        },
+        {
+          "bit": 0,
+          "name": "LF0"
+        }
+      ]
+    },
+    {
+      "name": "BLTCON1",
+      "address": "0x042",
+      "address_68k": "0xDFF042",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "copper_danger": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "ASH3"
+        },
+        {
+          "bit": 14,
+          "name": "ASH2"
+        },
+        {
+          "bit": 13,
+          "name": "ASH1"
+        },
+        {
+          "bit": 12,
+          "name": "ASA0"
+        },
+        {
+          "bit": 11,
+          "name": "USEA"
+        },
+        {
+          "bit": 10,
+          "name": "USEB"
+        },
+        {
+          "bit": 9,
+          "name": "USEC"
+        },
+        {
+          "bit": 8,
+          "name": "USED"
+        },
+        {
+          "bit": 7,
+          "name": "LF7"
+        },
+        {
+          "bit": 6,
+          "name": "LF6"
+        },
+        {
+          "bit": 5,
+          "name": "LF5"
+        },
+        {
+          "bit": 4,
+          "name": "LF4"
+        },
+        {
+          "bit": 3,
+          "name": "LF3"
+        },
+        {
+          "bit": 2,
+          "name": "LF2"
+        },
+        {
+          "bit": 1,
+          "name": "LF1"
+        },
+        {
+          "bit": 0,
+          "name": "LF0"
+        }
+      ]
+    },
+    {
+      "name": "BLTAFWM",
+      "address": "0x044",
+      "address_68k": "0xDFF044",
+      "access": "W",
+      "chip": "A",
+      "copper_danger": true,
+      "function": "source",
+      "bits": []
+    },
+    {
+      "name": "BLTALWM",
+      "address": "0x046",
+      "address_68k": "0xDFF046",
+      "access": "W",
+      "chip": "A",
+      "copper_danger": true,
+      "function": "source",
+      "bits": []
+    },
+    {
+      "name": "BLTCPTH",
+      "address": "0x048",
+      "address_68k": "0xDFF048",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "copper_danger": true,
+      "function": "pointer | blitter pointer | source",
+      "bits": []
+    },
+    {
+      "name": "BLTCPTL",
+      "address": "0x04A",
+      "address_68k": "0xDFF04A",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "copper_danger": true,
+      "function": "pointer | blitter pointer | source",
+      "bits": []
+    },
+    {
+      "name": "BLTBPTH",
+      "address": "0x04C",
+      "address_68k": "0xDFF04C",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "copper_danger": true,
+      "function": "pointer | blitter pointer | source",
+      "bits": []
+    },
+    {
+      "name": "BLTBPTL",
+      "address": "0x04E",
+      "address_68k": "0xDFF04E",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "copper_danger": true,
+      "function": "pointer | blitter pointer | source",
+      "bits": []
+    },
+    {
+      "name": "BLTAPTH",
+      "address": "0x050",
+      "address_68k": "0xDFF050",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "pointer_pair": true,
+      "copper_danger": true,
+      "function": "pointer | blitter pointer | source",
+      "bits": []
+    },
+    {
+      "name": "BLTAPTL",
+      "address": "0x052",
+      "address_68k": "0xDFF052",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "copper_danger": true,
+      "function": "pointer | blitter pointer | source",
+      "bits": []
+    },
+    {
+      "name": "BLTDPTH",
+      "address": "0x054",
+      "address_68k": "0xDFF054",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "copper_danger": true,
+      "function": "pointer | blitter pointer | destination",
+      "bits": []
+    },
+    {
+      "name": "BLTDPTL",
+      "address": "0x056",
+      "address_68k": "0xDFF056",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "copper_danger": true,
+      "function": "pointer | blitter pointer | destination",
+      "bits": []
+    },
+    {
+      "name": "BLTSIZE",
+      "address": "0x058",
+      "address_68k": "0xDFF058",
+      "access": "W",
+      "chip": "A",
+      "copper_danger": true,
+      "function": "window",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "h9"
+        },
+        {
+          "bit": 14,
+          "name": "h8"
+        },
+        {
+          "bit": 13,
+          "name": "h7"
+        },
+        {
+          "bit": 12,
+          "name": "h6"
+        },
+        {
+          "bit": 11,
+          "name": "h5"
+        },
+        {
+          "bit": 10,
+          "name": "h4"
+        },
+        {
+          "bit": 9,
+          "name": "h3"
+        },
+        {
+          "bit": 8,
+          "name": "h2"
+        },
+        {
+          "bit": 7,
+          "name": "h1"
+        },
+        {
+          "bit": 6,
+          "name": "h0,w5"
+        },
+        {
+          "bit": 5,
+          "name": "w4"
+        },
+        {
+          "bit": 4,
+          "name": "w3"
+        },
+        {
+          "bit": 3,
+          "name": "w2"
+        },
+        {
+          "bit": 2,
+          "name": "w1"
+        },
+        {
+          "bit": 1,
+          "name": "w0"
+        }
+      ]
+    },
+    {
+      "name": "BLTCON0L",
+      "address": "0x05A",
+      "address_68k": "0xDFF05A",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "copper_danger": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "BLTSIZV",
+      "address": "0x05C",
+      "address_68k": "0xDFF05C",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "copper_danger": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "h9"
+        },
+        {
+          "bit": 14,
+          "name": "h8"
+        },
+        {
+          "bit": 13,
+          "name": "h7"
+        },
+        {
+          "bit": 12,
+          "name": "h6"
+        },
+        {
+          "bit": 11,
+          "name": "h5"
+        },
+        {
+          "bit": 10,
+          "name": "h4"
+        },
+        {
+          "bit": 9,
+          "name": "h3"
+        },
+        {
+          "bit": 8,
+          "name": "h2"
+        },
+        {
+          "bit": 7,
+          "name": "h1"
+        },
+        {
+          "bit": 6,
+          "name": "h0,w5"
+        },
+        {
+          "bit": 5,
+          "name": "w4"
+        },
+        {
+          "bit": 4,
+          "name": "w3"
+        },
+        {
+          "bit": 3,
+          "name": "w2"
+        },
+        {
+          "bit": 2,
+          "name": "w1"
+        },
+        {
+          "bit": 1,
+          "name": "w0"
+        }
+      ]
+    },
+    {
+      "name": "BLTSIZH",
+      "address": "0x05E",
+      "address_68k": "0xDFF05E",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "copper_danger": true,
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "h9"
+        },
+        {
+          "bit": 14,
+          "name": "h8"
+        },
+        {
+          "bit": 13,
+          "name": "h7"
+        },
+        {
+          "bit": 12,
+          "name": "h6"
+        },
+        {
+          "bit": 11,
+          "name": "h5"
+        },
+        {
+          "bit": 10,
+          "name": "h4"
+        },
+        {
+          "bit": 9,
+          "name": "h3"
+        },
+        {
+          "bit": 8,
+          "name": "h2"
+        },
+        {
+          "bit": 7,
+          "name": "h1"
+        },
+        {
+          "bit": 6,
+          "name": "h0,w5"
+        },
+        {
+          "bit": 5,
+          "name": "w4"
+        },
+        {
+          "bit": 4,
+          "name": "w3"
+        },
+        {
+          "bit": 3,
+          "name": "w2"
+        },
+        {
+          "bit": 2,
+          "name": "w1"
+        },
+        {
+          "bit": 1,
+          "name": "w0"
+        }
+      ]
+    },
+    {
+      "name": "BLTCMOD",
+      "address": "0x060",
+      "address_68k": "0xDFF060",
+      "access": "W",
+      "chip": "A",
+      "copper_danger": true,
+      "function": "source | modulo",
+      "bits": []
+    },
+    {
+      "name": "BLTBMOD",
+      "address": "0x062",
+      "address_68k": "0xDFF062",
+      "access": "W",
+      "chip": "A",
+      "copper_danger": true,
+      "function": "source | modulo",
+      "bits": []
+    },
+    {
+      "name": "BLTAMOD",
+      "address": "0x064",
+      "address_68k": "0xDFF064",
+      "access": "W",
+      "chip": "A",
+      "copper_danger": true,
+      "function": "source | modulo",
+      "bits": []
+    },
+    {
+      "name": "BLTDMOD",
+      "address": "0x066",
+      "address_68k": "0xDFF066",
+      "access": "W",
+      "chip": "A",
+      "copper_danger": true,
+      "function": "destination | modulo",
+      "bits": []
+    },
+    {
+      "name": "BLTCDAT",
+      "address": "0x070",
+      "address_68k": "0xDFF070",
+      "access": "W",
+      "chip": "A",
+      "dma_usually": true,
+      "copper_danger": true,
+      "function": "source",
+      "bits": []
+    },
+    {
+      "name": "BLTBDAT",
+      "address": "0x072",
+      "address_68k": "0xDFF072",
+      "access": "W",
+      "chip": "A",
+      "dma_usually": true,
+      "copper_danger": true,
+      "function": "source",
+      "bits": []
+    },
+    {
+      "name": "BLTADAT",
+      "address": "0x074",
+      "address_68k": "0xDFF074",
+      "access": "W",
+      "chip": "A",
+      "dma_usually": true,
+      "copper_danger": true,
+      "function": "source",
+      "bits": []
+    },
+    {
+      "name": "SPRHDAT",
+      "address": "0x078",
+      "address_68k": "0xDFF078",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "copper_danger": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "DENISEID",
+      "address": "0x07C",
+      "address_68k": "0xDFF07C",
+      "access": "R",
+      "chip": "D",
+      "ecs": true,
+      "copper_danger": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "DSKSYNC",
+      "address": "0x07E",
+      "address_68k": "0xDFF07E",
+      "access": "W",
+      "chip": "P",
+      "copper_danger": true,
+      "function": "disk",
+      "bits": []
+    },
+    {
+      "name": "COP1LCH",
+      "address": "0x080",
+      "address_68k": "0xDFF080",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "pointer_pair": true,
+      "function": "location | coprocessor",
+      "bits": []
+    },
+    {
+      "name": "COP1LCL",
+      "address": "0x082",
+      "address_68k": "0xDFF082",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "location | coprocessor",
+      "bits": []
+    },
+    {
+      "name": "COP2LCH",
+      "address": "0x084",
+      "address_68k": "0xDFF084",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "pointer_pair": true,
+      "function": "location | coprocessor",
+      "bits": []
+    },
+    {
+      "name": "COP2LCL",
+      "address": "0x086",
+      "address_68k": "0xDFF086",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "location | coprocessor",
+      "bits": []
+    },
+    {
+      "name": "COPJMP1",
+      "address": "0x088",
+      "address_68k": "0xDFF088",
+      "access": "S",
+      "chip": "A",
+      "function": "location | coprocessor",
+      "bits": []
+    },
+    {
+      "name": "COPJMP2",
+      "address": "0x08A",
+      "address_68k": "0xDFF08A",
+      "access": "S",
+      "chip": "A",
+      "function": "location | coprocessor",
+      "bits": []
+    },
+    {
+      "name": "COPINS",
+      "address": "0x08C",
+      "address_68k": "0xDFF08C",
+      "access": "W",
+      "chip": "A",
+      "function": "coprocessor",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "X"
+        },
+        {
+          "bit": 14,
+          "name": "X"
+        },
+        {
+          "bit": 13,
+          "name": "X"
+        },
+        {
+          "bit": 12,
+          "name": "X"
+        },
+        {
+          "bit": 11,
+          "name": "X"
+        },
+        {
+          "bit": 10,
+          "name": "X"
+        },
+        {
+          "bit": 9,
+          "name": "X"
+        },
+        {
+          "bit": 8,
+          "name": "DA8"
+        },
+        {
+          "bit": 7,
+          "name": "DA7"
+        },
+        {
+          "bit": 6,
+          "name": "DA6"
+        },
+        {
+          "bit": 5,
+          "name": "DA5"
+        },
+        {
+          "bit": 4,
+          "name": "DA4"
+        },
+        {
+          "bit": 3,
+          "name": "DA3"
+        },
+        {
+          "bit": 2,
+          "name": "DA2"
+        },
+        {
+          "bit": 1,
+          "name": "DA1"
+        },
+        {
+          "bit": 0,
+          "name": "0"
+        }
+      ]
+    },
+    {
+      "name": "DIWSTRT",
+      "address": "0x08E",
+      "address_68k": "0xDFF08E",
+      "access": "W",
+      "chip": "A",
+      "function": "display | window",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "V7"
+        },
+        {
+          "bit": 14,
+          "name": "V6"
+        },
+        {
+          "bit": 13,
+          "name": "V5"
+        },
+        {
+          "bit": 12,
+          "name": "V4"
+        },
+        {
+          "bit": 11,
+          "name": "V3"
+        },
+        {
+          "bit": 10,
+          "name": "V2"
+        },
+        {
+          "bit": 9,
+          "name": "V1"
+        },
+        {
+          "bit": 8,
+          "name": "V0"
+        },
+        {
+          "bit": 7,
+          "name": "H7"
+        },
+        {
+          "bit": 6,
+          "name": "H6"
+        },
+        {
+          "bit": 5,
+          "name": "H5"
+        },
+        {
+          "bit": 4,
+          "name": "H4"
+        },
+        {
+          "bit": 3,
+          "name": "H3"
+        },
+        {
+          "bit": 2,
+          "name": "H2"
+        },
+        {
+          "bit": 1,
+          "name": "H1"
+        },
+        {
+          "bit": 0,
+          "name": "H0"
+        }
+      ]
+    },
+    {
+      "name": "DIWSTOP",
+      "address": "0x090",
+      "address_68k": "0xDFF090",
+      "access": "W",
+      "chip": "A",
+      "function": "display | window",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "V7"
+        },
+        {
+          "bit": 14,
+          "name": "V6"
+        },
+        {
+          "bit": 13,
+          "name": "V5"
+        },
+        {
+          "bit": 12,
+          "name": "V4"
+        },
+        {
+          "bit": 11,
+          "name": "V3"
+        },
+        {
+          "bit": 10,
+          "name": "V2"
+        },
+        {
+          "bit": 9,
+          "name": "V1"
+        },
+        {
+          "bit": 8,
+          "name": "V0"
+        },
+        {
+          "bit": 7,
+          "name": "H7"
+        },
+        {
+          "bit": 6,
+          "name": "H6"
+        },
+        {
+          "bit": 5,
+          "name": "H5"
+        },
+        {
+          "bit": 4,
+          "name": "H4"
+        },
+        {
+          "bit": 3,
+          "name": "H3"
+        },
+        {
+          "bit": 2,
+          "name": "H2"
+        },
+        {
+          "bit": 1,
+          "name": "H1"
+        },
+        {
+          "bit": 0,
+          "name": "H0"
+        }
+      ]
+    },
+    {
+      "name": "DDFSTRT",
+      "address": "0x092",
+      "address_68k": "0xDFF092",
+      "access": "W",
+      "chip": "A",
+      "function": "bitplane | display",
+      "bits": [
+        {
+          "bit": 7,
+          "name": "H8"
+        },
+        {
+          "bit": 6,
+          "name": "H7"
+        },
+        {
+          "bit": 5,
+          "name": "H6"
+        },
+        {
+          "bit": 4,
+          "name": "H5"
+        },
+        {
+          "bit": 3,
+          "name": "H4"
+        },
+        {
+          "bit": 2,
+          "name": "H3"
+        }
+      ]
+    },
+    {
+      "name": "DDFSTOP",
+      "address": "0x094",
+      "address_68k": "0xDFF094",
+      "access": "W",
+      "chip": "A",
+      "function": "bitplane | display",
+      "bits": [
+        {
+          "bit": 7,
+          "name": "H8"
+        },
+        {
+          "bit": 6,
+          "name": "H7"
+        },
+        {
+          "bit": 5,
+          "name": "H6"
+        },
+        {
+          "bit": 4,
+          "name": "H5"
+        },
+        {
+          "bit": 3,
+          "name": "H4"
+        },
+        {
+          "bit": 2,
+          "name": "H3"
+        }
+      ]
+    },
+    {
+      "name": "DMACON",
+      "address": "0x096",
+      "address_68k": "0xDFF096",
+      "access": "W",
+      "chip": "ADP",
+      "function": "dma",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SET/CLR"
+        },
+        {
+          "bit": 14,
+          "name": "BBUSY"
+        },
+        {
+          "bit": 13,
+          "name": "BZERO"
+        },
+        {
+          "bit": 12,
+          "name": "X"
+        },
+        {
+          "bit": 11,
+          "name": "X"
+        },
+        {
+          "bit": 10,
+          "name": "BLTPRI"
+        },
+        {
+          "bit": 9,
+          "name": "DMAEN"
+        },
+        {
+          "bit": 8,
+          "name": "BPLEN"
+        },
+        {
+          "bit": 7,
+          "name": "COPEN"
+        },
+        {
+          "bit": 6,
+          "name": "BLTEN"
+        },
+        {
+          "bit": 5,
+          "name": "SPREN"
+        },
+        {
+          "bit": 4,
+          "name": "DSKEN"
+        },
+        {
+          "bit": 3,
+          "name": "AUD3EN"
+        },
+        {
+          "bit": 2,
+          "name": "AUD2EN"
+        },
+        {
+          "bit": 1,
+          "name": "AUD1EN"
+        },
+        {
+          "bit": 0,
+          "name": "AUD0EN"
+        }
+      ]
+    },
+    {
+      "name": "CLXCON",
+      "address": "0x098",
+      "address_68k": "0xDFF098",
+      "access": "W",
+      "chip": "D",
+      "function": "",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "ENSP7"
+        },
+        {
+          "bit": 14,
+          "name": "ENSP5"
+        },
+        {
+          "bit": 13,
+          "name": "ENSP3"
+        },
+        {
+          "bit": 12,
+          "name": "ENSP1"
+        },
+        {
+          "bit": 11,
+          "name": "ENBP6"
+        },
+        {
+          "bit": 10,
+          "name": "ENBP5"
+        },
+        {
+          "bit": 9,
+          "name": "ENBP4"
+        },
+        {
+          "bit": 8,
+          "name": "ENBP3"
+        },
+        {
+          "bit": 7,
+          "name": "ENBP2"
+        },
+        {
+          "bit": 6,
+          "name": "ENBP1"
+        },
+        {
+          "bit": 5,
+          "name": "MVBP6"
+        },
+        {
+          "bit": 4,
+          "name": "MVBP5"
+        },
+        {
+          "bit": 3,
+          "name": "MVBP4"
+        },
+        {
+          "bit": 2,
+          "name": "MVBP3"
+        },
+        {
+          "bit": 1,
+          "name": "MVBP2"
+        },
+        {
+          "bit": 0,
+          "name": "MVBP1"
+        }
+      ]
+    },
+    {
+      "name": "INTENA",
+      "address": "0x09A",
+      "address_68k": "0xDFF09A",
+      "access": "W",
+      "chip": "P",
+      "function": "interrupt",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SET/CLR"
+        },
+        {
+          "bit": 14,
+          "name": "INTEN"
+        },
+        {
+          "bit": 13,
+          "name": "EXTER",
+          "level": 6
+        },
+        {
+          "bit": 12,
+          "name": "DSKSYN",
+          "level": 5
+        },
+        {
+          "bit": 11,
+          "name": "RBF",
+          "level": 5
+        },
+        {
+          "bit": 10,
+          "name": "AUD3",
+          "level": 4
+        },
+        {
+          "bit": 9,
+          "name": "AUD2",
+          "level": 4
+        },
+        {
+          "bit": 8,
+          "name": "AUD1",
+          "level": 4
+        },
+        {
+          "bit": 7,
+          "name": "AUD0",
+          "level": 4
+        },
+        {
+          "bit": 6,
+          "name": "BLIT",
+          "level": 3
+        },
+        {
+          "bit": 5,
+          "name": "VERTB",
+          "level": 3
+        },
+        {
+          "bit": 4,
+          "name": "COPER",
+          "level": 3
+        },
+        {
+          "bit": 3,
+          "name": "PORTS",
+          "level": 2
+        },
+        {
+          "bit": 2,
+          "name": "SOFT",
+          "level": 1
+        },
+        {
+          "bit": 1,
+          "name": "DSKBLK",
+          "level": 1
+        },
+        {
+          "bit": 0,
+          "name": "TBE",
+          "level": 1
+        }
+      ]
+    },
+    {
+      "name": "INTREQ",
+      "address": "0x09C",
+      "address_68k": "0xDFF09C",
+      "access": "W",
+      "chip": "P",
+      "function": "interrupt",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SET/CLR"
+        },
+        {
+          "bit": 14,
+          "name": "INTEN"
+        },
+        {
+          "bit": 13,
+          "name": "EXTER",
+          "level": 6
+        },
+        {
+          "bit": 12,
+          "name": "DSKSYN",
+          "level": 5
+        },
+        {
+          "bit": 11,
+          "name": "RBF",
+          "level": 5
+        },
+        {
+          "bit": 10,
+          "name": "AUD3",
+          "level": 4
+        },
+        {
+          "bit": 9,
+          "name": "AUD2",
+          "level": 4
+        },
+        {
+          "bit": 8,
+          "name": "AUD1",
+          "level": 4
+        },
+        {
+          "bit": 7,
+          "name": "AUD0",
+          "level": 4
+        },
+        {
+          "bit": 6,
+          "name": "BLIT",
+          "level": 3
+        },
+        {
+          "bit": 5,
+          "name": "VERTB",
+          "level": 3
+        },
+        {
+          "bit": 4,
+          "name": "COPER",
+          "level": 3
+        },
+        {
+          "bit": 3,
+          "name": "PORTS",
+          "level": 2
+        },
+        {
+          "bit": 2,
+          "name": "SOFT",
+          "level": 1
+        },
+        {
+          "bit": 1,
+          "name": "DSKBLK",
+          "level": 1
+        },
+        {
+          "bit": 0,
+          "name": "TBE",
+          "level": 1
+        }
+      ]
+    },
+    {
+      "name": "ADKCON",
+      "address": "0x09E",
+      "address_68k": "0xDFF09E",
+      "access": "W",
+      "chip": "P",
+      "function": "audio | disk",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SET/CLR"
+        },
+        {
+          "bit": 14,
+          "name": "PRECOMP"
+        },
+        {
+          "bit": 13,
+          "name": "PRECOMP"
+        }
+      ]
+    },
+    {
+      "name": "AUD0LCH",
+      "address": "0x0A0",
+      "address_68k": "0xDFF0A0",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "pointer_pair": true,
+      "function": "location | audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD0LCL",
+      "address": "0x0A2",
+      "address_68k": "0xDFF0A2",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "location | audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD0LEN",
+      "address": "0x0A4",
+      "address_68k": "0xDFF0A4",
+      "access": "W",
+      "chip": "P",
+      "function": "audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD0PER",
+      "address": "0x0A6",
+      "address_68k": "0xDFF0A6",
+      "access": "W",
+      "chip": "P",
+      "ecs": true,
+      "function": "audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD0VOL",
+      "address": "0x0A8",
+      "address_68k": "0xDFF0A8",
+      "access": "W",
+      "chip": "P",
+      "function": "audio channel | audio",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "Not"
+        },
+        {
+          "bit": 14,
+          "name": "Not"
+        },
+        {
+          "bit": 13,
+          "name": "Not"
+        },
+        {
+          "bit": 12,
+          "name": "Not"
+        },
+        {
+          "bit": 11,
+          "name": "Not"
+        },
+        {
+          "bit": 10,
+          "name": "Not"
+        },
+        {
+          "bit": 9,
+          "name": "Not"
+        },
+        {
+          "bit": 8,
+          "name": "Not"
+        },
+        {
+          "bit": 7,
+          "name": "Not"
+        },
+        {
+          "bit": 6,
+          "name": "Forces"
+        },
+        {
+          "bit": 5,
+          "name": "Sets"
+        },
+        {
+          "bit": 4,
+          "name": "Sets"
+        },
+        {
+          "bit": 3,
+          "name": "Sets"
+        },
+        {
+          "bit": 2,
+          "name": "Sets"
+        },
+        {
+          "bit": 1,
+          "name": "Sets"
+        },
+        {
+          "bit": 0,
+          "name": "Sets"
+        }
+      ]
+    },
+    {
+      "name": "AUD0DAT",
+      "address": "0x0AA",
+      "address_68k": "0xDFF0AA",
+      "access": "W",
+      "chip": "P",
+      "dma_only": true,
+      "function": "audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD1LCH",
+      "address": "0x0B0",
+      "address_68k": "0xDFF0B0",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "location | audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD1LCL",
+      "address": "0x0B2",
+      "address_68k": "0xDFF0B2",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "location | audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD1LEN",
+      "address": "0x0B4",
+      "address_68k": "0xDFF0B4",
+      "access": "W",
+      "chip": "P",
+      "function": "audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD1PER",
+      "address": "0x0B6",
+      "address_68k": "0xDFF0B6",
+      "access": "W",
+      "chip": "P",
+      "function": "audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD1VOL",
+      "address": "0x0B8",
+      "address_68k": "0xDFF0B8",
+      "access": "W",
+      "chip": "P",
+      "function": "audio channel | audio",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "Not"
+        },
+        {
+          "bit": 14,
+          "name": "Not"
+        },
+        {
+          "bit": 13,
+          "name": "Not"
+        },
+        {
+          "bit": 12,
+          "name": "Not"
+        },
+        {
+          "bit": 11,
+          "name": "Not"
+        },
+        {
+          "bit": 10,
+          "name": "Not"
+        },
+        {
+          "bit": 9,
+          "name": "Not"
+        },
+        {
+          "bit": 8,
+          "name": "Not"
+        },
+        {
+          "bit": 7,
+          "name": "Not"
+        },
+        {
+          "bit": 6,
+          "name": "Forces"
+        },
+        {
+          "bit": 5,
+          "name": "Sets"
+        },
+        {
+          "bit": 4,
+          "name": "Sets"
+        },
+        {
+          "bit": 3,
+          "name": "Sets"
+        },
+        {
+          "bit": 2,
+          "name": "Sets"
+        },
+        {
+          "bit": 1,
+          "name": "Sets"
+        },
+        {
+          "bit": 0,
+          "name": "Sets"
+        }
+      ]
+    },
+    {
+      "name": "AUD1DAT",
+      "address": "0x0BA",
+      "address_68k": "0xDFF0BA",
+      "access": "W",
+      "chip": "P",
+      "dma_only": true,
+      "function": "audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD2LCH",
+      "address": "0x0C0",
+      "address_68k": "0xDFF0C0",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "location | audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD2LCL",
+      "address": "0x0C2",
+      "address_68k": "0xDFF0C2",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "location | audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD2LEN",
+      "address": "0x0C4",
+      "address_68k": "0xDFF0C4",
+      "access": "W",
+      "chip": "P",
+      "function": "audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD2PER",
+      "address": "0x0C6",
+      "address_68k": "0xDFF0C6",
+      "access": "W",
+      "chip": "P",
+      "function": "audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD2VOL",
+      "address": "0x0C8",
+      "address_68k": "0xDFF0C8",
+      "access": "W",
+      "chip": "P",
+      "function": "audio channel | audio",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "Not"
+        },
+        {
+          "bit": 14,
+          "name": "Not"
+        },
+        {
+          "bit": 13,
+          "name": "Not"
+        },
+        {
+          "bit": 12,
+          "name": "Not"
+        },
+        {
+          "bit": 11,
+          "name": "Not"
+        },
+        {
+          "bit": 10,
+          "name": "Not"
+        },
+        {
+          "bit": 9,
+          "name": "Not"
+        },
+        {
+          "bit": 8,
+          "name": "Not"
+        },
+        {
+          "bit": 7,
+          "name": "Not"
+        },
+        {
+          "bit": 6,
+          "name": "Forces"
+        },
+        {
+          "bit": 5,
+          "name": "Sets"
+        },
+        {
+          "bit": 4,
+          "name": "Sets"
+        },
+        {
+          "bit": 3,
+          "name": "Sets"
+        },
+        {
+          "bit": 2,
+          "name": "Sets"
+        },
+        {
+          "bit": 1,
+          "name": "Sets"
+        },
+        {
+          "bit": 0,
+          "name": "Sets"
+        }
+      ]
+    },
+    {
+      "name": "AUD2DAT",
+      "address": "0x0CA",
+      "address_68k": "0xDFF0CA",
+      "access": "W",
+      "chip": "P",
+      "dma_only": true,
+      "function": "audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD3LCH",
+      "address": "0x0D0",
+      "address_68k": "0xDFF0D0",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "location | audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD3LCL",
+      "address": "0x0D2",
+      "address_68k": "0xDFF0D2",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "location | audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD3LEN",
+      "address": "0x0D4",
+      "address_68k": "0xDFF0D4",
+      "access": "W",
+      "chip": "P",
+      "function": "audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD3PER",
+      "address": "0x0D6",
+      "address_68k": "0xDFF0D6",
+      "access": "W",
+      "chip": "P",
+      "function": "audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "AUD3VOL",
+      "address": "0x0D8",
+      "address_68k": "0xDFF0D8",
+      "access": "W",
+      "chip": "P",
+      "function": "audio channel | audio",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "Not"
+        },
+        {
+          "bit": 14,
+          "name": "Not"
+        },
+        {
+          "bit": 13,
+          "name": "Not"
+        },
+        {
+          "bit": 12,
+          "name": "Not"
+        },
+        {
+          "bit": 11,
+          "name": "Not"
+        },
+        {
+          "bit": 10,
+          "name": "Not"
+        },
+        {
+          "bit": 9,
+          "name": "Not"
+        },
+        {
+          "bit": 8,
+          "name": "Not"
+        },
+        {
+          "bit": 7,
+          "name": "Not"
+        },
+        {
+          "bit": 6,
+          "name": "Forces"
+        },
+        {
+          "bit": 5,
+          "name": "Sets"
+        },
+        {
+          "bit": 4,
+          "name": "Sets"
+        },
+        {
+          "bit": 3,
+          "name": "Sets"
+        },
+        {
+          "bit": 2,
+          "name": "Sets"
+        },
+        {
+          "bit": 1,
+          "name": "Sets"
+        },
+        {
+          "bit": 0,
+          "name": "Sets"
+        }
+      ]
+    },
+    {
+      "name": "AUD3DAT",
+      "address": "0x0DA",
+      "address_68k": "0xDFF0DA",
+      "access": "W",
+      "chip": "P",
+      "dma_only": true,
+      "function": "audio channel | audio",
+      "bits": []
+    },
+    {
+      "name": "BPL1PTH",
+      "address": "0x0E0",
+      "address_68k": "0xDFF0E0",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL1PTL",
+      "address": "0x0E2",
+      "address_68k": "0xDFF0E2",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL2PTH",
+      "address": "0x0E4",
+      "address_68k": "0xDFF0E4",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL2PTL",
+      "address": "0x0E6",
+      "address_68k": "0xDFF0E6",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL3PTH",
+      "address": "0x0E8",
+      "address_68k": "0xDFF0E8",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL3PTL",
+      "address": "0x0EA",
+      "address_68k": "0xDFF0EA",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL4PTH",
+      "address": "0x0EC",
+      "address_68k": "0xDFF0EC",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL4PTL",
+      "address": "0x0EE",
+      "address_68k": "0xDFF0EE",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL5PTH",
+      "address": "0x0F0",
+      "address_68k": "0xDFF0F0",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL5PTL",
+      "address": "0x0F2",
+      "address_68k": "0xDFF0F2",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL6PTH",
+      "address": "0x0F4",
+      "address_68k": "0xDFF0F4",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL6PTL",
+      "address": "0x0F6",
+      "address_68k": "0xDFF0F6",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPLCON0",
+      "address": "0x100",
+      "address_68k": "0xDFF100",
+      "access": "W",
+      "chip": "AD",
+      "ecs": true,
+      "function": "bitplane",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "HIRES"
+        },
+        {
+          "bit": 14,
+          "name": "BPU2"
+        },
+        {
+          "bit": 13,
+          "name": "BPU1"
+        },
+        {
+          "bit": 12,
+          "name": "BPU0"
+        },
+        {
+          "bit": 11,
+          "name": "HOMOD"
+        },
+        {
+          "bit": 10,
+          "name": "DBLPF"
+        },
+        {
+          "bit": 9,
+          "name": "COLOR"
+        },
+        {
+          "bit": 8,
+          "name": "GAUD"
+        },
+        {
+          "bit": 7,
+          "name": "X"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 3,
+          "name": "LPEN"
+        },
+        {
+          "bit": 2,
+          "name": "LACE"
+        },
+        {
+          "bit": 1,
+          "name": "ERSY"
+        },
+        {
+          "bit": 0,
+          "name": "X"
+        }
+      ]
+    },
+    {
+      "name": "BPLCON1",
+      "address": "0x102",
+      "address_68k": "0xDFF102",
+      "access": "W",
+      "chip": "D",
+      "function": "bitplane",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "HIRES"
+        },
+        {
+          "bit": 14,
+          "name": "BPU2"
+        },
+        {
+          "bit": 13,
+          "name": "BPU1"
+        },
+        {
+          "bit": 12,
+          "name": "BPU0"
+        },
+        {
+          "bit": 11,
+          "name": "HOMOD"
+        },
+        {
+          "bit": 10,
+          "name": "DBLPF"
+        },
+        {
+          "bit": 9,
+          "name": "COLOR"
+        },
+        {
+          "bit": 8,
+          "name": "GAUD"
+        },
+        {
+          "bit": 7,
+          "name": "X"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 3,
+          "name": "LPEN"
+        },
+        {
+          "bit": 2,
+          "name": "LACE"
+        },
+        {
+          "bit": 1,
+          "name": "ERSY"
+        },
+        {
+          "bit": 0,
+          "name": "X"
+        }
+      ]
+    },
+    {
+      "name": "BPLCON2",
+      "address": "0x104",
+      "address_68k": "0xDFF104",
+      "access": "W",
+      "chip": "D",
+      "ecs": true,
+      "function": "bitplane",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "HIRES"
+        },
+        {
+          "bit": 14,
+          "name": "BPU2"
+        },
+        {
+          "bit": 13,
+          "name": "BPU1"
+        },
+        {
+          "bit": 12,
+          "name": "BPU0"
+        },
+        {
+          "bit": 11,
+          "name": "HOMOD"
+        },
+        {
+          "bit": 10,
+          "name": "DBLPF"
+        },
+        {
+          "bit": 9,
+          "name": "COLOR"
+        },
+        {
+          "bit": 8,
+          "name": "GAUD"
+        },
+        {
+          "bit": 7,
+          "name": "X"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 3,
+          "name": "LPEN"
+        },
+        {
+          "bit": 2,
+          "name": "LACE"
+        },
+        {
+          "bit": 1,
+          "name": "ERSY"
+        },
+        {
+          "bit": 0,
+          "name": "X"
+        }
+      ]
+    },
+    {
+      "name": "BPLCON3",
+      "address": "0x106",
+      "address_68k": "0xDFF106",
+      "access": "W",
+      "chip": "D",
+      "ecs": true,
+      "function": "bitplane",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "HIRES"
+        },
+        {
+          "bit": 14,
+          "name": "BPU2"
+        },
+        {
+          "bit": 13,
+          "name": "BPU1"
+        },
+        {
+          "bit": 12,
+          "name": "BPU0"
+        },
+        {
+          "bit": 11,
+          "name": "HOMOD"
+        },
+        {
+          "bit": 10,
+          "name": "DBLPF"
+        },
+        {
+          "bit": 9,
+          "name": "COLOR"
+        },
+        {
+          "bit": 8,
+          "name": "GAUD"
+        },
+        {
+          "bit": 7,
+          "name": "X"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 3,
+          "name": "LPEN"
+        },
+        {
+          "bit": 2,
+          "name": "LACE"
+        },
+        {
+          "bit": 1,
+          "name": "ERSY"
+        },
+        {
+          "bit": 0,
+          "name": "X"
+        }
+      ]
+    },
+    {
+      "name": "BPL1MOD",
+      "address": "0x108",
+      "address_68k": "0xDFF108",
+      "access": "W",
+      "chip": "A",
+      "function": "bitplane | modulo",
+      "bits": []
+    },
+    {
+      "name": "BPL2MOD",
+      "address": "0x10A",
+      "address_68k": "0xDFF10A",
+      "access": "W",
+      "chip": "A",
+      "function": "bitplane | modulo",
+      "bits": []
+    },
+    {
+      "name": "BPL1DAT",
+      "address": "0x110",
+      "address_68k": "0xDFF110",
+      "access": "W",
+      "chip": "D",
+      "dma_only": true,
+      "function": "bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL2DAT",
+      "address": "0x112",
+      "address_68k": "0xDFF112",
+      "access": "W",
+      "chip": "D",
+      "dma_only": true,
+      "function": "bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL3DAT",
+      "address": "0x114",
+      "address_68k": "0xDFF114",
+      "access": "W",
+      "chip": "D",
+      "dma_only": true,
+      "function": "bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL4DAT",
+      "address": "0x116",
+      "address_68k": "0xDFF116",
+      "access": "W",
+      "chip": "D",
+      "dma_only": true,
+      "function": "bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL5DAT",
+      "address": "0x118",
+      "address_68k": "0xDFF118",
+      "access": "W",
+      "chip": "D",
+      "dma_only": true,
+      "function": "bitplane",
+      "bits": []
+    },
+    {
+      "name": "BPL6DAT",
+      "address": "0x11A",
+      "address_68k": "0xDFF11A",
+      "access": "W",
+      "chip": "D",
+      "dma_only": true,
+      "function": "bitplane",
+      "bits": []
+    },
+    {
+      "name": "SPR0PTH",
+      "address": "0x120",
+      "address_68k": "0xDFF120",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR0PTL",
+      "address": "0x122",
+      "address_68k": "0xDFF122",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR1PTH",
+      "address": "0x124",
+      "address_68k": "0xDFF124",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR1PTL",
+      "address": "0x126",
+      "address_68k": "0xDFF126",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR2PTH",
+      "address": "0x128",
+      "address_68k": "0xDFF128",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR2PTL",
+      "address": "0x12A",
+      "address_68k": "0xDFF12A",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR3PTH",
+      "address": "0x12C",
+      "address_68k": "0xDFF12C",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR3PTL",
+      "address": "0x12E",
+      "address_68k": "0xDFF12E",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR4PTH",
+      "address": "0x130",
+      "address_68k": "0xDFF130",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR4PTL",
+      "address": "0x132",
+      "address_68k": "0xDFF132",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR5PTH",
+      "address": "0x134",
+      "address_68k": "0xDFF134",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR5PTL",
+      "address": "0x136",
+      "address_68k": "0xDFF136",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR6PTH",
+      "address": "0x138",
+      "address_68k": "0xDFF138",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR6PTL",
+      "address": "0x13A",
+      "address_68k": "0xDFF13A",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR7PTH",
+      "address": "0x13C",
+      "address_68k": "0xDFF13C",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR7PTL",
+      "address": "0x13E",
+      "address_68k": "0xDFF13E",
+      "access": "W",
+      "chip": "A",
+      "pointer_pair": true,
+      "function": "pointer | sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR0POS",
+      "address": "0x140",
+      "address_68k": "0xDFF140",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR0CTL",
+      "address": "0x142",
+      "address_68k": "0xDFF142",
+      "access": "W",
+      "chip": "AD",
+      "ecs": true,
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR0DATA",
+      "address": "0x144",
+      "address_68k": "0xDFF144",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR0DATB",
+      "address": "0x146",
+      "address_68k": "0xDFF146",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR1POS",
+      "address": "0x148",
+      "address_68k": "0xDFF148",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR1CTL",
+      "address": "0x14A",
+      "address_68k": "0xDFF14A",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR1DATA",
+      "address": "0x14C",
+      "address_68k": "0xDFF14C",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR1DATB",
+      "address": "0x14E",
+      "address_68k": "0xDFF14E",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR2POS",
+      "address": "0x150",
+      "address_68k": "0xDFF150",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR2CTL",
+      "address": "0x152",
+      "address_68k": "0xDFF152",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR2DATA",
+      "address": "0x154",
+      "address_68k": "0xDFF154",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR2DATB",
+      "address": "0x156",
+      "address_68k": "0xDFF156",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR3POS",
+      "address": "0x158",
+      "address_68k": "0xDFF158",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR3CTL",
+      "address": "0x15A",
+      "address_68k": "0xDFF15A",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR3DATA",
+      "address": "0x15C",
+      "address_68k": "0xDFF15C",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR3DATB",
+      "address": "0x15E",
+      "address_68k": "0xDFF15E",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR4POS",
+      "address": "0x160",
+      "address_68k": "0xDFF160",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR4CTL",
+      "address": "0x162",
+      "address_68k": "0xDFF162",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR4DATA",
+      "address": "0x164",
+      "address_68k": "0xDFF164",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR4DATB",
+      "address": "0x166",
+      "address_68k": "0xDFF166",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR5POS",
+      "address": "0x168",
+      "address_68k": "0xDFF168",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR5CTL",
+      "address": "0x16A",
+      "address_68k": "0xDFF16A",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR5DATA",
+      "address": "0x16C",
+      "address_68k": "0xDFF16C",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR5DATB",
+      "address": "0x16E",
+      "address_68k": "0xDFF16E",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR6POS",
+      "address": "0x170",
+      "address_68k": "0xDFF170",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR6CTL",
+      "address": "0x172",
+      "address_68k": "0xDFF172",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR6DATA",
+      "address": "0x174",
+      "address_68k": "0xDFF174",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR6DATB",
+      "address": "0x176",
+      "address_68k": "0xDFF176",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR7POS",
+      "address": "0x178",
+      "address_68k": "0xDFF178",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR7CTL",
+      "address": "0x17A",
+      "address_68k": "0xDFF17A",
+      "access": "W",
+      "chip": "AD",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 14,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 13,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 12,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 11,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 10,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 9,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 8,
+          "name": "SV7-SV0"
+        },
+        {
+          "bit": 15,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 14,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 13,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 12,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 11,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 10,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 9,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 8,
+          "name": "EV7-EV0"
+        },
+        {
+          "bit": 7,
+          "name": "ATT"
+        },
+        {
+          "bit": 6,
+          "name": "X"
+        },
+        {
+          "bit": 5,
+          "name": "X"
+        },
+        {
+          "bit": 4,
+          "name": "X"
+        },
+        {
+          "bit": 2,
+          "name": "SV8"
+        },
+        {
+          "bit": 1,
+          "name": "EV8"
+        },
+        {
+          "bit": 0,
+          "name": "SH0"
+        }
+      ]
+    },
+    {
+      "name": "SPR7DATA",
+      "address": "0x17C",
+      "address_68k": "0xDFF17C",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "SPR7DATB",
+      "address": "0x17E",
+      "address_68k": "0xDFF17E",
+      "access": "W",
+      "chip": "D",
+      "dma_usually": true,
+      "function": "sprite",
+      "bits": []
+    },
+    {
+      "name": "COLOR00",
+      "address": "0x180",
+      "address_68k": "0xDFF180",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR01",
+      "address": "0x182",
+      "address_68k": "0xDFF182",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR02",
+      "address": "0x184",
+      "address_68k": "0xDFF184",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR03",
+      "address": "0x186",
+      "address_68k": "0xDFF186",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR04",
+      "address": "0x188",
+      "address_68k": "0xDFF188",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR05",
+      "address": "0x18A",
+      "address_68k": "0xDFF18A",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR06",
+      "address": "0x18C",
+      "address_68k": "0xDFF18C",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR07",
+      "address": "0x18E",
+      "address_68k": "0xDFF18E",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR08",
+      "address": "0x190",
+      "address_68k": "0xDFF190",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR09",
+      "address": "0x192",
+      "address_68k": "0xDFF192",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR10",
+      "address": "0x194",
+      "address_68k": "0xDFF194",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR11",
+      "address": "0x196",
+      "address_68k": "0xDFF196",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR12",
+      "address": "0x198",
+      "address_68k": "0xDFF198",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR13",
+      "address": "0x19A",
+      "address_68k": "0xDFF19A",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR14",
+      "address": "0x19C",
+      "address_68k": "0xDFF19C",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR15",
+      "address": "0x19E",
+      "address_68k": "0xDFF19E",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR16",
+      "address": "0x1A0",
+      "address_68k": "0xDFF1A0",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR17",
+      "address": "0x1A2",
+      "address_68k": "0xDFF1A2",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR18",
+      "address": "0x1A4",
+      "address_68k": "0xDFF1A4",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR19",
+      "address": "0x1A6",
+      "address_68k": "0xDFF1A6",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR20",
+      "address": "0x1A8",
+      "address_68k": "0xDFF1A8",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR21",
+      "address": "0x1AA",
+      "address_68k": "0xDFF1AA",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR22",
+      "address": "0x1AC",
+      "address_68k": "0xDFF1AC",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR23",
+      "address": "0x1AE",
+      "address_68k": "0xDFF1AE",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR24",
+      "address": "0x1B0",
+      "address_68k": "0xDFF1B0",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR25",
+      "address": "0x1B2",
+      "address_68k": "0xDFF1B2",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR26",
+      "address": "0x1B4",
+      "address_68k": "0xDFF1B4",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR27",
+      "address": "0x1B6",
+      "address_68k": "0xDFF1B6",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR28",
+      "address": "0x1B8",
+      "address_68k": "0xDFF1B8",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR29",
+      "address": "0x1BA",
+      "address_68k": "0xDFF1BA",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR30",
+      "address": "0x1BC",
+      "address_68k": "0xDFF1BC",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "COLOR31",
+      "address": "0x1BE",
+      "address_68k": "0xDFF1BE",
+      "access": "W",
+      "chip": "D",
+      "function": "color",
+      "bits": [
+        {
+          "bit": 11,
+          "name": "R3"
+        },
+        {
+          "bit": 10,
+          "name": "R2"
+        },
+        {
+          "bit": 9,
+          "name": "R1"
+        },
+        {
+          "bit": 8,
+          "name": "R0"
+        },
+        {
+          "bit": 7,
+          "name": "G3"
+        },
+        {
+          "bit": 6,
+          "name": "G2"
+        },
+        {
+          "bit": 5,
+          "name": "G1"
+        },
+        {
+          "bit": 4,
+          "name": "G0"
+        },
+        {
+          "bit": 3,
+          "name": "B3"
+        },
+        {
+          "bit": 2,
+          "name": "B2"
+        },
+        {
+          "bit": 1,
+          "name": "B1"
+        },
+        {
+          "bit": 0,
+          "name": "B0"
+        }
+      ]
+    },
+    {
+      "name": "HTOTAL",
+      "address": "0x1C0",
+      "address_68k": "0xDFF1C0",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "HSSTOP",
+      "address": "0x1C2",
+      "address_68k": "0xDFF1C2",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "HBSTRT",
+      "address": "0x1C4",
+      "address_68k": "0xDFF1C4",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "HBSTOP",
+      "address": "0x1C6",
+      "address_68k": "0xDFF1C6",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "VTOTAL",
+      "address": "0x1C8",
+      "address_68k": "0xDFF1C8",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "VSSTOP",
+      "address": "0x1CA",
+      "address_68k": "0xDFF1CA",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "VBSTRT",
+      "address": "0x1CC",
+      "address_68k": "0xDFF1CC",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "VBSTOP",
+      "address": "0x1CE",
+      "address_68k": "0xDFF1CE",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "BEAMCON0",
+      "address": "0x1DC",
+      "address_68k": "0xDFF1DC",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "function": "beam",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "X"
+        },
+        {
+          "bit": 14,
+          "name": "HARDDIS"
+        },
+        {
+          "bit": 13,
+          "name": "LPENDIS"
+        },
+        {
+          "bit": 12,
+          "name": "VARVBEN"
+        },
+        {
+          "bit": 11,
+          "name": "LOLDIS"
+        },
+        {
+          "bit": 10,
+          "name": "CSCBEN"
+        },
+        {
+          "bit": 9,
+          "name": "VARVSYEN"
+        },
+        {
+          "bit": 8,
+          "name": "VARHSYEN"
+        },
+        {
+          "bit": 7,
+          "name": "VARBEAMEN"
+        },
+        {
+          "bit": 6,
+          "name": "DUAL"
+        },
+        {
+          "bit": 5,
+          "name": "PAL"
+        },
+        {
+          "bit": 4,
+          "name": "VARCSYEN"
+        },
+        {
+          "bit": 3,
+          "name": "BLANKEN"
+        },
+        {
+          "bit": 2,
+          "name": "CSYTRUE"
+        },
+        {
+          "bit": 1,
+          "name": "VSYTRUE"
+        },
+        {
+          "bit": 0,
+          "name": "HSYTRUE"
+        }
+      ]
+    },
+    {
+      "name": "HSSTRT",
+      "address": "0x1DE",
+      "address_68k": "0xDFF1DE",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "VSSTRT",
+      "address": "0x1E0",
+      "address_68k": "0xDFF1E0",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "HCENTER",
+      "address": "0x1E2",
+      "address_68k": "0xDFF1E2",
+      "access": "W",
+      "chip": "A",
+      "ecs": true,
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "DIWHIGH",
+      "address": "0x1E4",
+      "address_68k": "0xDFF1E4",
+      "access": "W",
+      "chip": "AD",
+      "ecs": true,
+      "function": "display | window",
+      "bits": [
+        {
+          "bit": 15,
+          "name": "V7"
+        },
+        {
+          "bit": 14,
+          "name": "V6"
+        },
+        {
+          "bit": 13,
+          "name": "V5"
+        },
+        {
+          "bit": 12,
+          "name": "V4"
+        },
+        {
+          "bit": 11,
+          "name": "V3"
+        },
+        {
+          "bit": 10,
+          "name": "V2"
+        },
+        {
+          "bit": 9,
+          "name": "V1"
+        },
+        {
+          "bit": 8,
+          "name": "V0"
+        },
+        {
+          "bit": 7,
+          "name": "H7"
+        },
+        {
+          "bit": 6,
+          "name": "H6"
+        },
+        {
+          "bit": 5,
+          "name": "H5"
+        },
+        {
+          "bit": 4,
+          "name": "H4"
+        },
+        {
+          "bit": 3,
+          "name": "H3"
+        },
+        {
+          "bit": 2,
+          "name": "H2"
+        },
+        {
+          "bit": 1,
+          "name": "H1"
+        },
+        {
+          "bit": 0,
+          "name": "H0"
+        }
+      ]
+    },
+    {
+      "name": "CIAA_PRA",
+      "address": "0xBFE001",
+      "address_68k": "0x19FD001",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "",
+      "bits": [
+        {
+          "bit": 7,
+          "name": "PA7/FIRE1"
+        },
+        {
+          "bit": 6,
+          "name": "PA6/FIRE0"
+        },
+        {
+          "bit": 5,
+          "name": "PA5/DSKRDY"
+        },
+        {
+          "bit": 4,
+          "name": "PA4/DSKTRACK0"
+        },
+        {
+          "bit": 3,
+          "name": "PA3/DSKPROT"
+        },
+        {
+          "bit": 2,
+          "name": "PA2/DSKCHANGE"
+        },
+        {
+          "bit": 1,
+          "name": "PA1/LED"
+        },
+        {
+          "bit": 0,
+          "name": "PA0/OVL"
+        }
+      ]
+    },
+    {
+      "name": "CIAA_PRB",
+      "address": "0xBFE101",
+      "address_68k": "0x19FD101",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAA_DDRA",
+      "address": "0xBFE201",
+      "address_68k": "0x19FD201",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAA_DDRB",
+      "address": "0xBFE301",
+      "address_68k": "0x19FD301",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAA_TALO",
+      "address": "0xBFE401",
+      "address_68k": "0x19FD401",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAA_TAHI",
+      "address": "0xBFE501",
+      "address_68k": "0x19FD501",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAA_TBLO",
+      "address": "0xBFE601",
+      "address_68k": "0x19FD601",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAA_TBHI",
+      "address": "0xBFE701",
+      "address_68k": "0x19FD701",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAA_TODLOW",
+      "address": "0xBFE801",
+      "address_68k": "0x19FD801",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAA_TODMID",
+      "address": "0xBFE901",
+      "address_68k": "0x19FD901",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAA_TODHI",
+      "address": "0xBFEA01",
+      "address_68k": "0x19FDA01",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAA_SDR",
+      "address": "0xBFEC01",
+      "address_68k": "0x19FDC01",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAA_ICR",
+      "address": "0xBFED01",
+      "address_68k": "0x19FDD01",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "interrupt",
+      "bits": [
+        {
+          "bit": 7,
+          "name": "IR/S/C"
+        },
+        {
+          "bit": 4,
+          "name": "FLG"
+        },
+        {
+          "bit": 3,
+          "name": "SP"
+        },
+        {
+          "bit": 2,
+          "name": "ALRM"
+        },
+        {
+          "bit": 1,
+          "name": "TB"
+        },
+        {
+          "bit": 0,
+          "name": "TA"
+        }
+      ]
+    },
+    {
+      "name": "CIAA_CRA",
+      "address": "0xBFEE01",
+      "address_68k": "0x19FDE01",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "",
+      "bits": [
+        {
+          "bit": 0,
+          "name": "START"
+        },
+        {
+          "bit": 1,
+          "name": "PBON"
+        },
+        {
+          "bit": 2,
+          "name": "OUTMODE"
+        },
+        {
+          "bit": 3,
+          "name": "RUNMODE"
+        },
+        {
+          "bit": 4,
+          "name": "LOAD"
+        },
+        {
+          "bit": 5,
+          "name": "INMODE"
+        },
+        {
+          "bit": 0,
+          "name": "="
+        },
+        {
+          "bit": 6,
+          "name": "SPMODE"
+        },
+        {
+          "bit": 0,
+          "name": "="
+        },
+        {
+          "bit": 7,
+          "name": "UNUSED"
+        }
+      ]
+    },
+    {
+      "name": "CIAA_CRB",
+      "address": "0xBFEF01",
+      "address_68k": "0x19FDF01",
+      "access": "R/W",
+      "chip": "CIA-A",
+      "function": "",
+      "bits": [
+        {
+          "bit": 0,
+          "name": "START"
+        },
+        {
+          "bit": 1,
+          "name": "PBON"
+        },
+        {
+          "bit": 2,
+          "name": "OUTMODE"
+        },
+        {
+          "bit": 3,
+          "name": "RUNMODE"
+        },
+        {
+          "bit": 4,
+          "name": "LOAD"
+        }
+      ]
+    },
+    {
+      "name": "CIAB_PRA",
+      "address": "0xBFD000",
+      "address_68k": "0x19FC000",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "",
+      "bits": [
+        {
+          "bit": 7,
+          "name": "PA7/DTR"
+        },
+        {
+          "bit": 6,
+          "name": "PA6/RTS"
+        },
+        {
+          "bit": 5,
+          "name": "PA5/CD"
+        },
+        {
+          "bit": 4,
+          "name": "PA4/CTS"
+        },
+        {
+          "bit": 3,
+          "name": "PA3/DSR"
+        },
+        {
+          "bit": 2,
+          "name": "PA2/SEL"
+        },
+        {
+          "bit": 1,
+          "name": "PA1/POUT"
+        },
+        {
+          "bit": 0,
+          "name": "PA0/BUSY"
+        }
+      ]
+    },
+    {
+      "name": "CIAB_PRB",
+      "address": "0xBFD100",
+      "address_68k": "0x19FC100",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "",
+      "bits": [
+        {
+          "bit": 7,
+          "name": "PB7/DSKMOTOR"
+        },
+        {
+          "bit": 6,
+          "name": "PB6/DSKSEL3"
+        },
+        {
+          "bit": 5,
+          "name": "PB5/DSKSEL2"
+        },
+        {
+          "bit": 4,
+          "name": "PB4/DSKSEL1"
+        },
+        {
+          "bit": 3,
+          "name": "PB3/DSKSEL0"
+        },
+        {
+          "bit": 2,
+          "name": "PB2/DSKSIDE"
+        },
+        {
+          "bit": 1,
+          "name": "PB1/DSKDIREC"
+        },
+        {
+          "bit": 0,
+          "name": "PB0/DSKSTEP"
+        }
+      ]
+    },
+    {
+      "name": "CIAB_DDRA",
+      "address": "0xBFD200",
+      "address_68k": "0x19FC200",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAB_DDRB",
+      "address": "0xBFD300",
+      "address_68k": "0x19FC300",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAB_TALO",
+      "address": "0xBFD400",
+      "address_68k": "0x19FC400",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAB_TAHI",
+      "address": "0xBFD500",
+      "address_68k": "0x19FC500",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAB_TBLO",
+      "address": "0xBFD600",
+      "address_68k": "0x19FC600",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAB_TBHI",
+      "address": "0xBFD700",
+      "address_68k": "0x19FC700",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAB_TODLOW",
+      "address": "0xBFD800",
+      "address_68k": "0x19FC800",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAB_TODMID",
+      "address": "0xBFD900",
+      "address_68k": "0x19FC900",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAB_TODHI",
+      "address": "0xBFDA00",
+      "address_68k": "0x19FCA00",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAB_SDR",
+      "address": "0xBFDC00",
+      "address_68k": "0x19FCC00",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "",
+      "bits": []
+    },
+    {
+      "name": "CIAB_ICR",
+      "address": "0xBFDD00",
+      "address_68k": "0x19FCD00",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "interrupt",
+      "bits": [
+        {
+          "bit": 7,
+          "name": "IR/S/C"
+        },
+        {
+          "bit": 4,
+          "name": "FLG"
+        },
+        {
+          "bit": 3,
+          "name": "SP"
+        },
+        {
+          "bit": 2,
+          "name": "ALRM"
+        },
+        {
+          "bit": 1,
+          "name": "TB"
+        },
+        {
+          "bit": 0,
+          "name": "TA"
+        }
+      ]
+    },
+    {
+      "name": "CIAB_CRA",
+      "address": "0xBFDE00",
+      "address_68k": "0x19FCE00",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "",
+      "bits": [
+        {
+          "bit": 0,
+          "name": "START"
+        },
+        {
+          "bit": 1,
+          "name": "PBON"
+        },
+        {
+          "bit": 2,
+          "name": "OUTMODE"
+        },
+        {
+          "bit": 3,
+          "name": "RUNMODE"
+        },
+        {
+          "bit": 4,
+          "name": "LOAD"
+        },
+        {
+          "bit": 5,
+          "name": "INMODE"
+        },
+        {
+          "bit": 0,
+          "name": "="
+        },
+        {
+          "bit": 6,
+          "name": "SPMODE"
+        },
+        {
+          "bit": 0,
+          "name": "="
+        },
+        {
+          "bit": 7,
+          "name": "UNUSED"
+        }
+      ]
+    },
+    {
+      "name": "CIAB_CRB",
+      "address": "0xBFDF00",
+      "address_68k": "0x19FCF00",
+      "access": "R/W",
+      "chip": "CIA-B",
+      "function": "",
+      "bits": [
+        {
+          "bit": 0,
+          "name": "START"
+        },
+        {
+          "bit": 1,
+          "name": "PBON"
+        },
+        {
+          "bit": 2,
+          "name": "OUTMODE"
+        },
+        {
+          "bit": 3,
+          "name": "RUNMODE"
+        },
+        {
+          "bit": 4,
+          "name": "LOAD"
+        }
+      ]
+    }
+  ]
+}
