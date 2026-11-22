@@ -1225,7 +1225,7 @@ def observe(session):
         try:
             exec_state = inspect_current_task(client, ndk)
             exec_state["status"] = "observed"
-        except CopperlineError, KeyError, ValueError, IndexError:
+        except (CopperlineError, KeyError, ValueError, IndexError):
             exec_state = {
                 "status": "unavailable",
                 "reason": "Guest Exec structures unavailable or invalid",

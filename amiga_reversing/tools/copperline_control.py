@@ -191,7 +191,7 @@ class CopperlineClient:
             if len(data) != length:
                 raise ValueError
             return data
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
             raise CopperlineError("Malformed memory result") from None
 
     def registers(self):
@@ -203,7 +203,7 @@ class CopperlineClient:
             result.update(pc=int(raw["pc"]), sr=int(raw["sr"]))
             result["sp"] = result["a7"]
             return result
-        except KeyError, TypeError, ValueError, IndexError:
+        except (KeyError, TypeError, ValueError, IndexError):
             raise CopperlineError("Malformed registers result") from None
 
     def add_breakpoint(self, addr):
