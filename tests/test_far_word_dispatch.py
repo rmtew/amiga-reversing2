@@ -59,6 +59,6 @@ near:
     assert rebuilt==original
     from amiga_reversing.disasm.project_paths import PROJECT_ROOT
     path=tmp_path/'rendered.s';path.write_text(text);output=tmp_path/'vasm.bin'
-    subprocess.run([str(PROJECT_ROOT/'ext/vasm/vasmm68k_mot'),'-quiet','-Fbin','-m68000',
+    subprocess.run([str(PROJECT_ROOT/'tools/vasmm68k_mot.exe'),'-quiet','-Fbin','-m68000',
         '-no-opt','-o',str(output),str(path)],capture_output=True,check=True)
     assert output.read_bytes()==original

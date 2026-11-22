@@ -64,7 +64,7 @@ class RestorationClient:
         except HTTPError as exc:
             try:
                 payload = json.load(exc)
-            except ValueError, OSError:
+            except (ValueError, OSError):
                 payload = {"error": str(exc)}
             raise RestorationClientError(payload, exc.code) from exc
         except (URLError, TimeoutError) as exc:

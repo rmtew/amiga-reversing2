@@ -49,6 +49,6 @@ def test_pointer_table_interior_comments_render_once_in_order(tmp_path,explicit)
     rebuilt,_=c_backend.assemble_platform_source_text_with_c_backend('amiga-raw',text)
     assert rebuilt==original
     path=tmp_path/'rendered.s';path.write_text(text);output=tmp_path/'rebuilt.bin'
-    subprocess.run([str(PROJECT_ROOT/'ext/vasm/vasmm68k_mot'),'-quiet','-Fbin','-m68000',
+    subprocess.run([str(PROJECT_ROOT/'tools/vasmm68k_mot.exe'),'-quiet','-Fbin','-m68000',
         '-no-opt','-o',str(output),str(path)],capture_output=True,check=True)
     assert output.read_bytes()==original

@@ -91,7 +91,7 @@ class CopperlineClient:
             raise CopperlineError("Control response exceeds line limit")
         try:
             message = json.loads(line)
-        except ValueError, UnicodeError:
+        except (ValueError, UnicodeError):
             raise CopperlineError("Malformed control JSON") from None
         if not isinstance(message, dict) or message.get("jsonrpc") != "2.0":
             raise CopperlineError("Malformed control response")
@@ -333,7 +333,7 @@ class CopperlineProcess:
                 try:
                     info = json.loads((root / "endpoint.json").read_text())
                     break
-                except FileNotFoundError, ValueError:
+                except (FileNotFoundError, ValueError):
                     if time.monotonic() >= deadline:
                         raise CopperlineTimeout(
                             "Copperline endpoint startup timed out"
