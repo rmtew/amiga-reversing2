@@ -1,0 +1,808 @@
+{
+  "manifest": {
+    "application": {
+      "assembly_owners": [
+        "main",
+        "boot",
+        "music-5"
+      ],
+      "kind": "disk_set"
+    },
+    "assembler_profile": "vasm",
+    "files": [
+      {
+        "asset_id": "section-0000-offset-00044750-size-00001700",
+        "classification": "opaque_data",
+        "data_class_flags": 32768,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "abs_0_00044F50",
+        "name_is_generated": true,
+        "path": "assets/abs_0_00044F50.bin",
+        "sha256": "ad514a164c5c3238d671f7a4c267fec5f63b3201c2ddc5076fe417a3be24c994",
+        "size": 5888,
+        "source_offset": 280400,
+        "source_row_count": 3,
+        "source_row_id": 50449,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00046f7e-size-00000e6c",
+        "classification": "opaque_data",
+        "data_class_flags": 32768,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "abs_0_0004777E",
+        "name_is_generated": true,
+        "path": "assets/abs_0_0004777E.bin",
+        "sha256": "44f389ae19806eccdbcc126bea5ed74284257fdfd847a3224af0f234e7cf17b1",
+        "size": 3692,
+        "source_offset": 290686,
+        "source_row_count": 252,
+        "source_row_id": 51638,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00047dea-size-00000e6c",
+        "classification": "opaque_data",
+        "data_class_flags": 32768,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "abs_0_000485EA",
+        "name_is_generated": true,
+        "path": "assets/abs_0_000485EA.bin",
+        "sha256": "ca886f560302614769673857dc40db376a1d8b4a22c01ca2097f35f0f3b26f66",
+        "size": 3692,
+        "source_offset": 294378,
+        "source_row_count": 241,
+        "source_row_id": 51891,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-0006b350-size-000034b0",
+        "classification": "opaque_data",
+        "data_class_flags": 32768,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "abs_0_0006BB50",
+        "name_is_generated": true,
+        "path": "assets/abs_0_0006BB50.bin",
+        "sha256": "134fb8af04785b12ce9d8a17870967eed213afba998219437ae91eef305f803a",
+        "size": 13488,
+        "source_offset": 439120,
+        "source_row_count": 566,
+        "source_row_id": 67504,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-000589b2-size-000007d0",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "audioInstrument0Sample",
+        "name_is_generated": false,
+        "path": "assets/audioInstrument0Sample.bin",
+        "sha256": "a826371a9c0fdb1fef42afc557e54708b384065abe6dca7988706151ce640b1f",
+        "size": 2000,
+        "source_offset": 362930,
+        "source_row_count": 125,
+        "source_row_id": 62983,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00059182-size-00004a38",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "audioInstrument1Sample",
+        "name_is_generated": false,
+        "path": "assets/audioInstrument1Sample.bin",
+        "sha256": "c3d0a840380e909ed7543b53e94d2f7f82fd431c150e65983981548a0a73a258",
+        "size": 19000,
+        "source_offset": 364930,
+        "source_row_count": 1188,
+        "source_row_id": 63109,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-0005dfac-size-00000bf8",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "audioInstrument2Repeat",
+        "name_is_generated": false,
+        "path": "assets/audioInstrument2Repeat.bin",
+        "sha256": "09cfaf056ee61f8adcba30ab8437635a99884eaaef1717e281bd7c7ed6c7f2c0",
+        "size": 3064,
+        "source_offset": 384940,
+        "source_row_count": 192,
+        "source_row_id": 64364,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-0005dbc8-size-000003e4",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "audioInstrument2Sample",
+        "name_is_generated": false,
+        "path": "assets/audioInstrument2Sample.bin",
+        "sha256": "4e17bde7b46da77ea46ac9bedef23cf637070b349155052f1d055906778a098f",
+        "size": 996,
+        "source_offset": 383944,
+        "source_row_count": 63,
+        "source_row_id": 64300,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-0005ec62-size-000003e8",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "audioInstrument3Sample",
+        "name_is_generated": false,
+        "path": "assets/audioInstrument3Sample.bin",
+        "sha256": "d3c8e33c8aa204754af2c49fb240c12ac7c918b34baebbdcc0b514095678976d",
+        "size": 1000,
+        "source_offset": 388194,
+        "source_row_count": 66,
+        "source_row_id": 64570,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-0005f04a-size-00000d16",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "audioInstrument4Sample",
+        "name_is_generated": false,
+        "path": "assets/audioInstrument4Sample.bin",
+        "sha256": "4bb8d8dd6c424198821d4205590e0f95d242a7f0991cc44cd1550dd4c7635506",
+        "size": 3350,
+        "source_offset": 389194,
+        "source_row_count": 227,
+        "source_row_id": 64637,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00060a66-size-0000096c",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "audioInstrument5Repeat",
+        "name_is_generated": false,
+        "path": "assets/audioInstrument5Repeat.bin",
+        "sha256": "452fd9210d243e0b6e261b1dc8fddf5b6cc70fb00a8fc3bb419753200892bbdb",
+        "size": 2412,
+        "source_offset": 395878,
+        "source_row_count": 151,
+        "source_row_id": 65077,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-0005fd60-size-00000d04",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "audioInstrument5Sample",
+        "name_is_generated": false,
+        "path": "assets/audioInstrument5Sample.bin",
+        "sha256": "d2a77bcd09da1f9db8ca7112d635656490a6f81db82c2d0143c7b276374b59d5",
+        "size": 3332,
+        "source_offset": 392544,
+        "source_row_count": 209,
+        "source_row_id": 64865,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-000613d8-size-000006d0",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "audioInstrument6Sample",
+        "name_is_generated": false,
+        "path": "assets/audioInstrument6Sample.bin",
+        "sha256": "2b6ae6f025cb8bc5bfcd0f93c62d73dc1f2c76cf07c0c9183e3ae4f012a4c10d",
+        "size": 1744,
+        "source_offset": 398296,
+        "source_row_count": 112,
+        "source_row_id": 65231,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00061aa8-size-00001bec",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "audioInstrument7Sample",
+        "name_is_generated": false,
+        "path": "assets/audioInstrument7Sample.bin",
+        "sha256": "f54008b782617bdd77a8f3ef0b70387ca9c5084b2f9383a534b40b029c4ae7e3",
+        "size": 7148,
+        "source_offset": 400040,
+        "source_row_count": 447,
+        "source_row_id": 65344,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00001e8e-size-000017f2",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "music-5"
+        ],
+        "name": "bank5Repeat2_7",
+        "name_is_generated": false,
+        "path": "assets/bank5Repeat2_7.bin",
+        "sha256": "9d799bfa966dd89a24af6eba21e4567e60a464ec201d1e4329dc5855cbf22067",
+        "size": 6130,
+        "source_offset": 7822,
+        "source_row_count": 384,
+        "source_row_id": 2251,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-000037fa-size-000022c4",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "music-5"
+        ],
+        "name": "bank5Sample0_1_3_4",
+        "name_is_generated": false,
+        "path": "assets/bank5Sample0_1_3_4.bin",
+        "sha256": "ba2169157e1781fd8d9ec744e7a927658d679900c735720a80fcaea03735edfc",
+        "size": 8900,
+        "source_offset": 14330,
+        "source_row_count": 557,
+        "source_row_id": 2660,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-000016c6-size-000007c8",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "music-5"
+        ],
+        "name": "bank5Sample2_7",
+        "name_is_generated": false,
+        "path": "assets/bank5Sample2_7.bin",
+        "sha256": "40ad9b1c2d67870985042bc62919a85d01ead5f9e664a638f255c31843ea5fe8",
+        "size": 1992,
+        "source_offset": 5830,
+        "source_row_count": 125,
+        "source_row_id": 2125,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-000062a0-size-000010e8",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "music-5"
+        ],
+        "name": "bank5Sample5",
+        "name_is_generated": false,
+        "path": "assets/bank5Sample5.bin",
+        "sha256": "6ff74fe9b54b886960a6a15eb6c2cdbf0ea40757fb3b162cf47575c31dd11b1f",
+        "size": 4328,
+        "source_offset": 25248,
+        "source_row_count": 271,
+        "source_row_id": 3347,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00005abe-size-000007e0",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "music-5"
+        ],
+        "name": "bank5Sample6",
+        "name_is_generated": false,
+        "path": "assets/bank5Sample6.bin",
+        "sha256": "787e17964ca2125c316aa042c1bc64d0d31dd4e07d85ef653cce711932b4c4d0",
+        "size": 2016,
+        "source_offset": 23230,
+        "source_row_count": 127,
+        "source_row_id": 3218,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00035604-size-00000100",
+        "classification": "opaque_data",
+        "data_class_flags": 32768,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataFontBytes",
+        "name_is_generated": false,
+        "path": "assets/dataFontBytes.bin",
+        "sha256": "642a64314ca300bff3fa717d46ab91354c220b16f47df654a262f6885760c8d0",
+        "size": 256,
+        "source_offset": 218628,
+        "source_row_count": 17,
+        "source_row_id": 45934,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-0000b32e-size-0000017c",
+        "classification": "opaque_data",
+        "data_class_flags": 32768,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataGraphics380_1",
+        "name_is_generated": false,
+        "path": "assets/dataGraphics380_1.bin",
+        "sha256": "8efc64f20c1e3956f0be348dd41867c94a254c2205a936ab1565aa3c7ac4c34a",
+        "size": 380,
+        "source_offset": 45870,
+        "source_row_count": 25,
+        "source_row_id": 5128,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-0000b1b2-size-0000017c",
+        "classification": "opaque_data",
+        "data_class_flags": 32768,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataGraphics380_2",
+        "name_is_generated": false,
+        "path": "assets/dataGraphics380_2.bin",
+        "sha256": "71b148466878292cbcf3697fbb8a6cea34825da59f352d254079cc775fcd9a32",
+        "size": 380,
+        "source_offset": 45490,
+        "source_row_count": 25,
+        "source_row_id": 5102,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-000067c8-size-000038d0",
+        "classification": "opaque_data",
+        "data_class_flags": 32768,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataGraphics_14544",
+        "name_is_generated": false,
+        "path": "assets/dataGraphics_14544.bin",
+        "sha256": "275b3f246410b13d38ed403b31051acaeea5b77dff7b9613ac7daec7d9d21082",
+        "size": 14544,
+        "source_offset": 26568,
+        "source_row_count": 899,
+        "source_row_id": 3947,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-0000cef8-size-00000e6c",
+        "classification": "opaque_data",
+        "data_class_flags": 32768,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataGraphics_d6f8",
+        "name_is_generated": false,
+        "path": "assets/dataGraphics_d6f8.bin",
+        "sha256": "8efef0a704830f9ded78e7f6bd53fb051f6c6da620d7aab3796d1449aa61f1fa",
+        "size": 3692,
+        "source_offset": 52984,
+        "source_row_count": 246,
+        "source_row_id": 7063,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-0004edb2-size-00001396",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataSound1",
+        "name_is_generated": false,
+        "path": "assets/dataSound1.bin",
+        "sha256": "29b22ee3916fdcc9180a9a5a9ce8c0d1372f8f42e44d8c50f54efd0e4689af19",
+        "size": 5014,
+        "source_offset": 322994,
+        "source_row_count": 314,
+        "source_row_id": 58553,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00053e98-size-00000e88",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataSound2",
+        "name_is_generated": false,
+        "path": "assets/dataSound2.bin",
+        "sha256": "02e3522275b5e963bf346498238ee685f5803ebe29e4ed290a95bbba8fd1211d",
+        "size": 3720,
+        "source_offset": 343704,
+        "source_row_count": 233,
+        "source_row_id": 59872,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00054d20-size-00000d98",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataSound3",
+        "name_is_generated": false,
+        "path": "assets/dataSound3.bin",
+        "sha256": "4a561e3f60526b6269ff812060cea1f1890cb5a18e6a6753b8ffa6ddb62c5033",
+        "size": 3480,
+        "source_offset": 347424,
+        "source_row_count": 218,
+        "source_row_id": 60106,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00055aba-size-00000f2c",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataSound4",
+        "name_is_generated": false,
+        "path": "assets/dataSound4.bin",
+        "sha256": "6170b9910a6d6f85ac6b787809be9f75fc175aea1511a061bce7d4a7e5530f2b",
+        "size": 3884,
+        "source_offset": 350906,
+        "source_row_count": 243,
+        "source_row_id": 60326,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-0005359a-size-000008fe",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataSound5",
+        "name_is_generated": false,
+        "path": "assets/dataSound5.bin",
+        "sha256": "b41e4b3caa09c9b2398fbbe0d6b42a8a084f650d2c604a7c0e69dff3f9cbceef",
+        "size": 2302,
+        "source_offset": 341402,
+        "source_row_count": 144,
+        "source_row_id": 59727,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00050148-size-00001f4c",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataSound6",
+        "name_is_generated": false,
+        "path": "assets/dataSound6.bin",
+        "sha256": "58d82fcbb899a86954025457fd523bd57a023d903a789ab5d505855cf790ccdd",
+        "size": 8012,
+        "source_offset": 328008,
+        "source_row_count": 515,
+        "source_row_id": 58868,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00053162-size-00000436",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataSound7",
+        "name_is_generated": false,
+        "path": "assets/dataSound7.bin",
+        "sha256": "cf1861af689ebc50abf78bf87b1635c4509ad635e33a69e7023bfd20950593a9",
+        "size": 1078,
+        "source_offset": 340322,
+        "source_row_count": 68,
+        "source_row_id": 59657,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00052094-size-000010c8",
+        "classification": "sound_sample",
+        "data_class_flags": 64,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataSound8",
+        "name_is_generated": false,
+        "path": "assets/dataSound8.bin",
+        "sha256": "87c05d298af74286e0cfa4af4478864bfbccb0e6b6cacf4d7be000484f34e68c",
+        "size": 4296,
+        "source_offset": 336020,
+        "source_row_count": 269,
+        "source_row_id": 59384,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-0000c838-size-00000198",
+        "classification": "opaque_data",
+        "data_class_flags": 32768,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataSprite6_1",
+        "name_is_generated": false,
+        "path": "assets/dataSprite6_1.bin",
+        "sha256": "84f9f1c8a26944e0bed042cb386934d742781c10b1a5fdda118e6f1bc04a9f3d",
+        "size": 408,
+        "source_offset": 51256,
+        "source_row_count": 26,
+        "source_row_id": 6416,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-0000c6a0-size-00000198",
+        "classification": "opaque_data",
+        "data_class_flags": 32768,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "dataSprite7_1",
+        "name_is_generated": false,
+        "path": "assets/dataSprite7_1.bin",
+        "sha256": "86c2370f10b8b219e5110406498f666445f1dcfee57325512a8775c79aebe905",
+        "size": 408,
+        "source_offset": 50848,
+        "source_row_count": 26,
+        "source_row_id": 6389,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00013524-size-000003fd",
+        "classification": "opaque_data",
+        "data_class_flags": 32768,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "defaultGameStateTemplate",
+        "name_is_generated": false,
+        "path": "assets/defaultGameStateTemplate.bin",
+        "sha256": "0d36f8ced9be5dbeac9c55dc416415c50966ddec065465939d6a9263112f153e",
+        "size": 1021,
+        "source_offset": 79140,
+        "source_row_count": 12,
+        "source_row_id": 12831,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-0001afe4-size-0000050e",
+        "classification": "opaque_data",
+        "data_class_flags": 32768,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "maybeSineTable",
+        "name_is_generated": false,
+        "path": "assets/maybeSineTable.bin",
+        "sha256": "61ccacdb3fd39e3a4a326e32f86fbf25db916c48dc2938c3d8951b98f5204d93",
+        "size": 1294,
+        "source_offset": 110564,
+        "source_row_count": 41,
+        "source_row_id": 19100,
+        "source_section_index": 0
+      },
+      {
+        "asset_id": "section-0000-offset-00063b50-size-00007800",
+        "classification": "opaque_data",
+        "data_class_flags": 32768,
+        "kind": "asset",
+        "members": [
+          "main"
+        ],
+        "name": "maybeTextGfx",
+        "name_is_generated": false,
+        "path": "assets/maybeTextGfx.bin",
+        "sha256": "90542f06d35639ddce89cb1c16729bf4dcd9810f9dc372638cf702cee5caca57",
+        "size": 30720,
+        "source_offset": 408400,
+        "source_row_count": 1634,
+        "source_row_id": 65869,
+        "source_section_index": 0
+      },
+      {
+        "kind": "source",
+        "members": [
+          "boot"
+        ],
+        "path": "boot.s",
+        "sha256": "1ed41ce4113264d3962a77902b98dabc6cbdcfc695dc8e02320592b974f6297c",
+        "size": 18268
+      },
+      {
+        "kind": "include",
+        "members": [
+          "main"
+        ],
+        "path": "exec/types.i",
+        "provenance": "configured-platform-sdk",
+        "sha256": "d798578196b8671d88c9f75aa9e26adc1a557b1805267acc494371b3ae16637c",
+        "size": 3662
+      },
+      {
+        "kind": "include",
+        "members": [
+          "main",
+          "boot"
+        ],
+        "path": "graphics/display.i",
+        "provenance": "configured-platform-sdk",
+        "sha256": "9ea65cd82481a612ec2fddd0df999eeda6a959feea3fb73c9f169e63c0797e7d",
+        "size": 1118
+      },
+      {
+        "kind": "include",
+        "members": [
+          "main",
+          "boot",
+          "music-5"
+        ],
+        "path": "hardware/adkbits.i",
+        "provenance": "configured-platform-sdk",
+        "sha256": "36582be1d7dc8313f0553a219d7036ac2d3eed0e8d82ec5d0f29e24965eb78e9",
+        "size": 1960
+      },
+      {
+        "kind": "include",
+        "members": [
+          "main"
+        ],
+        "path": "hardware/blit.i",
+        "provenance": "configured-platform-sdk",
+        "sha256": "e1ec6caf95785042a008b83dbfc8fe806f0151b757be4e374e2ee8cdb7abada7",
+        "size": 2139
+      },
+      {
+        "kind": "include",
+        "members": [
+          "main",
+          "boot",
+          "music-5"
+        ],
+        "path": "hardware/cia.i",
+        "provenance": "configured-platform-sdk",
+        "sha256": "be1ccad5161b6e105a29c5ba4c6a8376eff448e99b8d6c1d0e07de920f2e5ed2",
+        "size": 4566
+      },
+      {
+        "kind": "include",
+        "members": [
+          "main",
+          "boot",
+          "music-5"
+        ],
+        "path": "hardware/custom.i",
+        "provenance": "configured-platform-sdk",
+        "sha256": "65bcd11bb26632b62e158c802c5aa4d85e34af3b8640de4657c438924f3b7829",
+        "size": 3063
+      },
+      {
+        "kind": "include",
+        "members": [
+          "main",
+          "boot"
+        ],
+        "path": "hardware/dmabits.i",
+        "provenance": "configured-platform-sdk",
+        "sha256": "7e0c8ecc8dad43564419aa3cc6f869bbc73d058164f00f6a248020b5fb8e4b95",
+        "size": 1228
+      },
+      {
+        "kind": "include",
+        "members": [
+          "main",
+          "boot",
+          "music-5"
+        ],
+        "path": "hardware/intbits.i",
+        "provenance": "configured-platform-sdk",
+        "sha256": "10753247d5ee9f4e86a3707148a6014190812d4125e31822155b74056a3151f2",
+        "size": 1770
+      },
+      {
+        "kind": "source",
+        "members": [
+          "main"
+        ],
+        "path": "main.s",
+        "sha256": "61b60f9f111b0ae53813e0d2a025ab1e5aec8fcc2eed1945379489bb2bd5df6d",
+        "size": 2126805
+      },
+      {
+        "kind": "source",
+        "members": [
+          "music-5"
+        ],
+        "path": "music-5.s",
+        "sha256": "8bc8b728a753d6ada2b797b779b0199ae05cf5111dea98b15a722e223e212724",
+        "size": 69939
+      }
+    ],
+    "metadata_hash": "098221cf4b590ae2d6adc7292936f9129e354c4bbfe2ea24e9a8de57f5881cdb",
+    "policy": {
+      "id": "native-evidenced-opaque-v1",
+      "minimum_asset_size": 256
+    },
+    "schema": "amiga-reversing-source-package-v1",
+    "source": "main.s",
+    "target": "amiga_raw_foft",
+    "target_identity_sha256": "3e5e14ff41bc9d17ca9902762a0109bece7c43bd8887fb18ede992003d362241"
+  },
+  "sha256": "e8b248426af7065eb72c6584f13707b6a6e347508af47a3d97f02bfc7968c9f9"
+}

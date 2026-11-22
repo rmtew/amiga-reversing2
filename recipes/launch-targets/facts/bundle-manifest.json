@@ -1,0 +1,191 @@
+{
+  "schema": "private-proposed-fact-template-v1",
+  "members": {
+    "foft-main": {
+      "sha256": "85e2684b03badc7308e7eaa059b7c717441808798f55b4642e1d8b1895914c9b",
+      "size": 489472
+    },
+    "foft-boot": {
+      "sha256": "b52575d366313c1648976925c368e7a990d30477e7a099301dcabb031a3939a1",
+      "size": 4000
+    },
+    "foft-music-5": {
+      "sha256": "3fa229a343d5fa6e050abc696911c36e55d5ee96cc7b2d852dbdd4404b299190",
+      "size": 29578
+    },
+    "sgii-st": {
+      "sha256": "20c19400180d7e846b78aa615b68446293f8ca54015c4f4a42a77f03b24e8260",
+      "size": 419308
+    }
+  },
+  "files": [
+    {
+      "path": "targets/amiga_disk_conqueror_sps1275/bootstrap_analysis.py",
+      "template_sha256": "be53573a59924d8e3e3b81764b60a64c2b96a560fff8d02df597c8617ce51e91",
+      "restored_sha256": "be53573a59924d8e3e3b81764b60a64c2b96a560fff8d02df597c8617ce51e91",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_disk_conqueror_sps1275/inventory.json",
+      "template_sha256": "7ed94ea9e125125efd27ec07c40d798b291c12231b784e366cb26cb6615391ff",
+      "restored_sha256": "7ed94ea9e125125efd27ec07c40d798b291c12231b784e366cb26cb6615391ff",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_disk_conqueror_sps1275/renderer-decision-journal.jsonl",
+      "template_sha256": "e5ee425535e781e50188533a5abdd0ea96ebdb14c0a59cebd1ec81d5c84d04d2",
+      "restored_sha256": "e5ee425535e781e50188533a5abdd0ea96ebdb14c0a59cebd1ec81d5c84d04d2",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_disk_conqueror_sps1275/renderer-manual-actions.jsonl",
+      "template_sha256": "b43a702b186b47d309d407f70670aa13a4599feead28a92772bdfe45031ae73a",
+      "restored_sha256": "b43a702b186b47d309d407f70670aa13a4599feead28a92772bdfe45031ae73a",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_disk_conqueror_sps1275/resident-verification.json",
+      "template_sha256": "7b2c51d5bfad317c034e53ea96480dc7deac98f1220cf77aff5cd76bff9a7445",
+      "restored_sha256": "7b2c51d5bfad317c034e53ea96480dc7deac98f1220cf77aff5cd76bff9a7445",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_raw_foft/.project.json",
+      "template_sha256": "b742231edc349568cdabb3ac9dc152d4f97cdb77bf2fd2d4361d68b1d0b17a6f",
+      "restored_sha256": "b742231edc349568cdabb3ac9dc152d4f97cdb77bf2fd2d4361d68b1d0b17a6f",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_raw_foft/analysis/boot.manual_actions.jsonl",
+      "template_sha256": "db9006e819c7396e5dde0ef13757e91c9e8cbe74e91ed30ec320d81569b9e8cf",
+      "restored_sha256": "db9006e819c7396e5dde0ef13757e91c9e8cbe74e91ed30ec320d81569b9e8cf",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_raw_foft/analysis/boot.original-target_metadata.json",
+      "template_sha256": "5359504c97e556ce127e252097156ba2b72a4ae0a2d09f3a6df406b3b5e4a5a8",
+      "restored_sha256": "5359504c97e556ce127e252097156ba2b72a4ae0a2d09f3a6df406b3b5e4a5a8",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_raw_foft/analysis/boot.target_metadata.json",
+      "template_sha256": "5359504c97e556ce127e252097156ba2b72a4ae0a2d09f3a6df406b3b5e4a5a8",
+      "restored_sha256": "5359504c97e556ce127e252097156ba2b72a4ae0a2d09f3a6df406b3b5e4a5a8",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_raw_foft/analysis/main.manual_actions.jsonl",
+      "template_sha256": "df6faef862ddcc8a1e6e500295b423f52f919803e580f79ed00208f7eed0663d",
+      "restored_sha256": "29a51ccbc69744fe164989d7af7a9a14d221791fe61a42ad1d170748f08f311f",
+      "references": 140
+    },
+    {
+      "path": "targets/amiga_raw_foft/analysis/main.original-manual_actions.jsonl",
+      "template_sha256": "413b0522f1f1cf520216d56689dc480a0593552a83a81cc63332df0be2a54ee6",
+      "restored_sha256": "abd2b3aff0407e327b2b2b6a69620ef213165d1a5808cab3d0b1c6df99878eaf",
+      "references": 30
+    },
+    {
+      "path": "targets/amiga_raw_foft/analysis/main.original-target_metadata.json",
+      "template_sha256": "1e5c3797086647b275bfdadff551fc2df23a55d1b623a287c3cf6dff962e4d86",
+      "restored_sha256": "1e5c3797086647b275bfdadff551fc2df23a55d1b623a287c3cf6dff962e4d86",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_raw_foft/analysis/main.target_metadata.json",
+      "template_sha256": "f8edd1bd274d22d0126b911e23dec5e567080edeeedfbe53f0cb38f66fefcd50",
+      "restored_sha256": "f8edd1bd274d22d0126b911e23dec5e567080edeeedfbe53f0cb38f66fefcd50",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_raw_foft/analysis/music-5.decision_journal.jsonl",
+      "template_sha256": "0ce5424f48229dacb48bafb93a41dad014b151bcd471ad87d5f88ecfbd80183d",
+      "restored_sha256": "0ce5424f48229dacb48bafb93a41dad014b151bcd471ad87d5f88ecfbd80183d",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_raw_foft/analysis/music-5.manual_actions.jsonl",
+      "template_sha256": "48487836060fec1f0042cdcdec342a31f20432edf55375c7b8675cf81e1183fa",
+      "restored_sha256": "097f90f5dd14fa2b3a9c118dae26f32fd53e4d5602d9e7593d8d95dd508af108",
+      "references": 10
+    },
+    {
+      "path": "targets/amiga_raw_foft/analysis/music-5.original-manual_actions.jsonl",
+      "template_sha256": "77fe1cb9c86895cf08075d5a1acfbf14a580966fe9f331fc8e0c2ff0371184cb",
+      "restored_sha256": "4bc1c81fc8e629bd7e7e970e124d441659697e07a297b544dce787266c50c643",
+      "references": 10
+    },
+    {
+      "path": "targets/amiga_raw_foft/analysis/music-5.original-target_metadata.json",
+      "template_sha256": "c0fa873dfcfa3003c8ebe96f69bbac4bedd8272fc694e487755fd806743a3b8e",
+      "restored_sha256": "c0fa873dfcfa3003c8ebe96f69bbac4bedd8272fc694e487755fd806743a3b8e",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_raw_foft/analysis/music-5.target_metadata.json",
+      "template_sha256": "c0fa873dfcfa3003c8ebe96f69bbac4bedd8272fc694e487755fd806743a3b8e",
+      "restored_sha256": "c0fa873dfcfa3003c8ebe96f69bbac4bedd8272fc694e487755fd806743a3b8e",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_raw_foft/manifest.json",
+      "template_sha256": "cbe93a4708f8a8663c6943227dff153a0d669f9936bcd002bd6c78fe617561bb",
+      "restored_sha256": "cbe93a4708f8a8663c6943227dff153a0d669f9936bcd002bd6c78fe617561bb",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_raw_foft/recipes/sps0613.json",
+      "template_sha256": "d3fe07f882b28da3f0733776581d1208fa522542ee0751500961558b271fe41f",
+      "restored_sha256": "d3fe07f882b28da3f0733776581d1208fa522542ee0751500961558b271fe41f",
+      "references": 0
+    },
+    {
+      "path": "targets/amiga_raw_foft/source-package-manifest.json",
+      "template_sha256": "3a7d591cf40ad0e48e08f9d18a4167599679f4e30eab19df82b7b8724a2398dd",
+      "restored_sha256": "3a7d591cf40ad0e48e08f9d18a4167599679f4e30eab19df82b7b8724a2398dd",
+      "references": 0
+    },
+    {
+      "path": "targets/starglider2_retail/shared_program.json",
+      "template_sha256": "0bda6c4c7b00f62beba90a09bb49dd7125d546d642aa587cfcf0fc9150f92f2c",
+      "restored_sha256": "0bda6c4c7b00f62beba90a09bb49dd7125d546d642aa587cfcf0fc9150f92f2c",
+      "references": 0
+    },
+    {
+      "path": "targets/starglider2_retail/source_binary.json",
+      "template_sha256": "f708f162023af3f961adc88f7fe6c8ee10a332f299c1e397e469e615fb33adf5",
+      "restored_sha256": "f708f162023af3f961adc88f7fe6c8ee10a332f299c1e397e469e615fb33adf5",
+      "references": 0
+    },
+    {
+      "path": "targets/starglider2_retail/target_metadata.json",
+      "template_sha256": "bd797d20c6f36d3a89d82e3efb552d9c919a995071bcaca87ad6603083255fa8",
+      "restored_sha256": "1e8605b751d1ee682b1a3980a973b081a1d3025ff9e5ad792471fb737b2fb11e",
+      "references": 76
+    }
+  ],
+  "publication_cleared": false,
+  "derived_files": [
+    {
+      "path": "targets/amiga_raw_foft/analysis/main.metadata.json",
+      "member": "main",
+      "source_member": "foft-main",
+      "sha256": "31708a217a42875cfe65c7d7232d39d8b0190e3ab1f50b9a49cafabdadb80da0",
+      "algorithm": "effective_metadata_text with digest-pinned serialization"
+    },
+    {
+      "path": "targets/amiga_raw_foft/analysis/boot.metadata.json",
+      "member": "boot",
+      "source_member": "foft-boot",
+      "sha256": "a397b6e54fd39c98dac18ad03cfeeb4fd323fedd68882d66cc0830d02a0a7bb6",
+      "algorithm": "effective_metadata_text with digest-pinned serialization"
+    },
+    {
+      "path": "targets/amiga_raw_foft/analysis/music-5.metadata.json",
+      "member": "music-5",
+      "source_member": "foft-music-5",
+      "sha256": "15f0ce8abfd28a38fb55dde87944dbbd880bafc22e5bf7a194513b7737f76706",
+      "algorithm": "effective_metadata_text with digest-pinned serialization"
+    }
+  ]
+}

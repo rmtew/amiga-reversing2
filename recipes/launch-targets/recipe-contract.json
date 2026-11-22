@@ -1,0 +1,7 @@
+{
+  "schema": "integrated-launch-recipes-v1",
+  "framework_source_manifest_sha256": "9742bec89082e6491351621fbf7050ee47dc7a6eacdacc0dd78ebafb6980de46",
+  "fact_manifest_sha256": "56b52bf24bacbe5143b4fe3b8b8cc563346bef04fde2e7f29567a7f12c3812a5",
+  "scope": "FOFT SPS 0613, Conqueror SPS 1275, SGII retail Amiga/ST; authored facts and recipes, no game outputs",
+  "publication_performed": false
+}

@@ -1,0 +1,702 @@
+{
+  "schema_version": 1,
+  "kind": "ipf_resource_recovery",
+  "image_sha256": "da33fc1e068d73078094fc4cb6f72ab69a9c2f30f4094b8321033aedb6237b93",
+  "geometry": {
+    "cylinders": 82,
+    "sides": 2,
+    "records": 164
+  },
+  "codec": "foft_mfm_3x2000",
+  "evidence": {
+    "reference": "https://github.com/keirf/disk-utilities/blob/aa616ccde1e46b5badb742234a4b90e2c15e5b67/libdisk/format/amiga/federation_of_free_traders.c",
+    "reader": "ReadDecodedDiskTrack $466CA verifies track=(physical cylinder*2+side)^1, sector<3, 2000 bytes and XOR of 2000 encoded MFM words. LoadDiskResourceByIndex $46D44 copies min(6000-offset, remaining). MoveDiskToTrack sets CIAB side bit from logical track bit 0.",
+    "boundary": "Exact stored sectors and static resource descriptor; no new observed menu transfer or playback. All three sectors of every contributing track must verify. Special physical tracks 158/159 and empty records 160..163 stay template-owned.",
+    "program": "Unique complete match to the original naturally booted $800 handoff begins at game track 3, offset 0; matched independently across 82 decoded tracks. This does not newly trace the boot loader.",
+    "bank": "Resource 9 descriptor selects game track 102, offset 0, length 50000, destination $58000. Complete decoded bytes equal original handoff source offset $57800..$63B50. One mixed bank identity, not six banks aliased by their common destination.",
+    "boot_reader": {
+      "stage_sha256": "b52575d366313c1648976925c368e7a990d30477e7a099301dcabb031a3939a1",
+      "verified_bytes": 4000,
+      "entry": 491520,
+      "resource_catalog": 493802,
+      "catalog_count": 3,
+      "load_resource": 493596,
+      "decode_track": 491980,
+      "decode_mfm_byte": 493222,
+      "checksum": 493574,
+      "program_resource_order": [
+        1,
+        2
+      ],
+      "descriptors": [
+        {
+          "index": 0,
+          "destination": 360448,
+          "game_track": 85,
+          "offset": 0,
+          "length": 32000
+        },
+        {
+          "index": 1,
+          "destination": 2048,
+          "game_track": 3,
+          "offset": 0,
+          "length": 456000
+        },
+        {
+          "index": 2,
+          "destination": 458048,
+          "game_track": 79,
+          "offset": 0,
+          "length": 33472
+        }
+      ],
+      "scope": "Static original boot code and prior pre-execution prefix identity. No new runtime or protection change. The following 2000 disk bytes do not match the historical captured range and are not imported as loader source."
+    },
+    "ownership": "One disk-set owner; member identities and build/analysis boundaries are in its manifest."
+  },
+  "actions": [
+    {
+      "op": "capture",
+      "file": "foft-program.bin",
+      "size": 489472,
+      "sha256": "85e2684b03badc7308e7eaa059b7c717441808798f55b4642e1d8b1895914c9b",
+      "spans": [
+        {
+          "track": 1,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 2,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 2,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 3,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 3,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 4,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 4,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 5,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 5,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 6,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 6,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 7,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 7,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 8,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 8,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 9,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 9,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 10,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 10,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 11,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 11,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 12,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 12,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 13,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 13,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 14,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 14,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 15,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 15,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 16,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 16,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 17,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 17,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 18,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 18,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 19,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 19,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 20,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 20,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 21,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 21,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 22,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 22,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 23,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 23,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 24,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 24,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 25,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 25,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 26,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 26,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 27,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 27,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 28,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 28,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 29,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 29,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 30,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 30,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 31,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 31,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 32,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 32,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 33,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 33,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 34,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 34,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 35,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 35,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 36,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 36,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 37,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 37,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 38,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 38,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 39,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 39,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 40,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 40,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 41,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 41,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 42,
+          "side": 1,
+          "offset": 0,
+          "length": 3472
+        }
+      ],
+      "resource": {
+        "id": "boot-program",
+        "kind": "mixed_code_interpreted_data_pcm_unknown",
+        "destination": 2048,
+        "trigger": "Original boot; historical natural handoff verified",
+        "reader": "Original boot LoadBootResource $7881C: descriptor 1 copies 456000 bytes game track3 to $800; descriptor 2 copies 33472 bytes game track79 to $6FD40; ReadBootDecodedTrack $781CC checks all three custom sectors. Static calls 1 then 2 precede the original jump to $800; no new runtime trace."
+      }
+    },
+    {
+      "op": "capture",
+      "file": "foft-music-bank9.bin",
+      "size": 50000,
+      "sha256": "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50",
+      "spans": [
+        {
+          "track": 51,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 51,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 52,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 52,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 53,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 53,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 54,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 54,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 55,
+          "side": 1,
+          "offset": 0,
+          "length": 2000
+        }
+      ],
+      "resource": {
+        "id": "music-resource-9",
+        "kind": "mixed_code_interpreted_data_pcm_unknown",
+        "destination": 360448,
+        "trigger": "Physical HELP -> Space at disc prompt -> Up/Down title selection -> Return; static path, not observed playback",
+        "reader": "ReadDecodedDiskTrack $466CA / LoadDiskResourceByIndex $46D44"
+      }
+    },
+    {
+      "op": "capture",
+      "file": "foft-boot-loader.bin",
+      "size": 4000,
+      "sha256": "b52575d366313c1648976925c368e7a990d30477e7a099301dcabb031a3939a1",
+      "spans": [
+        {
+          "track": 1,
+          "side": 1,
+          "offset": 0,
+          "length": 4000
+        }
+      ],
+      "resource": {
+        "id": "boot-loader-prefix",
+        "kind": "mixed_code_descriptor_data_unknown",
+        "destination": 491520,
+        "trigger": "Historical original natural boot stops at $78000; first 4000 bytes equal independently verified game-track2 sectors 0 and 1.",
+        "reader": "Original first-stage boot transfer not newly traced; matching prefix observed before this stage executes."
+      }
+    },
+    {
+      "op": "capture",
+      "file": "foft-music-bank5.bin",
+      "size": 29578,
+      "sha256": "3fa229a343d5fa6e050abc696911c36e55d5ee96cc7b2d852dbdd4404b299190",
+      "spans": [
+        {
+          "track": 66,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 66,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 67,
+          "side": 1,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 67,
+          "side": 0,
+          "offset": 0,
+          "length": 6000
+        },
+        {
+          "track": 68,
+          "side": 1,
+          "offset": 0,
+          "length": 5578
+        }
+      ],
+      "resource": {
+        "id": "music-resource-5",
+        "kind": "mixed_code_interpreted_data_pcm_unknown",
+        "destination": 360448,
+        "trigger": "HELP -> Space at disc prompt -> select menu index9 or17 with Up/Down -> Return",
+        "reader": "ReadDecodedDiskTrack $466CA"
+      }
+    }
+  ]
+}

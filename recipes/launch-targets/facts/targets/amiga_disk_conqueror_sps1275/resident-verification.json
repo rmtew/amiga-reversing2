@@ -1,0 +1,65 @@
+{
+  "codec": "retail backward literal/copy stream",
+  "input_image_sha256": "4f8b5ec7b59d0a6a89873d37ae52feb5b4ed53335ab1ff5dba96eb82fb72b9fb",
+  "resident": {
+    "load_address": 135168,
+    "observed_handoff": 359306,
+    "renderer_entries": {
+      "game_iteration": {
+        "guest_pc": "058010",
+        "sha256": "e7de19e5d5039574fdec1393d8d9cb137be9856c66cae0e8d97726113f7c7ae6",
+        "source_offset": 225296
+      },
+      "model_face_normal_test": {
+        "guest_pc": "056e58",
+        "sha256": "a43c875af5f8c6e2f78e8aaf40752d4a13f7a84d6ffa27d52d794016c777ec1a",
+        "source_offset": 220760
+      },
+      "queue_viewport_clear": {
+        "guest_pc": "0566aa",
+        "sha256": "bc32ec53531ca79d79a69d9794687dbdc38e31ac0ac42b43288f1215fcd64d8b",
+        "source_offset": 218794
+      },
+      "rasterize_terrain_quad": {
+        "guest_pc": "057634",
+        "sha256": "e840774b7ba46a576ef4d5b3480aa9b3267e886723f29ca9ef1d2ca532370339",
+        "source_offset": 222772
+      },
+      "rotate_and_project_model_vertices": {
+        "guest_pc": "056d4c",
+        "sha256": "798d44df66af42c085b8fcb47db0131f2080d3f856489b10a09f7342b03c47ba",
+        "source_offset": 220492
+      },
+      "sample_and_project_terrain": {
+        "guest_pc": "0566b0",
+        "sha256": "2b05f03b5e65c5dbd4402925ef81aa0d8fd5cfc822b88aa7e86e6a3f579effb0",
+        "source_offset": 218800
+      },
+      "sample_terrain_height_and_type": {
+        "guest_pc": "056ae8",
+        "sha256": "49a4251a012fa21c959a15110aa27aeba7805b5d1f78e3b28d12eb907c193466",
+        "source_offset": 219880
+      },
+      "submit_scene": {
+        "guest_pc": "05692c",
+        "sha256": "3252c95e76a560faf65d19e047bd7085d2ba83ab3bd1ad66e4d8909b932c667c",
+        "source_offset": 219436
+      },
+      "translate_and_project_model_vertices": {
+        "guest_pc": "056f38",
+        "sha256": "4705d11853b0e7fabdb5a910bfcaa69b888ff773431ecab8ddc05f59f0a8fce7",
+        "source_offset": 220984
+      }
+    },
+    "sha256": "6428d23379667b19c7397721ed31a2a90369be99865440692ba95c6bf265f24c",
+    "size": 300368
+  },
+  "source": {
+    "packed_sha256": "c6f5b5de8a1201f415347d068784c0132df97f27bf672bc35d8bd125e21ead51",
+    "packed_size": 64944,
+    "track_first": 126,
+    "track_first_header_offset": 268,
+    "track_first_packed_offset": 280,
+    "track_last_with_packed_bytes": 138
+  }
+}

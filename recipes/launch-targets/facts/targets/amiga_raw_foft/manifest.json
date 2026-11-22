@@ -1,0 +1,255 @@
+{
+  "schema_version": 1,
+  "kind": "disk_set",
+  "id": "amiga_raw_foft",
+  "name": "Federation of Free Traders \u2014 SPS 0613",
+  "project_id": "foft",
+  "build_id": "amiga_sps0613",
+  "platform": "amiga",
+  "package_sha256": "e8b248426af7065eb72c6584f13707b6a6e347508af47a3d97f02bfc7968c9f9",
+  "media": [
+    {
+      "id": "game-disc",
+      "sha256": "da33fc1e068d73078094fc4cb6f72ab69a9c2f30f4094b8321033aedb6237b93",
+      "size": 995846,
+      "codec": "ipf_resource_recovery",
+      "recipe": {
+        "path": "recipes/sps0613.json",
+        "sha256": "d3fe07f882b28da3f0733776581d1208fa522542ee0751500961558b271fe41f"
+      },
+      "outputs": {
+        "foft-program.bin": "main",
+        "foft-boot-loader.bin": "boot",
+        "foft-music-bank5.bin": "music-5",
+        "foft-music-bank9.bin": "music-9"
+      }
+    }
+  ],
+  "members": [
+    {
+      "id": "main",
+      "kind": "mixed",
+      "sha256": "85e2684b03badc7308e7eaa059b7c717441808798f55b4642e1d8b1895914c9b",
+      "size": 489472,
+      "source": "main.s",
+      "context": {
+        "address_model": "runtime_absolute",
+        "load_address": 2048,
+        "entrypoint": 2048,
+        "code_start_offset": 0,
+        "phase": "handoff"
+      },
+      "analysis": {
+        "metadata": {
+          "path": "analysis/main.metadata.json",
+          "sha256": "31708a217a42875cfe65c7d7232d39d8b0190e3ab1f50b9a49cafabdadb80da0"
+        },
+        "state_files": [
+          {
+            "path": "analysis/main.original-target_metadata.json",
+            "sha256": "1e5c3797086647b275bfdadff551fc2df23a55d1b623a287c3cf6dff962e4d86"
+          },
+          {
+            "path": "analysis/main.original-manual_actions.jsonl",
+            "sha256": "abd2b3aff0407e327b2b2b6a69620ef213165d1a5808cab3d0b1c6df99878eaf"
+          }
+        ],
+        "state": {
+          "target_metadata.json": {
+            "path": "analysis/main.target_metadata.json",
+            "sha256": "f8edd1bd274d22d0126b911e23dec5e567080edeeedfbe53f0cb38f66fefcd50"
+          },
+          "manual_actions.jsonl": {
+            "path": "analysis/main.manual_actions.jsonl",
+            "sha256": "29a51ccbc69744fe164989d7af7a9a14d221791fe61a42ad1d170748f08f311f"
+          },
+          "decision_journal.jsonl": {
+            "path": "analysis/main.decision_journal.jsonl",
+            "sha256": null
+          },
+          "target_seeded_metadata.json": {
+            "path": "analysis/main.target_seeded_metadata.json",
+            "sha256": null
+          },
+          "target_corrections.json": {
+            "path": "analysis/main.target_corrections.json",
+            "sha256": null
+          }
+        }
+      }
+    },
+    {
+      "id": "boot",
+      "kind": "mixed",
+      "sha256": "b52575d366313c1648976925c368e7a990d30477e7a099301dcabb031a3939a1",
+      "size": 4000,
+      "source": "boot.s",
+      "context": {
+        "address_model": "runtime_absolute",
+        "load_address": 491520,
+        "entrypoint": 491520,
+        "code_start_offset": 0,
+        "phase": "pre_handoff"
+      },
+      "analysis": {
+        "metadata": {
+          "path": "analysis/boot.metadata.json",
+          "sha256": "a397b6e54fd39c98dac18ad03cfeeb4fd323fedd68882d66cc0830d02a0a7bb6"
+        },
+        "state_files": [
+          {
+            "path": "analysis/boot.original-target_metadata.json",
+            "sha256": "5359504c97e556ce127e252097156ba2b72a4ae0a2d09f3a6df406b3b5e4a5a8"
+          }
+        ],
+        "state": {
+          "target_metadata.json": {
+            "path": "analysis/boot.target_metadata.json",
+            "sha256": "5359504c97e556ce127e252097156ba2b72a4ae0a2d09f3a6df406b3b5e4a5a8"
+          },
+          "manual_actions.jsonl": {
+            "path": "analysis/boot.manual_actions.jsonl",
+            "sha256": "db9006e819c7396e5dde0ef13757e91c9e8cbe74e91ed30ec320d81569b9e8cf"
+          },
+          "decision_journal.jsonl": {
+            "path": "analysis/boot.decision_journal.jsonl",
+            "sha256": null
+          },
+          "target_seeded_metadata.json": {
+            "path": "analysis/boot.target_seeded_metadata.json",
+            "sha256": null
+          },
+          "target_corrections.json": {
+            "path": "analysis/boot.target_corrections.json",
+            "sha256": null
+          }
+        }
+      }
+    },
+    {
+      "id": "music-5",
+      "kind": "mixed",
+      "sha256": "3fa229a343d5fa6e050abc696911c36e55d5ee96cc7b2d852dbdd4404b299190",
+      "size": 29578,
+      "source": "music-5.s",
+      "context": {
+        "address_model": "runtime_absolute",
+        "load_address": 360448,
+        "entrypoint": 360448,
+        "code_start_offset": 0,
+        "phase": "decoded_resource"
+      },
+      "analysis": {
+        "metadata": {
+          "path": "analysis/music-5.metadata.json",
+          "sha256": "15f0ce8abfd28a38fb55dde87944dbbd880bafc22e5bf7a194513b7737f76706"
+        },
+        "state_files": [
+          {
+            "path": "analysis/music-5.original-target_metadata.json",
+            "sha256": "c0fa873dfcfa3003c8ebe96f69bbac4bedd8272fc694e487755fd806743a3b8e"
+          },
+          {
+            "path": "analysis/music-5.original-manual_actions.jsonl",
+            "sha256": "4bc1c81fc8e629bd7e7e970e124d441659697e07a297b544dce787266c50c643"
+          }
+        ],
+        "state": {
+          "target_metadata.json": {
+            "path": "analysis/music-5.target_metadata.json",
+            "sha256": "c0fa873dfcfa3003c8ebe96f69bbac4bedd8272fc694e487755fd806743a3b8e"
+          },
+          "manual_actions.jsonl": {
+            "path": "analysis/music-5.manual_actions.jsonl",
+            "sha256": "097f90f5dd14fa2b3a9c118dae26f32fd53e4d5602d9e7593d8d95dd508af108"
+          },
+          "decision_journal.jsonl": {
+            "path": "analysis/music-5.decision_journal.jsonl",
+            "sha256": "0ce5424f48229dacb48bafb93a41dad014b151bcd471ad87d5f88ecfbd80183d"
+          },
+          "target_seeded_metadata.json": {
+            "path": "analysis/music-5.target_seeded_metadata.json",
+            "sha256": null
+          },
+          "target_corrections.json": {
+            "path": "analysis/music-5.target_corrections.json",
+            "sha256": null
+          }
+        }
+      }
+    },
+    {
+      "id": "music-9",
+      "kind": "mixed",
+      "sha256": "29792eedbaf4c3105f7a7812f378f9fbb7f9302e814956c6c9a49393b149aa50",
+      "size": 50000,
+      "source": null,
+      "analysis": null,
+      "context": {
+        "address_model": "runtime_absolute",
+        "load_address": 360448,
+        "entrypoint": 360448,
+        "code_start_offset": 0,
+        "phase": "decoded_resource"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "kind": "embedded",
+      "member": "music-9",
+      "owner": "main",
+      "offset": 358400,
+      "size": 50000,
+      "evidence": "Complete independently decoded disk resource9 equals the main source span. One canonical analysis owner; no callback or runtime closure."
+    },
+    {
+      "kind": "load",
+      "source": "boot",
+      "member": "main",
+      "source_offset": 2298,
+      "source_size": 16,
+      "member_offset": 0,
+      "size": 456000,
+      "destination": 2048,
+      "trigger": "Original boot descriptor1",
+      "evidence": "Static original descriptor bytes rechecked during migration; does not assert a newly observed transfer."
+    },
+    {
+      "kind": "load",
+      "source": "boot",
+      "member": "main",
+      "source_offset": 2314,
+      "source_size": 16,
+      "member_offset": 456000,
+      "size": 33472,
+      "destination": 458048,
+      "trigger": "Original boot descriptor2",
+      "evidence": "Static original descriptor bytes rechecked during migration; does not assert a newly observed transfer."
+    },
+    {
+      "kind": "load",
+      "source": "main",
+      "member": "music-5",
+      "source_offset": 261104,
+      "source_size": 16,
+      "member_offset": 0,
+      "size": 29578,
+      "destination": 360448,
+      "trigger": "HELP / disc prompt / menu9 or17 / Return",
+      "evidence": "Static original descriptor bytes rechecked during migration; does not assert a newly observed transfer."
+    },
+    {
+      "kind": "load",
+      "source": "main",
+      "member": "music-9",
+      "source_offset": 261168,
+      "source_size": 16,
+      "member_offset": 0,
+      "size": 50000,
+      "destination": 360448,
+      "trigger": "HELP / disc prompt / menu18 / Return",
+      "evidence": "Static original descriptor bytes rechecked during migration; does not assert a newly observed transfer."
+    }
+  ]
+}

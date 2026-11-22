@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "starglider2_retail",
+  "family": "starglider2",
+  "analysis_target": "starglider2_retail",
+  "bindings": {
+    "amiga": {
+      "target": "starglider2_retail_amiga",
+      "platform": "amiga",
+      "platform_flags": 32769,
+      "monitors": [
+        "pal"
+      ]
+    },
+    "atari_st": {
+      "target": "starglider2_retail_atari_st",
+      "platform": "atari-st",
+      "platform_flags": 1,
+      "monitors": [
+        "colour",
+        "monochrome"
+      ]
+    }
+  }
+}

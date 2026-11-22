@@ -1,0 +1,3270 @@
+{
+  "schema": "launch-framework-source-manifest-v1",
+  "files": [
+    {
+      "path": "Makefile",
+      "size": 2665,
+      "sha256": "35c74f16b34d2d955fc51c987767c8d78ac02494567002dcc9cc6e08877b24d8"
+    },
+    {
+      "path": "amiga_reversing/__init__.py",
+      "size": 92,
+      "sha256": "c3cb2f7397190280af3d451056073f1931e0f186ee0ba9fed6b6a3bcffb31208"
+    },
+    {
+      "path": "amiga_reversing/amiga_disk/__init__.py",
+      "size": 68,
+      "sha256": "e0a61c40362bd498777712320d5c82fee210a4ca2d1c784c094edf492667c637"
+    },
+    {
+      "path": "amiga_reversing/amiga_disk/adf.py",
+      "size": 15387,
+      "sha256": "eed49a8dbf745155fcd05c5c9c5e7cdb959bd6f4485cfa2bfab7fb79c1c24a77"
+    },
+    {
+      "path": "amiga_reversing/amiga_disk/models.py",
+      "size": 61900,
+      "sha256": "51152dbace5eb4a68023caecd32c2235af1d30276a199146eaf6d249f5ff7392"
+    },
+    {
+      "path": "amiga_reversing/amiga_disk/project.py",
+      "size": 124246,
+      "sha256": "84e6b5cb0cd4fb22d49d69c90d91f6dc9c1c323d8bd0b950bb9977ec5684f243"
+    },
+    {
+      "path": "amiga_reversing/disasm/__init__.py",
+      "size": 36,
+      "sha256": "3c78788ea0fb8b468bf16f215d385ccca713e31b0d6625da9c1c4e1f920e5b92"
+    },
+    {
+      "path": "amiga_reversing/disasm/amiga_metadata.py",
+      "size": 1865,
+      "sha256": "f7c8c668aed6ce8064b9a572f1ff17d132d5b3a4aa9e7b6193970b262150c3e3"
+    },
+    {
+      "path": "amiga_reversing/disasm/analysis_state_paths.py",
+      "size": 1459,
+      "sha256": "d1a941eb3d5b7dede42fd0ae85f09be1cde25a7c9f5e200bc231d2380f649bb1"
+    },
+    {
+      "path": "amiga_reversing/disasm/api.py",
+      "size": 1878,
+      "sha256": "5f5c252cf07701dc9ee66ec6c40cfca83245224f9895a9fea0674566b146104f"
+    },
+    {
+      "path": "amiga_reversing/disasm/app_access_audit.py",
+      "size": 18419,
+      "sha256": "06f29ef7492d3cc0211412c56738a30f077853155ec0a98e1119e48a8c9b3d72"
+    },
+    {
+      "path": "amiga_reversing/disasm/assembler_profiles.py",
+      "size": 12506,
+      "sha256": "e110bf7ea0a9fd22ddd6553103dd3001de31b94c3fc0b040054366ea8b80a260"
+    },
+    {
+      "path": "amiga_reversing/disasm/behaviour_validation.py",
+      "size": 13579,
+      "sha256": "b4de64391e020d37dd7c467cc841d4d5b39a3b851d058b62bd5d85f6fd341f45"
+    },
+    {
+      "path": "amiga_reversing/disasm/binary_source.py",
+      "size": 18703,
+      "sha256": "33e501018fd2d5584685e0d8ecc2f372444839fe4ace0c8bbec66bd76ba9f10a"
+    },
+    {
+      "path": "amiga_reversing/disasm/byte_projection.py",
+      "size": 2532,
+      "sha256": "3ebe07ed4390b4d65638540b2574082da87f3f769ee6ec80d3e4143c1c88b31e"
+    },
+    {
+      "path": "amiga_reversing/disasm/c_backend.py",
+      "size": 122458,
+      "sha256": "84f64abf9f0edf5cce3a936e32c30fca54b1e27c30befdc549c4eb1b246a0608"
+    },
+    {
+      "path": "amiga_reversing/disasm/callback_slot_report.py",
+      "size": 60090,
+      "sha256": "69ad14ae69d083370676742f9e1f781bcd530e8f8125b793f21cc86d270a547b"
+    },
+    {
+      "path": "amiga_reversing/disasm/cascade.py",
+      "size": 17888,
+      "sha256": "812e59ee107fe19eb03708270e7458bcef192a104b184c061902e4dafbb2ee98"
+    },
+    {
+      "path": "amiga_reversing/disasm/cli.py",
+      "size": 4163,
+      "sha256": "ac5c6bf375ea63f063ea5925c02fda6dab06b0468919b4dbca257015ea37c78c"
+    },
+    {
+      "path": "amiga_reversing/disasm/completeness.py",
+      "size": 39500,
+      "sha256": "59a74ee3c26dc954ef636c32946ed15b804d1f86d9293be209b4a4e43e04df10"
+    },
+    {
+      "path": "amiga_reversing/disasm/control_text_emission.py",
+      "size": 5086,
+      "sha256": "a10fddfc6391d49d4a2dd93d3ba2f58831b9614eede2fe2f856579acfe70789c"
+    },
+    {
+      "path": "amiga_reversing/disasm/corpus_usage.py",
+      "size": 65310,
+      "sha256": "00a702d1046d859b7bb85e8c7c26b9c7f839f229d95cb1ea0f33b73da9e0f89c"
+    },
+    {
+      "path": "amiga_reversing/disasm/decision_journal.py",
+      "size": 27160,
+      "sha256": "77e1efaf5898f2b402ed1aba3dc7651c2babee8a5a49fb31ddfdcede61f6eead"
+    },
+    {
+      "path": "amiga_reversing/disasm/derived_artifact.py",
+      "size": 7791,
+      "sha256": "dc53fa30ed3288d1dcd5d67a762f47d06c0550a5db58056e554ee1592a6d5797"
+    },
+    {
+      "path": "amiga_reversing/disasm/disk_browser.py",
+      "size": 9844,
+      "sha256": "c0098b9b141e50d23bbe6f18d881133ee494c20734a8d3d17d48bf8611aa5976"
+    },
+    {
+      "path": "amiga_reversing/disasm/disk_codecs.py",
+      "size": 6634,
+      "sha256": "f2a157e47c82edfa32b60d88d8057be9503de61dfbeecb01442e3a711fe3080b"
+    },
+    {
+      "path": "amiga_reversing/disasm/disk_set.py",
+      "size": 55550,
+      "sha256": "c83ea6d044dcb49df50561a06380524dbd45c69bcb490e1bb39cb6cd3bcfde19"
+    },
+    {
+      "path": "amiga_reversing/disasm/disk_set_state.py",
+      "size": 74947,
+      "sha256": "315a97f3fe009db1aaa37cc15fcf0d42dd327d03c2c549e8aacd04ba89bcd982"
+    },
+    {
+      "path": "amiga_reversing/disasm/effective_metadata.py",
+      "size": 157167,
+      "sha256": "d8b19332e70ef256c20f39831d570792ffa257062760091f076827ca02f15911"
+    },
+    {
+      "path": "amiga_reversing/disasm/facts_v2_source_gate.py",
+      "size": 11517,
+      "sha256": "c985f5e04f9a6170cad80ad21398eba0595c0b2d55a9f51966b2e1379045cd67"
+    },
+    {
+      "path": "amiga_reversing/disasm/facts_v2_source_refusal.py",
+      "size": 5092,
+      "sha256": "8ee584f5c58c3cedd97fe7e4a41785816e8cd263b0570f505a3a1c6eafd26374"
+    },
+    {
+      "path": "amiga_reversing/disasm/function_facts.py",
+      "size": 21290,
+      "sha256": "82eec2ce7f7f35bff4bbed558504cb5170ce2084bfce9acace7a04aa6f112e6d"
+    },
+    {
+      "path": "amiga_reversing/disasm/game_catalog.py",
+      "size": 18635,
+      "sha256": "d8bbde58ee335f9eb7971054e0f87c8752a9754b35ffecaf07c4328021d417fb"
+    },
+    {
+      "path": "amiga_reversing/disasm/hosted_application_export.py",
+      "size": 10550,
+      "sha256": "5a7cf6740ac99d7023a658728dec0b5c26eaffde0642b6042b148272a0e08627"
+    },
+    {
+      "path": "amiga_reversing/disasm/imported_comments.py",
+      "size": 2522,
+      "sha256": "5ce066ef51b7518404f924067a5d4e687b395e37e44e0c469003605d90b697df"
+    },
+    {
+      "path": "amiga_reversing/disasm/ipf_resources.py",
+      "size": 18593,
+      "sha256": "ddb08f8423926215e06f4a3411b071acbd5d01fe3c4a795d699171e8c0017d4e"
+    },
+    {
+      "path": "amiga_reversing/disasm/launch_fact_checkpoints.py",
+      "size": 3749,
+      "sha256": "23515f8847e4dcfc1b7a61cf47f4bf46c63a3bfe8568681a3e1fc1954ddb3a35"
+    },
+    {
+      "path": "amiga_reversing/disasm/layout_export_cache.py",
+      "size": 7315,
+      "sha256": "c622e3646ab566c815e13c3d274f0d890388f2c13a65213078cb4690654954dd"
+    },
+    {
+      "path": "amiga_reversing/disasm/listing_context.py",
+      "size": 17748,
+      "sha256": "3770bdfd8e6a9e591ada8fc692a6368c542fa3412e25842046f773e560ad6f51"
+    },
+    {
+      "path": "amiga_reversing/disasm/listing_projection.py",
+      "size": 27089,
+      "sha256": "4f7fa819ccb36716df2e1c55e291cdfdadbb348d50a86df01f4558a1f3c49e2c"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_asm_container.py",
+      "size": 6714,
+      "sha256": "a5ce07df9e07478312409dfc43f3b0704003fb6761b64656c7bb73bbe06a3017"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_build_provenance.py",
+      "size": 12155,
+      "sha256": "484030ea8d8812f663d3b7e485b4feea7e9168833a849b22b11857fb5083f212"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_code_provider.py",
+      "size": 5185,
+      "sha256": "16f91e8f7e3a70112f03656d5359167588177dae06140936ec3aada760948ad7"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_container_payload.py",
+      "size": 9596,
+      "sha256": "bec1250a396b8bea476a604ca714fb01a9d840e14866fc363b19c3db5ec3e079"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_fork_roles.py",
+      "size": 5432,
+      "sha256": "1b75a5571592ba74b48e04fd58a48cf3b8f9589136d471c6572902a540d7852b"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_hfs.py",
+      "size": 8276,
+      "sha256": "dfef4aae099e935619947c07b9f2e693a62ff9a4f2726c06c467690cf107dd5f"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_image.py",
+      "size": 896,
+      "sha256": "f25291682dc70c5aeb4fc77707de8dcdbdbad70ef4fdca0379a1fb4eb23ecedb"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_listing_source.py",
+      "size": 13225,
+      "sha256": "e9f5038c5464dd90be412403df3dea2d77840fc3e11fff070e79f59f16e75943"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_project_origin.py",
+      "size": 3913,
+      "sha256": "7ce49b67dec1b5e965f6f9356e8c1506d805b2482bc8108d9ae9b49797a52456"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_project_payload.py",
+      "size": 98585,
+      "sha256": "76510b55f0eebbfe0bf227d9db1af59ddde151ec1bdbd2b5f46286fdefc36f9e"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_resource_fork.py",
+      "size": 5120,
+      "sha256": "e65bfdcd86a33852cd0cf5ba803e23c7e629cf8e387f189c1f167bf5b05f5f11"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_resource_model.py",
+      "size": 12395,
+      "sha256": "bd8099ca5cb3a2c23db2abca3e61e0fc5bac8730867c0fd36ca54fc656dbe0f2"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_runtime_metadata.py",
+      "size": 661,
+      "sha256": "fb7e41966aab29e3f6a57bb29b7cf6287e7169ced917b0a6b63bf178b7627d98"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_source_project.py",
+      "size": 7594,
+      "sha256": "b7e55d918961753fdcecb9f70d50e5d33c38ff63ed055f590516f1b675fe4d3b"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_source_render.py",
+      "size": 7296,
+      "sha256": "b9063897fdf8d511e5408fc5334ba8836ddd081cd297fcb4f11b975d1e83e88d"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_source_structure.py",
+      "size": 10321,
+      "sha256": "b40c5ba0b58f1b53fb3666810064b5589d97bca7c00958f6740cec994cfc023a"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_target_artifact.py",
+      "size": 39839,
+      "sha256": "6669e29f614546fd4c185ef55423ffa848d67f60f29482263f1b6d76c4a3d7a7"
+    },
+    {
+      "path": "amiga_reversing/disasm/macos_web_view.py",
+      "size": 7766,
+      "sha256": "e5d9080da75ffbdb0e36127d094c9a4be3a358d8a9eb41be0eefd7b2933b9ae1"
+    },
+    {
+      "path": "amiga_reversing/disasm/manual_action_catalog.py",
+      "size": 318059,
+      "sha256": "a7cce7e0452f558c5b3865417a62f18d58aa9a16767029147c0d3ca874e144a1"
+    },
+    {
+      "path": "amiga_reversing/disasm/manual_actions.py",
+      "size": 154114,
+      "sha256": "0c072ef5c9af65e9daa6dc029d0640260093c19630dd0d767df086494795cfa9"
+    },
+    {
+      "path": "amiga_reversing/disasm/manual_review_items.py",
+      "size": 17800,
+      "sha256": "064293b3aa0b7127d6c03f0ac3dadfbe0bd37ab03d68c56c8e5152fc809a95a2"
+    },
+    {
+      "path": "amiga_reversing/disasm/mapped_execution.py",
+      "size": 8329,
+      "sha256": "93abf91870d5fc6fcc954692e309b42c0150f3399768fe7c4786d0b7cb6edf3c"
+    },
+    {
+      "path": "amiga_reversing/disasm/mapped_recipe.py",
+      "size": 5216,
+      "sha256": "735241d9a7cfbc2ea918164fb7b4cb37d72670dc7e01c156979d7718d2244db9"
+    },
+    {
+      "path": "amiga_reversing/disasm/media_fact_templates.py",
+      "size": 4529,
+      "sha256": "0781fda41da9fbfdcdbd3ed549d18f714b418fa1cf0c0d1188f6ad61b5f63285"
+    },
+    {
+      "path": "amiga_reversing/disasm/memory_regions.py",
+      "size": 14022,
+      "sha256": "4c82f7790f6cbb3b0fe88200fa6ba42a79128ce7e51ee63ad17296c1e14ca82f"
+    },
+    {
+      "path": "amiga_reversing/disasm/metadata_slice.py",
+      "size": 9143,
+      "sha256": "86664559ff2b66d5ed9e5e303b3e4c2ef184854e8a2749be1ab2ecf024ba26b4"
+    },
+    {
+      "path": "amiga_reversing/disasm/operand_bindings.py",
+      "size": 4130,
+      "sha256": "1bf339263445c0d324634a31aae1183ab274f65e813f1abd49392d72bc7290a0"
+    },
+    {
+      "path": "amiga_reversing/disasm/optional_artifact.py",
+      "size": 2699,
+      "sha256": "a297b26d48bb78ebbf721d9015360d64423320e5891442cb3858db1cb6fd1335"
+    },
+    {
+      "path": "amiga_reversing/disasm/oracle_compatibility.py",
+      "size": 26281,
+      "sha256": "3071eaaaf52aa9a8f6a2238eb72a6a215a057d3e8290a371ec412089c7cf333b"
+    },
+    {
+      "path": "amiga_reversing/disasm/orphan_links.py",
+      "size": 6754,
+      "sha256": "b3c1333ecf64277c7233b80ec080978be77b0191880d21863d22565d3410d046"
+    },
+    {
+      "path": "amiga_reversing/disasm/pointer_domains.py",
+      "size": 2156,
+      "sha256": "c340199bb03d1f3b9f9a6ba671d6edc3057d30f226b30b12ee4dc93044d183e7"
+    },
+    {
+      "path": "amiga_reversing/disasm/profile_set_targets.py",
+      "size": 17003,
+      "sha256": "b17f5e627ed826b82d4f24d623234bccc33679d9c4e508933cac64ca8032545b"
+    },
+    {
+      "path": "amiga_reversing/disasm/progress_scorecard.py",
+      "size": 20973,
+      "sha256": "a25202d0dad42b313f905ed3aae5bc0a45c3526ad7cdec22c8df7449ef98d856"
+    },
+    {
+      "path": "amiga_reversing/disasm/project_ids.py",
+      "size": 3276,
+      "sha256": "0021cd7c8cf1eea64a3119bca652b04e68b4460799f878168fd97929b2bd9c54"
+    },
+    {
+      "path": "amiga_reversing/disasm/project_paths.py",
+      "size": 2859,
+      "sha256": "b91ec04d7fb080d3a1769e8720eb313da65a01c729c4b2f5494e2d3e166b7acc"
+    },
+    {
+      "path": "amiga_reversing/disasm/projected_face_audit.py",
+      "size": 4914,
+      "sha256": "68caa8eecd368375cef5a564567840293551efa6eb35824e1d7f2dcb2ca40d8f"
+    },
+    {
+      "path": "amiga_reversing/disasm/projects.py",
+      "size": 27171,
+      "sha256": "2bf9343247dab342e64e5ea84c33f8218f39c2eaaed84757694c8f4d5e617404"
+    },
+    {
+      "path": "amiga_reversing/disasm/purpose_assessments.py",
+      "size": 8858,
+      "sha256": "035640167f0dde682c32e5c5873934144d40791e14964e3a2f890452109ec164"
+    },
+    {
+      "path": "amiga_reversing/disasm/record_arrays.py",
+      "size": 17720,
+      "sha256": "c30f9207d05be42ec87b2db493df5e62b28386e7af44bf39ca208b9521a0d2ce"
+    },
+    {
+      "path": "amiga_reversing/disasm/record_lists.py",
+      "size": 12762,
+      "sha256": "77beb767012e58a5d308b1e5d011e7f01fab59bf07abbfeda18dc43a7ef7e26c"
+    },
+    {
+      "path": "amiga_reversing/disasm/reproduction.py",
+      "size": 123964,
+      "sha256": "c0db31130b9d951631721c2d4f2f8cd972cd6f1daf148d36ffd8e70637d64353"
+    },
+    {
+      "path": "amiga_reversing/disasm/reproduction_report.py",
+      "size": 11822,
+      "sha256": "e60ac9179f4a50463597f9845f1c4d64838732775e7490c822d98f3ff6c38c1f"
+    },
+    {
+      "path": "amiga_reversing/disasm/reproduction_sweep.py",
+      "size": 83259,
+      "sha256": "7a17ec8bb33e32754f4775213d9258d70597fe0b0a6bb05fa2ffd5b19e9c046e"
+    },
+    {
+      "path": "amiga_reversing/disasm/reproduction_worker.py",
+      "size": 19942,
+      "sha256": "fdcc1e62a1eb402a09ba52777a27dc991d5037b40a72cb0cc3ba38b72d4daa34"
+    },
+    {
+      "path": "amiga_reversing/disasm/restoration.py",
+      "size": 34027,
+      "sha256": "670df7a20a8b0e0200398914fb319c98bdbf9566994d592d6b405b9a3c54fc69"
+    },
+    {
+      "path": "amiga_reversing/disasm/restoration_client.py",
+      "size": 4277,
+      "sha256": "e80caf71cbda33bf720ffc39b1c084463626a10efe068660145c311b9f9c84b2"
+    },
+    {
+      "path": "amiga_reversing/disasm/restoration_verification.py",
+      "size": 21543,
+      "sha256": "acad62621cc59c48e5769125ee25738e4fcb8dd8a4839375c9efe3804de86398"
+    },
+    {
+      "path": "amiga_reversing/disasm/server.py",
+      "size": 195086,
+      "sha256": "d29e61e61f474fd032839209705d0812a73df6e91b1e3522bc4957231af6081d"
+    },
+    {
+      "path": "amiga_reversing/disasm/shared_record_fields.py",
+      "size": 5154,
+      "sha256": "48465e189f521116d14a67b5874bba1a4b7d32b192ff3d98e686503a1e067f12"
+    },
+    {
+      "path": "amiga_reversing/disasm/source_export.py",
+      "size": 19847,
+      "sha256": "d849e1139a95d081ab7964fc69ecaac4925ec8e8d0b95bb59d6f1b657f32c7a1"
+    },
+    {
+      "path": "amiga_reversing/disasm/source_inventory.py",
+      "size": 15250,
+      "sha256": "66470e3074aa4ad0e6c2127946a5fd12ca2a7ad7952c2105007c53ee032abed7"
+    },
+    {
+      "path": "amiga_reversing/disasm/source_label_identity.py",
+      "size": 3003,
+      "sha256": "c154ba6bfae6019b01b3fee198916c0af6e8e87245b74170831063ad856ba6b1"
+    },
+    {
+      "path": "amiga_reversing/disasm/source_local_scopes.py",
+      "size": 4355,
+      "sha256": "e29771dea2bc08fdb1677048ff7e263f2c4476930cfee790ac88fb03110b273b"
+    },
+    {
+      "path": "amiga_reversing/disasm/source_numbers.py",
+      "size": 1025,
+      "sha256": "1a0ed804238aa1f2c789fd44d2910a25845f93e33376fe29092690ab0098b147"
+    },
+    {
+      "path": "amiga_reversing/disasm/source_package.py",
+      "size": 13550,
+      "sha256": "57c2a34d7e1e2ed3a7dc32ee883578242fd52e3a4e1b1fb27557c144d51a3767"
+    },
+    {
+      "path": "amiga_reversing/disasm/source_package_publish.py",
+      "size": 9286,
+      "sha256": "3ae3c14875a9c33ebdbea883eb19025fcf7e7788e4623dbb8ce99ac13552b08f"
+    },
+    {
+      "path": "amiga_reversing/disasm/source_rendering.py",
+      "size": 6937,
+      "sha256": "3211959200e4b8b4b5b5c9d8df0d732791417b89dcdfcfc2a44a690b644247e2"
+    },
+    {
+      "path": "amiga_reversing/disasm/structure_macro_rendering.py",
+      "size": 13914,
+      "sha256": "d5997e012b3f4f87aa8c8e48b4f35281784f7b93fc2691fdc19af9a8188ea558"
+    },
+    {
+      "path": "amiga_reversing/disasm/stx_recovery.py",
+      "size": 7771,
+      "sha256": "f52a861b16c0d3a3cc55a3c81b98076001a4a198ae10e84112a74ad4f95f7361"
+    },
+    {
+      "path": "amiga_reversing/disasm/target_history.py",
+      "size": 3464,
+      "sha256": "73c09ba2f720018284df01dced127f990573fb6fe89283bff8ce7d878720d26b"
+    },
+    {
+      "path": "amiga_reversing/disasm/target_local_state.py",
+      "size": 1200,
+      "sha256": "8902f28fde4f2a3f0da2477bc147b4c79f0050e5cac14e06bdd691e20809a3ac"
+    },
+    {
+      "path": "amiga_reversing/disasm/target_metadata.py",
+      "size": 138085,
+      "sha256": "b888c0cf92a912a313a21819a2612fc3d519bac4f6352f1f0fcc204b3c271667"
+    },
+    {
+      "path": "amiga_reversing/disasm/tool_graph.py",
+      "size": 26957,
+      "sha256": "d33698d0bd2105e2c9e748ccac56036ea4410181595c394f5a05a6a015319608"
+    },
+    {
+      "path": "amiga_reversing/disasm/typed_pointer_report.py",
+      "size": 5686,
+      "sha256": "2901b074176490a0322cabfea96315bf06810d0eed39f5e5423b6281808b4e31"
+    },
+    {
+      "path": "amiga_reversing/disasm/ui_preferences.py",
+      "size": 5068,
+      "sha256": "c0b12d4ef84de43b90fa64bd6e22f6b2d0f59e05be40c0e70177142f285ab501"
+    },
+    {
+      "path": "amiga_reversing/disasm/workflow_profile.py",
+      "size": 2361,
+      "sha256": "7e9dbf8c02c29f02738472783d16566893c42edab02a18093144460842b6140b"
+    },
+    {
+      "path": "amiga_reversing/disasm/workspace_audit.py",
+      "size": 5768,
+      "sha256": "bfcf77c47b4b2a68acfed452be66371611d3c6c6e3d32b3ec3d3392c2fac9e3f"
+    },
+    {
+      "path": "amiga_reversing/reversing_loop.py",
+      "size": 727213,
+      "sha256": "928585b76902b4b746a3834599189136b1a75abc05ba7b3fdc9870bfb5c6e7c2"
+    },
+    {
+      "path": "amiga_reversing/reversing_workspace.py",
+      "size": 12759,
+      "sha256": "6dd6f40333e515762cb0f399ca50d10e5f7b1e9fe6dc33ef2d49106767874fdf"
+    },
+    {
+      "path": "amiga_reversing/tools/__init__.py",
+      "size": 39,
+      "sha256": "2c30c08bbe7190b64ed101a341343891dd30ada650832d656cf1ff030dcfac7a"
+    },
+    {
+      "path": "amiga_reversing/tools/analyze_disk.py",
+      "size": 6837,
+      "sha256": "6b67c8078cae5bd733af563048ec4ceda315f056efb329afb1d6652c77986b38"
+    },
+    {
+      "path": "amiga_reversing/tools/atari_platform_kb.py",
+      "size": 1714,
+      "sha256": "c8fb111d5222ce9c2715c3158fe6596e13f92b95d0247d2b9642729146fc6904"
+    },
+    {
+      "path": "amiga_reversing/tools/benchmark_target.py",
+      "size": 10613,
+      "sha256": "4c169a6e6051454a8307638f2815b1f800560e7d033aff7990f5204c98899c2f"
+    },
+    {
+      "path": "amiga_reversing/tools/check_mojibake.py",
+      "size": 2823,
+      "sha256": "39170b13fdc883bc4973e0f80794bcee68041fda17e4a91b9d74abbdebba0358"
+    },
+    {
+      "path": "amiga_reversing/tools/compare_starglider2.py",
+      "size": 30019,
+      "sha256": "c329d2f4d9e8a5d15bbb0103143fe3a95ee7576838f4c6c9fc4fe71fbea62900"
+    },
+    {
+      "path": "amiga_reversing/tools/copperline_bus_trace.py",
+      "size": 12022,
+      "sha256": "65a3f5b9c92f47bba698f0ecf9dda561358f12022a5e67135d98d0f3505704b2"
+    },
+    {
+      "path": "amiga_reversing/tools/copperline_checkpoint.py",
+      "size": 6316,
+      "sha256": "6a0074c3c799bf3322872cba9283633a3493d667cbed1128ac775bcc541a036d"
+    },
+    {
+      "path": "amiga_reversing/tools/copperline_control.py",
+      "size": 16040,
+      "sha256": "96a93b9f6032a8233b956ae50f52dfb168e0ed7a0c2a6c89e10af85ad7d5b3d8"
+    },
+    {
+      "path": "amiga_reversing/tools/copperline_coverage.py",
+      "size": 6005,
+      "sha256": "2e1b4d9776bd1736be34df8af6cf9b67bd47131c4756034f8269db960554d833"
+    },
+    {
+      "path": "amiga_reversing/tools/copperline_runtime.py",
+      "size": 58203,
+      "sha256": "f004b4068df78d9a563b5e30ff6a521773d40e7e642e0882c4cf4bb433a2afeb"
+    },
+    {
+      "path": "amiga_reversing/tools/copperline_session.py",
+      "size": 41738,
+      "sha256": "b9338c5f5160bc9e3f5785996096d6bd1c59f479965e0d22cc490e0b36a9e680"
+    },
+    {
+      "path": "amiga_reversing/tools/direct_payload_adapter.py",
+      "size": 26535,
+      "sha256": "ba278cb231cc043f5144802697bd7f27d2cff73963e0df751afbdefb47613716"
+    },
+    {
+      "path": "amiga_reversing/tools/disasm_server.py",
+      "size": 122,
+      "sha256": "a1e9b808db065dcf65094d4051874d8a57ce992cdfab91269d84295c5912965c"
+    },
+    {
+      "path": "amiga_reversing/tools/docs_source_inventory.py",
+      "size": 11204,
+      "sha256": "cbf5c1408afeee56cf889ad02a00d3da7290956f3653e2c78bc957ee67e80035"
+    },
+    {
+      "path": "amiga_reversing/tools/facts_v2_source_gate_report.py",
+      "size": 4637,
+      "sha256": "de9e30827cc1f0cfc21bc1dc6f1601195c296e24043d41fc1050c457f02887ed"
+    },
+    {
+      "path": "amiga_reversing/tools/foft_original_media_inputs.py",
+      "size": 1196,
+      "sha256": "adb5fcad2f8535b8437de29e46c4f003bfaf53810fcd7ce8c3282f1651ffa9df"
+    },
+    {
+      "path": "amiga_reversing/tools/game_catalog.py",
+      "size": 1633,
+      "sha256": "ae10027053772df25077cdbd8f11ac217263033fb33462d8eccc3eae2878196b"
+    },
+    {
+      "path": "amiga_reversing/tools/gen_disasm.py",
+      "size": 119,
+      "sha256": "b15a3036cc5bb36aab27946d90ba528004af9abd0f98158379ffbb6b2c18b6bb"
+    },
+    {
+      "path": "amiga_reversing/tools/genam_roundtrip.py",
+      "size": 6390,
+      "sha256": "01b22074538543f47eb3dd39a1789697a9fb7bc73c8ca344b01fcae49cd47ca2"
+    },
+    {
+      "path": "amiga_reversing/tools/import_adf.py",
+      "size": 2131,
+      "sha256": "bdf3c1d68ab3fe01cfae4848743308a98446375217744f645cc6418ab5c619a4"
+    },
+    {
+      "path": "amiga_reversing/tools/m68k_coverage.py",
+      "size": 38570,
+      "sha256": "080921287475256c9370b1604bdb6fb970904d66cfadc29a61eb36e1d7ab9c06"
+    },
+    {
+      "path": "amiga_reversing/tools/macos_platform_kb.py",
+      "size": 1747,
+      "sha256": "4a734994b070dc607db5881ba59ccdeaf75dd32e7f1b9f07d557921ab205e5b4"
+    },
+    {
+      "path": "amiga_reversing/tools/manual_actions.py",
+      "size": 9370,
+      "sha256": "fc228be6f14568e30f87590514d745ce62c8c4f031a32733b2ee1bde7dd3d750"
+    },
+    {
+      "path": "amiga_reversing/tools/migrate_function_summaries.py",
+      "size": 21076,
+      "sha256": "99354956a822dd7450472d9d5bc5067c73acc7f3e1de9f17b533e900d5342f2f"
+    },
+    {
+      "path": "amiga_reversing/tools/observed_layout_mapping.py",
+      "size": 1641,
+      "sha256": "90fc4de16665669834bd8890d8874d011e26eee5826ca8cfc726baabaca3f05e"
+    },
+    {
+      "path": "amiga_reversing/tools/optional_patch.py",
+      "size": 5589,
+      "sha256": "4f82d45b2d7fd6e7d924fae254b40bd79d2460656259bfa416a7f556b2fc78dc"
+    },
+    {
+      "path": "amiga_reversing/tools/original_media_prefix.py",
+      "size": 4342,
+      "sha256": "d205d2bb7707d2e2b69ebdb81f4c79a4e044618803480fb8513431ed4490c916"
+    },
+    {
+      "path": "amiga_reversing/tools/original_media_preflight.py",
+      "size": 8087,
+      "sha256": "753b8ba95213f48ec8e8a4f9217b70a128e0f0ccf6037b92d30410f90ee6d7c2"
+    },
+    {
+      "path": "amiga_reversing/tools/orphan_link_report.py",
+      "size": 1602,
+      "sha256": "1beddc8e9bd16f43cba31f07e7e0581e44576d91d6595bbc0dd28d8f5f475102"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_OS_application.py",
+      "size": 33182,
+      "sha256": "ff0106d2b3857243f3229586afabf52c3a752ad41251d26081d039978f5d2dbd"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_OS_output_reference.py",
+      "size": 14784,
+      "sha256": "bf04e1c113867a51141ec987b916c1580d6643d96cc448540e9411713d55a1ab"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_allocated_walkthrough.py",
+      "size": 7780,
+      "sha256": "146c4eb9ec75a790593e6563b1e498d6c963b80ae08d987f9942745276806496"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_allocmem_probe.py",
+      "size": 5775,
+      "sha256": "788a7dc17a0ed8dfc59fca2aa900544cdcfb49a5cc4e6f60b0e578547e703ee1"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_app_access_audit.py",
+      "size": 5422,
+      "sha256": "fa8b7d55072085003710c6d69ea2163a05175895b413eb37b3c6f070df1ab55b"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_app_interaction_watch_scenario.py",
+      "size": 8476,
+      "sha256": "3b4e4ca005f77b7ce1bd731525ee2286c247496ed10ceda1a413853865660ff6"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_app_memory_watch_scenario.py",
+      "size": 4189,
+      "sha256": "65661cad5383427f409c49b5c7d225b73071304ee81e1e5a2429544ee3d32071"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_app_static_followup.py",
+      "size": 16527,
+      "sha256": "1850a27b6939250097981f05bc4aaf3bba11f9419ca999b49fcc21122d7e096c"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_app_usage_closure.py",
+      "size": 15062,
+      "sha256": "1888ea7cbdb14c978f610201fdc31ceadbfb8750c259945b61b8b40a364b453a"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_awol.py",
+      "size": 2752,
+      "sha256": "a2f5d228920958b31b141d495a9b4b631f0286188958f1aff1eef5299e7c15de"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_body_dma_audit.py",
+      "size": 3932,
+      "sha256": "fcca4d814343ab2d27fba799786be4dcb3b66ba2336efb0f921547ec130468ff"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_camera_timing.py",
+      "size": 4016,
+      "sha256": "6954fa4833657d8f1b9682427b2a605b5af70f1f3e1387e09744d14cee136ee0"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_completion.py",
+      "size": 9719,
+      "sha256": "76cd9fe951884ab6a52d17457882db6e024062b004c5606e87411339a21b1540"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_console.py",
+      "size": 2240,
+      "sha256": "4ef0d842c7ec61fa42f44632ebfc4d67d466b122df5736721a00701849e2a946"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_escape.py",
+      "size": 4152,
+      "sha256": "ff1bd7e4c88e3d98dfd7c4a930ac7ed646c8194e42cbff1da9b0968d2d0bf8ec"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_finale.py",
+      "size": 10559,
+      "sha256": "9f3675e8059a657885c42cda4b729d866919afc3816fe3462ed789419f9ef53a"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_hand_clock_probe.py",
+      "size": 3231,
+      "sha256": "3dc728e1611836bcfc27fddcc14ea305e81b3f35bc8b8565a3e1e4d493ffdfea"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_hosted_output_compare.py",
+      "size": 11941,
+      "sha256": "45c2994eb641e3587670a54dbf1f7b35a2d42b44afc7888ac95fdaa607c6c0a3"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_hosted_route.py",
+      "size": 7915,
+      "sha256": "45c33340119fb8a0dd2425d2ea36cdcf10607e4740e7f4f92d8d6a78a3786383"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_hosted_title.py",
+      "size": 4181,
+      "sha256": "591c2ebc14cac6b4de220a875f663207b1a207c3708c25dc5b202ea0ed2043c0"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_icelord.py",
+      "size": 4733,
+      "sha256": "d436e72200bbf327f2b4eda71466a0888f80a8701342676238d2036ce781a2e5"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_layout_reuse_benchmark.py",
+      "size": 4899,
+      "sha256": "9fb75a3804c9388027eea32432eeb8698e08e37a635af7de3cee147a59845438"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_layout_runtime.py",
+      "size": 28880,
+      "sha256": "f3ae9355a7d3c6c592ac472fd25d73b0d2cb0a3917cdbd2f0caf9b6e991ca051"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_layout_walkthrough.py",
+      "size": 14779,
+      "sha256": "dc700e16ad9adcb16954061ab501851f1a085892386f7c135d9c127037f268e3"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_ochre.py",
+      "size": 4623,
+      "sha256": "36c482b00b31e1cc3b750544ce91efdd2864878f239eeffb64b0077bf80c8d92"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_os_entry_probe.py",
+      "size": 3505,
+      "sha256": "65bbe9fb2aa3f998b911fddff54df195eb3dc627caa8e771bd0cb5a907620ab6"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_os_lease_probe.py",
+      "size": 3802,
+      "sha256": "e1e2574fc5fe145f009eccc6e3058797767e0f3c7b2fa9e45f21b068289b1451"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_os_takeover_probe.py",
+      "size": 3063,
+      "sha256": "ae878eecdc08d024d8af8c39ce496ec5eb5ac2f84b384136a648f565df9f9f82"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_passage_contract.py",
+      "size": 8883,
+      "sha256": "0422c345334da94c834e9b3c8962e80819ba365f7c931ca79121e1e850087f4b"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_patrol_timing.py",
+      "size": 7834,
+      "sha256": "f5cba4c48aa71d3be14e4f4c179365429cb97a1778a312750ec46e996c09c94d"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_player.py",
+      "size": 12335,
+      "sha256": "346634a7667fa6a82eeefe2f35a52e52199a30e1d916c7568a4dd369f8eb9a4e"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_priest_passage.py",
+      "size": 8203,
+      "sha256": "9e64fb53f21918f22a945d7673eecbedb6435da9748c8d5c0cbe01daea0640fe"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_ranged_visual_inventory.py",
+      "size": 3472,
+      "sha256": "8902fdf36655618e934656a81ec8f2e24612757f1632a4e665c0842383d57efb"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_rebase_output_compare.py",
+      "size": 35246,
+      "sha256": "22ffa5d665958c2f02b0db5b2a282e728aa9a0831affdbcd32590b5cfff1eef1"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_restoration_stocktake.py",
+      "size": 6538,
+      "sha256": "ba9da83c2370ed3dc1b397a7ff3226e35499e83233f27ea30f229226fe946772"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_revised.py",
+      "size": 17074,
+      "sha256": "18950e1ad4f41a7ccf0bb34f2f3336712561fbe18d457acdb68b733d7ef376f6"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_route_app_watch.py",
+      "size": 6382,
+      "sha256": "d1eac077547db3471e38a1e720f6459df217e2666831193f54b302806bff8aaf"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_route_app_watch_report.py",
+      "size": 13310,
+      "sha256": "580fb9382ea2f3318ab919d80a8719f569cdf25fedbeeaa31983fd2cc71b0a71"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_scratch_behaviour.py",
+      "size": 24615,
+      "sha256": "856383c9ab9af3db726e14e79bef8c5c4be2736ec1a25019e0f4e9b799b84574"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_shared_tail_inventory.py",
+      "size": 3750,
+      "sha256": "be7284fd678837ad4ff4cac250f9c85b95952aeafd8c008082c6bb37d6c042cd"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_snapshot_lifecycle_scenario.py",
+      "size": 9050,
+      "sha256": "a5b80a2750976ad2761216c422a1993951cae2cfb93131ae183d6824182f8fd4"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_terminal_message_inventory.py",
+      "size": 3900,
+      "sha256": "1c835ff00020e409f55509af98d8be2472037192c84e5ccbfa5a3c68efe2e98a"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_terminal_modal_scenario.py",
+      "size": 5676,
+      "sha256": "06f30f91ff7d8edd1a7bb2980c83b2523e25108464c47feb27288b7f416e3c2a"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_volume_local_compare.py",
+      "size": 32829,
+      "sha256": "3356cea4f5c396640fced4b37768a38be338bea880212f19d49b30dc4e83948a"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_world_model.py",
+      "size": 27457,
+      "sha256": "1fd309779ca7e121d57befdb32f125784947bdaa1bf5f208f71785d026357a59"
+    },
+    {
+      "path": "amiga_reversing/tools/pandora_world_pointer_inventory.py",
+      "size": 4176,
+      "sha256": "a1894ceb454c8e1d69b379a11a1ee8c1895344b5287b0e83f93f1576a95bb800"
+    },
+    {
+      "path": "amiga_reversing/tools/platform_executable_formats.py",
+      "size": 41605,
+      "sha256": "13436e337a78c90287930630806573c119d045cc384ff7fb098fb65b40748d67"
+    },
+    {
+      "path": "amiga_reversing/tools/platform_kb.py",
+      "size": 42149,
+      "sha256": "dd9c22c6cbc8a323bb7395bd777ac6fdf0fc752e50353999ff124b88ca0ec0ae"
+    },
+    {
+      "path": "amiga_reversing/tools/precommit.py",
+      "size": 8787,
+      "sha256": "0babe7395217451b408cfa81b5df37aa4b69f0622260f35ab48a1a92d5b4d118"
+    },
+    {
+      "path": "amiga_reversing/tools/progress_scorecard.py",
+      "size": 6177,
+      "sha256": "7c564c5e8fbe861bff71c621d2e5ed7977b383087849bcd58dc56de6af66dfc6"
+    },
+    {
+      "path": "amiga_reversing/tools/recover_stx.py",
+      "size": 1196,
+      "sha256": "e2c02664a0fea82dafebeb0d0abb91a80d9b3ebc78b0865a4125d6883560496e"
+    },
+    {
+      "path": "amiga_reversing/tools/rendered_source_roundtrip_report.py",
+      "size": 14927,
+      "sha256": "543f5b8088cdd0018f53fa587d46fc5ffd86102ab27eecb4b57c09dcc74d6c14"
+    },
+    {
+      "path": "amiga_reversing/tools/reproduction_profiles.py",
+      "size": 1711,
+      "sha256": "3ca6bd5cf0430890dc06d7654e7c83471214bca142b59fbec1a84f29cff9d81a"
+    },
+    {
+      "path": "amiga_reversing/tools/restoration.py",
+      "size": 4800,
+      "sha256": "e19996d682ab6c72191e686fe239bda007574ef919ad7dff8578b8a585678025"
+    },
+    {
+      "path": "amiga_reversing/tools/restoration_accounting.py",
+      "size": 8258,
+      "sha256": "6c48e06fbe55a94bd8e8f1a1eb5747ac658342b71453cde1a9ec38bcc3edce0e"
+    },
+    {
+      "path": "amiga_reversing/tools/restoration_mcp.py",
+      "size": 15603,
+      "sha256": "b3d352f75ed9367544bbff40abd2ac75a86ed0e5151b0977c9fe462c0be14dc0"
+    },
+    {
+      "path": "amiga_reversing/tools/runtime_allocation.py",
+      "size": 21273,
+      "sha256": "da75e22c54374d6619d39588cb44c45f5db953197000016acd8dea0e3d3cf191"
+    },
+    {
+      "path": "amiga_reversing/tools/runtime_analysis.py",
+      "size": 1323,
+      "sha256": "a065b0cc05f8e9765d5310ba5d3fbb93e3698d895aba91d8d38f26b7f2541816"
+    },
+    {
+      "path": "amiga_reversing/tools/runtime_symbols.py",
+      "size": 8013,
+      "sha256": "059666ffc0074e51ffc169a389f450e6ea51f20ff1995069db555dee18e8153e"
+    },
+    {
+      "path": "amiga_reversing/tools/source_export.py",
+      "size": 3451,
+      "sha256": "9453af635eb4df53de9053106b72ad854cf27b81e673660b2c475055c6cf2b5f"
+    },
+    {
+      "path": "amiga_reversing/tools/source_gap_inventory.py",
+      "size": 16910,
+      "sha256": "763de17a48f72a0e27b8f4c0fdb2d601cc1f09b8c04df0c50aaf5a9e33a691dc"
+    },
+    {
+      "path": "amiga_reversing/tools/source_inventory.py",
+      "size": 2969,
+      "sha256": "a4c89a24215742f65ee2b125682d36133971ca6832984309443f87903cf44082"
+    },
+    {
+      "path": "amiga_reversing/tools/starglider2_disk_audio.py",
+      "size": 3650,
+      "sha256": "582ab10dfba4c820bba9010711d8914d17f45b82d8e6a5d313612adac546ee2d"
+    },
+    {
+      "path": "amiga_reversing/tools/starglider2_extract.py",
+      "size": 2868,
+      "sha256": "5d84412043f46839f752b56b32239281ff8b78541c78fddd061150a8129542a1"
+    },
+    {
+      "path": "amiga_reversing/tools/starglider2_flight_probe.py",
+      "size": 35555,
+      "sha256": "3f4a6685ad533a35246df7ce3ffffef7837b1405732249232fa5cf368d51a08f"
+    },
+    {
+      "path": "amiga_reversing/tools/starglider2_loader_probe.py",
+      "size": 5014,
+      "sha256": "ba2a041848850a05cca621913b3f7c6cb14dc701fcd6b89a8460319a2f2e451c"
+    },
+    {
+      "path": "amiga_reversing/tools/starglider2_math.py",
+      "size": 2396,
+      "sha256": "789485768d4202cdea8d60252ba0b968f60e663cdf170659b25d38897804d9ab"
+    },
+    {
+      "path": "amiga_reversing/tools/starglider2_models.py",
+      "size": 10149,
+      "sha256": "1503a569686efe211a7c8730dc3844dd96c0a3f8aaa45725142c46ca2c1f6ede"
+    },
+    {
+      "path": "amiga_reversing/tools/starglider2_objects.py",
+      "size": 5743,
+      "sha256": "e82c94984cb856d2eddf71d17caed1bbe68282373aff1120ffe5cfa8430c618f"
+    },
+    {
+      "path": "amiga_reversing/tools/starglider2_pictures.py",
+      "size": 3335,
+      "sha256": "407518c300d52f52e093ff551f5270494e3268c45fb6e535d4595750edc9292b"
+    },
+    {
+      "path": "amiga_reversing/tools/starglider2_refinement_probe.py",
+      "size": 5930,
+      "sha256": "1f6e111af98fffb7a658ee10a2678623e4831ab9d398fd997ca2a1b17b8ee13a"
+    },
+    {
+      "path": "amiga_reversing/tools/starglider2_world_maps.py",
+      "size": 8499,
+      "sha256": "bf8c5aee3ad62eb77f16b62abb39afad933dd64ca33da90c1d50a6117f98767a"
+    },
+    {
+      "path": "amiga_reversing/tools/tool_registry.py",
+      "size": 2685,
+      "sha256": "c1462a56b714d7f0f5c5dda0102988b833e92866674a1b0d9d74ab9fd977ca92"
+    },
+    {
+      "path": "amiga_reversing/tools/typed_pointer_report.py",
+      "size": 1775,
+      "sha256": "d102918e0856de69c718539e2cacd5b1942099adfcfc14688de0a0fe17631ac2"
+    },
+    {
+      "path": "amiga_reversing/tools/validate_017_issues.py",
+      "size": 8334,
+      "sha256": "b747d97511734c139e7d1ccc5573027a810756113efa0835317b112fdd2463ae"
+    },
+    {
+      "path": "amiga_reversing/tools/validate_018_issues.py",
+      "size": 5316,
+      "sha256": "0589c67711643b614416524760339655363294b8f1c1050b0757ecc21324eb70"
+    },
+    {
+      "path": "amiga_reversing/tools/validate_target_seeded_metadata.py",
+      "size": 999,
+      "sha256": "509a95951a4646277e63ad7e7f2f001dd8b7f4ad5e042d5050b5ceb6f7b2a034"
+    },
+    {
+      "path": "amiga_reversing/tools/vasm_roundtrip.py",
+      "size": 6491,
+      "sha256": "5f002a24a65ebd9cc55c3dbb3543d3a43eda857f56e7f3164a87bf559b846f2b"
+    },
+    {
+      "path": "amiga_reversing/web/app.js",
+      "size": 403138,
+      "sha256": "b1d550c88d0c84a0f80f237863b939ab71bbd4ebf65abeba925f5b6d0f327997"
+    },
+    {
+      "path": "amiga_reversing/web/index.html",
+      "size": 351,
+      "sha256": "43e176cca56b8b64ea04d9a46dc0e30c56a494b29184a8724b19f63296790079"
+    },
+    {
+      "path": "amiga_reversing/web/restoration.js",
+      "size": 26177,
+      "sha256": "2ecef61bcf054c9ab6969d907e48579cec57f329875289896a0a55f64e0580ed"
+    },
+    {
+      "path": "amiga_reversing/web/styles.css",
+      "size": 49782,
+      "sha256": "8429c106601ab39c77df95c6f034c6c8fe782a9b22c5c76f77b4cdc01468c174"
+    },
+    {
+      "path": "games/foft.json",
+      "size": 5222,
+      "sha256": "e29614e2d90ebd1e882ea89f819fd02d5018474ab3e7a52d5853069150c3f600"
+    },
+    {
+      "path": "games/starglider2.json",
+      "size": 13099,
+      "sha256": "bc33beb2a22379e99af651b1ad42dcc0873f71198c34aa3289c3078190dd0bcc"
+    },
+    {
+      "path": "knowledge/__init__.py",
+      "size": 53,
+      "sha256": "021af21b659a5a4588a1c9386a099c10250a4762bedc57ed030ac26530a884ec"
+    },
+    {
+      "path": "knowledge/adcd21_inventory.md",
+      "size": 8162,
+      "sha256": "d4b6c23fcfdda72320e699d9a572f9fe178b7de45c0e9fd04f9490e7d3a8c44e"
+    },
+    {
+      "path": "knowledge/amiga-file-formats.md",
+      "size": 24862,
+      "sha256": "f9720065380b6309088c668291e088b1c5e81a53fb812766255761c5c2fff0c0"
+    },
+    {
+      "path": "knowledge/amiga_disk_file.json",
+      "size": 7403,
+      "sha256": "6ffa3b5629a72289858bec719fd9485f74cc189b3040b91a2127fe7ddf89e6d2"
+    },
+    {
+      "path": "knowledge/amiga_disk_formats.json",
+      "size": 20669,
+      "sha256": "c86826b1cc47b430d15dd3f811643f6831cf1a308df76a5a3c31b6f6061918ba"
+    },
+    {
+      "path": "knowledge/amiga_hunk_file.json",
+      "size": 18499,
+      "sha256": "24b4d824ef9f11d4d1e32ec8c037debd6229233bd0b9f72217788d6b3cbaad2b"
+    },
+    {
+      "path": "knowledge/amiga_hunk_format.json",
+      "size": 18980,
+      "sha256": "092bb2a874a7768dc85eec431773fcfb62e96cb58ea08f1fb318ac08ad462abe"
+    },
+    {
+      "path": "knowledge/amiga_hunk_format.md",
+      "size": 6328,
+      "sha256": "13da17fe730c9c44224df5c2d0ed7a3ddee030d682db199cd8c118a70ddbe888"
+    },
+    {
+      "path": "knowledge/amiga_hw_registers.json",
+      "size": 153132,
+      "sha256": "9f82a4a2cc8c8af5de3da2b6a3e9a08e38bb621741287f014c845d2517d3d971"
+    },
+    {
+      "path": "knowledge/amiga_hw_symbols.json",
+      "size": 28307,
+      "sha256": "c8fd8bc7de6d763c480eeddc6e4abb034fa9e193b75eba6b11dbd04c7c494298"
+    },
+    {
+      "path": "knowledge/amiga_iff_formats.json",
+      "size": 40344,
+      "sha256": "5d65cbf42058e97a7bea96812e622704ae4342e3e3a0eb8f4482bf993b95ac39"
+    },
+    {
+      "path": "knowledge/amiga_iff_reference.md",
+      "size": 12216,
+      "sha256": "37005f695a57bdca0fadaeda60e9f3adecb97d58f6921ae847f85e59bd27d8a3"
+    },
+    {
+      "path": "knowledge/amiga_ndk_corrections.json",
+      "size": 14683,
+      "sha256": "8cf2f14255ee5d1ad819c2f6743f20437416275541997e545cb0588221004c9d"
+    },
+    {
+      "path": "knowledge/amiga_ndk_includes_parsed.json",
+      "size": 4151118,
+      "sha256": "9876e698b2e13bb4970bc8ca1b28563cc4a6b0fa9e7e96367756480a986a47cd"
+    },
+    {
+      "path": "knowledge/amiga_ndk_other_parsed.json",
+      "size": 998072,
+      "sha256": "7f222acf6b723ce9883c1f804d6850c69ca025f10d0964a94ead94904bd94f74"
+    },
+    {
+      "path": "knowledge/asm_devpac.json",
+      "size": 3658,
+      "sha256": "080b58342e565cae939c344a9387841b70781482dbd26586f5b1b8dec38b2dc9"
+    },
+    {
+      "path": "knowledge/asm_vasm.json",
+      "size": 2655,
+      "sha256": "ba309afd6c212e11760072026d8a347e2676160666aae85962ef6587ee6e6b45"
+    },
+    {
+      "path": "knowledge/atari_st_disk_file.json",
+      "size": 9145,
+      "sha256": "e10eeea225108884e90ef1c9c5d31f53561d7528e4f71513975e2dd493e82b81"
+    },
+    {
+      "path": "knowledge/atari_st_prg_file.json",
+      "size": 7599,
+      "sha256": "9e2ec077dd20b64e901b22b9400d7fdab9d8c328052439ac3c85e21b26325baa"
+    },
+    {
+      "path": "knowledge/atari_st_source_inventory.json",
+      "size": 3144,
+      "sha256": "93f85ad0bfc281a1b07ab9c237f839b851fd177369538ffdc3c219ac15e4bd57"
+    },
+    {
+      "path": "knowledge/atari_st_vector_controller.json",
+      "size": 2576,
+      "sha256": "92ce326eee3f7ffb0678b4cdfb82a1f19098106d621b8c10e41b6bc5d5d6e83c"
+    },
+    {
+      "path": "knowledge/m68k_instructions.json",
+      "size": 1258967,
+      "sha256": "ac329e6e178a08c90a8fd01253474f64b66ecc682679e42f9ed6c667b252fe2f"
+    },
+    {
+      "path": "knowledge/m68k_reference.md",
+      "size": 191733,
+      "sha256": "6bceae0648d080b7b6e35891ca24d74361cd1076147af945c68319c9c4021372"
+    },
+    {
+      "path": "knowledge/mac_os.json",
+      "size": 9453,
+      "sha256": "e2235905678b60a3ff8b99a230d7b023d4413e83a42cfbeabf2c37659714b232"
+    },
+    {
+      "path": "knowledge/macos_source_inventory.json",
+      "size": 4801,
+      "sha256": "daa4331c20302cc7dafe0efd1df9a6e9e2e976fbce9d415bddaf881f1b888be0"
+    },
+    {
+      "path": "knowledge/naming_rules.json",
+      "size": 787,
+      "sha256": "c42e32e356c594f1e97a4eb654e6246be87f1720abfc0a55656117a516521b8e"
+    },
+    {
+      "path": "knowledge/parser_hardcodings.md",
+      "size": 4833,
+      "sha256": "43bdd0b9897b6906527b23c0028a8ab70fd81bc0f49ee5a9cfef1a6f51220bd3"
+    },
+    {
+      "path": "knowledge/platform_executable_formats.json",
+      "size": 119441,
+      "sha256": "27159dd9345c87e3c1d8d6b0c0ea20c72053ac7fc2c19ab106a747b6a9639b3a"
+    },
+    {
+      "path": "knowledge/platform_executable_formats.schema.json",
+      "size": 15726,
+      "sha256": "5732d460bf3866ce9f97318e05fa83520a0109a7677e588fb14f91ebdd4745d7"
+    },
+    {
+      "path": "knowledge/platform_source_inventory.json",
+      "size": 6121,
+      "sha256": "a7938ae409b94866d9e0e0c8441e72c1fecf32a269ef35db4bfc524b11b5aca3"
+    },
+    {
+      "path": "knowledge/vasm_compat.json",
+      "size": 6828,
+      "sha256": "e00d9ab7f5796f176e5678dbae13507757c34ca6836ed0a634b784f399391d3c"
+    },
+    {
+      "path": "knowledge/vasm_reference.md",
+      "size": 7408,
+      "sha256": "516492b5ee7846697d16a7f6e2ce2dad408bb96747acd3b4dadae171911b2d9e"
+    },
+    {
+      "path": "pyproject.toml",
+      "size": 3251,
+      "sha256": "b8450040380857dfc488011a2ea0fa82d9579a7b17e090b50afcd7970fc53c7c"
+    },
+    {
+      "path": "recipes/conqueror_sps1275/decode_resident.py",
+      "size": 6533,
+      "sha256": "7eee97fc16ce786aed8dbb9b3dd8eaa2f341b343d4235b1eaf01ce64177e8709"
+    },
+    {
+      "path": "recipes/conqueror_sps1275/inspect_media.py",
+      "size": 14337,
+      "sha256": "30428e2073759ed55e4efc0e3c1b39388221c8ed2311b3d08b76c392c2f5d96e"
+    },
+    {
+      "path": "recipes/foft/sps0613-music-resource5.json",
+      "size": 2068,
+      "sha256": "800e81338b49d2234105d7487cc7599feceae96734939a3390a4b87c6d949f3f"
+    },
+    {
+      "path": "recipes/foft/sps0613-resources.json",
+      "size": 15058,
+      "sha256": "5ae335d08fe2b7a24ce8229a9f07c25ce9ee2864212a6f7ecc65820a25444967"
+    },
+    {
+      "path": "recipes/starglider2/retail_amiga_handoff_flags.json",
+      "size": 506,
+      "sha256": "1218331abf8d67a39aea4f50c8330581e015009ff7fa9193b7203c5e538a93b5"
+    },
+    {
+      "path": "recipes/starglider2/retail_ipf_loader_recovery.json",
+      "size": 4576,
+      "sha256": "c9682bf7c03c30aef0850cd3ebad0946b4cd2fb7c7bb84b1dd50902850ee4b53"
+    },
+    {
+      "path": "recipes/starglider2/st_loader_recovery.json",
+      "size": 4584,
+      "sha256": "db5f4abab4eb7b5749476abae82347ef2854ef58348d77e49eec37451667377d"
+    },
+    {
+      "path": "recipes/starglider2/st_novella_protection_decode.json",
+      "size": 1494,
+      "sha256": "d63530061f828f298045b99d11cfb3fc137400cad3c9640ae6657c6c50d3a1cf"
+    },
+    {
+      "path": "src/README.md",
+      "size": 4690,
+      "sha256": "449bea9b921140ee0f3c53dca445d868cd9bc807d94e2c4a1f8016d205692783"
+    },
+    {
+      "path": "src/benchmark.json",
+      "size": 66491,
+      "sha256": "433114c9ff7d2f17e895c310c298e542ce6c29e21d65155859fd5ced6efaf415"
+    },
+    {
+      "path": "src/build.bat",
+      "size": 25480,
+      "sha256": "b841dc027f6714c3093e2678bf922b33ee1be1a1ec8a4faeb7783cecf70e04a1"
+    },
+    {
+      "path": "src/generated/amiga_disk_file_runtime.c",
+      "size": 4628,
+      "sha256": "40a9622b8e129a58a8a3eb768df60a0cf2fe000ab1253a2cfb62dcfcf4da3e4c"
+    },
+    {
+      "path": "src/generated/amiga_disk_file_runtime.h",
+      "size": 14492,
+      "sha256": "7e91559a05d68b9c36e0631fdaaa59cfc95d64b8336829bf4ccde15b8a160078"
+    },
+    {
+      "path": "src/generated/amiga_disk_file_runtime.json",
+      "size": 483,
+      "sha256": "b4e62ef8ec0202fed34986c867e983fe74b5deb8c50d8a960ff41a2c4669559b"
+    },
+    {
+      "path": "src/generated/amiga_hunk_file_runtime.c",
+      "size": 17344,
+      "sha256": "b3dd36f9873c5066316b9b8b2ecc661dc496c5755e01dcbdfa6c26f5568f6e06"
+    },
+    {
+      "path": "src/generated/amiga_hunk_file_runtime.h",
+      "size": 11668,
+      "sha256": "2719dc4c17d2e0942890572b33ba0928db9fede8bbaa6f641008c2b336107969"
+    },
+    {
+      "path": "src/generated/amiga_hunk_file_runtime.json",
+      "size": 1579,
+      "sha256": "dd986c9542347ff4e347d535210b2ab00d10133330de46d87cfc31f3bfe42443"
+    },
+    {
+      "path": "src/generated/amiga_os_runtime.c",
+      "size": 2376481,
+      "sha256": "2a3ea4d88654a96dd10cba659397f388079ef62286325189da78e816dae1fe46"
+    },
+    {
+      "path": "src/generated/amiga_os_runtime.h",
+      "size": 617905,
+      "sha256": "f48fe47d173413ae5c8a57a796a533ee3290b00c2180a1ae521b8f68312b1782"
+    },
+    {
+      "path": "src/generated/atari_st_disk_file_runtime.c",
+      "size": 5904,
+      "sha256": "62af1ea68eb1e6d6a41118aa5499fbcedaa72529166edfceb057fa214c962dc5"
+    },
+    {
+      "path": "src/generated/atari_st_disk_file_runtime.h",
+      "size": 13813,
+      "sha256": "ea88068f064328c9595b05748d0726c17e22c7a0365916ab11a6ecae3504639e"
+    },
+    {
+      "path": "src/generated/atari_st_disk_file_runtime.json",
+      "size": 1167,
+      "sha256": "c67af0e31f2d9ea9f2671296d740f92f7a6a923c9acb095b6d723fd6c0b8acd4"
+    },
+    {
+      "path": "src/generated/atari_st_os_runtime.c",
+      "size": 31705,
+      "sha256": "0fa99b702a448a26f49a5e4fdfd40be17eeb30b9cf62bdf28cbb704b7e9e1b40"
+    },
+    {
+      "path": "src/generated/atari_st_os_runtime.h",
+      "size": 11226,
+      "sha256": "ac17606ecc93f6530fc64c771c7edfbfcabdf7f1765b506e212c01d5f473b58b"
+    },
+    {
+      "path": "src/generated/atari_st_prg_file_runtime.c",
+      "size": 5551,
+      "sha256": "813da5123f0de08ba5cfe1d701d74d90ca2e82fa84be3f85dfc923e735f7374b"
+    },
+    {
+      "path": "src/generated/atari_st_prg_file_runtime.h",
+      "size": 7197,
+      "sha256": "dcbf39e6b7d4590c88730293992be721faea04acedd5c19b051e6ec7b17efcac"
+    },
+    {
+      "path": "src/generated/atari_st_prg_file_runtime.json",
+      "size": 1692,
+      "sha256": "fdb799ae3cb76e322d9085bce2d60d6064f51b220d28ea229d3ca4df13aac1e8"
+    },
+    {
+      "path": "src/generated/atari_st_vector_runtime.h",
+      "size": 631,
+      "sha256": "ac2336272567930c5d6b0f35cbc741987a1d4a7fd5c01f982d9907e9ce970cbb"
+    },
+    {
+      "path": "src/generated/m68k_asm_tables.c",
+      "size": 212391,
+      "sha256": "d8f1e2657622ea5739f76c991f3b8eb1b2d64265a19e2ffc0562d40b4d65520c"
+    },
+    {
+      "path": "src/generated/m68k_asm_tables.h",
+      "size": 12763,
+      "sha256": "e5447655724363213fd811c59cdfc88af54d6fee4124486bd13ff98a048b8126"
+    },
+    {
+      "path": "src/generated/m68k_corpus_sample_plans.json",
+      "size": 6808632,
+      "sha256": "8e7607a5d6fae648da8ade0cd3c3520b0ea7f130b4fc5b576af31451e8b5fd0a"
+    },
+    {
+      "path": "src/generated/m68k_cpu_runtime.h",
+      "size": 6220,
+      "sha256": "aa1883bd1f0796caae8b5c09fbf9dd4b7d91c65e50b9bce7a8c45ebb6ff93710"
+    },
+    {
+      "path": "src/generated/m68k_disassembler_metadata.h",
+      "size": 311,
+      "sha256": "850f1662fd85ee6bbd062d78029beb415163788d9e935eb107bb74e4106acc9c"
+    },
+    {
+      "path": "src/generated/m68k_disassembler_tables.h",
+      "size": 360180,
+      "sha256": "f022e84748ec04dae5aa2ee6b8254f31e7c3348ef62b56e2bc0efaebb8288b64"
+    },
+    {
+      "path": "src/generated/m68k_form_model.c",
+      "size": 26660,
+      "sha256": "8809a2c085b975ffdcbdc19d57e4887e16f4e9fc82c799118dfa2e6cc49fdf3e"
+    },
+    {
+      "path": "src/generated/m68k_form_model.h",
+      "size": 1002,
+      "sha256": "6febaae2e00c7c31747fb8988c3ff7fc2a8f25c49ceac81bb2665388d42b4bcb"
+    },
+    {
+      "path": "src/generated/m68k_simulator_tables.h",
+      "size": 769081,
+      "sha256": "50faa7bee9658622260ada9dfe2c934559c6f02571c7cfe821b6dfe3574dbbdb"
+    },
+    {
+      "path": "src/generated/mac_os_runtime.c",
+      "size": 570747,
+      "sha256": "07dfc5699fc50e763dbf1278a06bc6c72479f6fd80ae691febb05f79e4c5ea6d"
+    },
+    {
+      "path": "src/generated/mac_os_runtime.h",
+      "size": 1909,
+      "sha256": "d31d93118b7428d3cf8997843e1e56646e4c983b856abc6b7854cb9f7c67b96b"
+    },
+    {
+      "path": "src/generated/mac_os_runtime.json",
+      "size": 1193696,
+      "sha256": "13f411c5a71ec2f735ea573fbbbe604f32c7f7dee4a7eb82456525fb7f8de0b3"
+    },
+    {
+      "path": "src/generated/platform_executable_formats.c",
+      "size": 18865,
+      "sha256": "e5d74638e312351db519d551b9ba4f94439da909dd84db32b5024e034230aaee"
+    },
+    {
+      "path": "src/generated/platform_executable_formats.h",
+      "size": 12153,
+      "sha256": "74214805c959608624056c66382e2122775db0fd4d71feef66a24268ba13621b"
+    },
+    {
+      "path": "src/generated/platform_symbol_contracts.h",
+      "size": 5075,
+      "sha256": "e2dd69e08224f290a9b206315fc6437cae7af039318bcb90af359549a069d83a"
+    },
+    {
+      "path": "src/json_builder.c",
+      "size": 7213,
+      "sha256": "b28b709ba4c698cdd076cf2efa17ae26505be240e54719c386fbcd12e3659e56"
+    },
+    {
+      "path": "src/json_builder.h",
+      "size": 1008,
+      "sha256": "34a4de52651dacf409f569d8b0d7582231defed404068b23c3cffcabc621b8df"
+    },
+    {
+      "path": "src/m68k_address_frame.inc",
+      "size": 5792,
+      "sha256": "bb78929f41f7a2965ea123c587db0d5cb6459565c73b51ff8e16d63655652aec"
+    },
+    {
+      "path": "src/m68k_affine_entry_value.inc",
+      "size": 5266,
+      "sha256": "f4f47184a61cc922d52835e95b77a7ac528a5ee2c8ad0c533f4da72f9ae01326"
+    },
+    {
+      "path": "src/m68k_analysis_facts_v2.c",
+      "size": 618703,
+      "sha256": "e780c026e415e026c502ae32328524fe3605deb49c0ec199a058ac20373ff2c5"
+    },
+    {
+      "path": "src/m68k_analysis_facts_v2.h",
+      "size": 12094,
+      "sha256": "b8dc70538d7ca9ebc4fa33f9c0720dc7eab32152d87c71203eb622b2d539a412"
+    },
+    {
+      "path": "src/m68k_analysis_render_lookup.c",
+      "size": 1075325,
+      "sha256": "11dd6045d9a877a979d41b3fee8a5d42efeb0393e1d7612b8750d2c3f4c5aad6"
+    },
+    {
+      "path": "src/m68k_asm_metadata.h",
+      "size": 6576,
+      "sha256": "ad63c0d87c37dfbb02f2c4449d51bcc88b061c6260c343c4cf212f51fb70d8dc"
+    },
+    {
+      "path": "src/m68k_assembler.c",
+      "size": 37940,
+      "sha256": "0a8865fbcb92199ac8d9271e7235e63e9e126d4ca3e5f50e81731c0d70aba091"
+    },
+    {
+      "path": "src/m68k_assembler.h",
+      "size": 1432,
+      "sha256": "652dbd919b06935d237c700f461c45adf1a68495ffb06b22e4ebaa166c88a43f"
+    },
+    {
+      "path": "src/m68k_assembler_api.c",
+      "size": 3242,
+      "sha256": "9e188ab70816d3fcc232e0fe22950fc5afe14129bc9b501e19a54219e6f0f2b9"
+    },
+    {
+      "path": "src/m68k_assembler_app.c",
+      "size": 26050,
+      "sha256": "53795440ea7ce7b9dc4f878d333bc556d4b5c2db689beb204ce3978299d5904f"
+    },
+    {
+      "path": "src/m68k_assembler_app.h",
+      "size": 2699,
+      "sha256": "f8f348a51f35471f996deb883e8d1341c404a0f873e143805330df2a55be2337"
+    },
+    {
+      "path": "src/m68k_assembler_lib.h",
+      "size": 1805,
+      "sha256": "64405fcd1b350cfa615e66281cc83a29176def1eccebae90308ec428c9f51e97"
+    },
+    {
+      "path": "src/m68k_assembler_main.c",
+      "size": 8127,
+      "sha256": "057a08c7569ff9761d3fcb9191627960f1b0a706a96833743115facc988221d9"
+    },
+    {
+      "path": "src/m68k_assembler_policy.c",
+      "size": 2810,
+      "sha256": "0e2a4fecbdc7608608a96a4e8579793c539d5a3857b0b50eaa4988797ff7beb8"
+    },
+    {
+      "path": "src/m68k_assembler_policy.h",
+      "size": 1291,
+      "sha256": "225f2999a7401a6333266e2f91a037fb5b287ba4f37e5a6b0c6b51d84aee5860"
+    },
+    {
+      "path": "src/m68k_assembler_verify.c",
+      "size": 1445,
+      "sha256": "21fb13eb3a2868a3dbe2acfc0eb909f10516f9aa12689aa70c29df8ad10f9321"
+    },
+    {
+      "path": "src/m68k_backend.h",
+      "size": 1016,
+      "sha256": "171f58178553409dc48549b4585b6e76754f900d725c798c1591cfee0414f778"
+    },
+    {
+      "path": "src/m68k_bitset.h",
+      "size": 1092,
+      "sha256": "e0725e466bdbbe20e0935465d8cbcce545d3467244e371b467ce337eb959f8a7"
+    },
+    {
+      "path": "src/m68k_bootstrap_helper.inc",
+      "size": 3313,
+      "sha256": "f554d473f4d2671991690a23a83bc47b0536033db242c932a1b448d1230d0933"
+    },
+    {
+      "path": "src/m68k_c_unit_test.c",
+      "size": 1386,
+      "sha256": "f83d0c5f72373241b49f196026f760acb84a561c815e3bb81f0164b461508a48"
+    },
+    {
+      "path": "src/m68k_c_unit_test.h",
+      "size": 2387,
+      "sha256": "05966bc86eb5b62a18308b71640ae96a74d254f34bc880e06d443d01eb5104fb"
+    },
+    {
+      "path": "src/m68k_call_entry_inputs.inc",
+      "size": 14791,
+      "sha256": "212c0cda16801121729ec41ceea2f32f10f90e23a9093d3e3569408ce4c39696"
+    },
+    {
+      "path": "src/m68k_callable_dispatch.inc",
+      "size": 16064,
+      "sha256": "ace52b7697267d77feeecfd5b0d4b5a1604b5aeedcbadd11368831d9789dadf9"
+    },
+    {
+      "path": "src/m68k_callback_fragments.inc",
+      "size": 10955,
+      "sha256": "37dea139b5d38e91cbb924f3d033247730e810d161b9d05a5bdfac0e0dcd7357"
+    },
+    {
+      "path": "src/m68k_callback_receiver.inc",
+      "size": 33598,
+      "sha256": "d3c3900e7cc6ce2de98b38e0f7b51865dc11387238a1c84115be306215b10d51"
+    },
+    {
+      "path": "src/m68k_conditional_control.inc",
+      "size": 14728,
+      "sha256": "e22d07de94bae09bec1d5232973d984100b1c4d5a2465ff230562bdb6bcf0d14"
+    },
+    {
+      "path": "src/m68k_corpus_spec.c",
+      "size": 9572,
+      "sha256": "0e640298a3559ab5f40344cb7f39031a05a7d2ebf3bc6b55b748064ed140bb25"
+    },
+    {
+      "path": "src/m68k_corpus_spec.h",
+      "size": 178,
+      "sha256": "f3875e3824568b0553fa7321df1738d0a1c0a95b4c3e1ecdd4f332b1502911d9"
+    },
+    {
+      "path": "src/m68k_corpus_support.c",
+      "size": 7698,
+      "sha256": "a627fc2ee4a3c94c5ef96363cb0bdf40567138c106440f000826caed8a9292e4"
+    },
+    {
+      "path": "src/m68k_corpus_support.h",
+      "size": 1208,
+      "sha256": "ca91a0345fe3a7746c4af1351bc6c0778d266b97cbb740e431fc2102f42e9ebe"
+    },
+    {
+      "path": "src/m68k_counter_relative_loop.inc",
+      "size": 54996,
+      "sha256": "ef59a144a213c1bab18119540238a4d8e02601cf5fdc43542f219cdb56b7047a"
+    },
+    {
+      "path": "src/m68k_decode_ir.c",
+      "size": 23245,
+      "sha256": "3bfa091a63e613e3f53b64117835c06b2a55adcbd4ae9e4fa1a2d74f233f2430"
+    },
+    {
+      "path": "src/m68k_decode_ir.h",
+      "size": 3145,
+      "sha256": "76d07a8482ccb4a6714620ebb4210a97d1d9254597631ae9dfd36034a94ab0a7"
+    },
+    {
+      "path": "src/m68k_diagnostics.c",
+      "size": 2075,
+      "sha256": "5cc212b55bbd7a73e61d0f97dc06b4a9891ce2fb8dd97aed2b0ec9fe5728a677"
+    },
+    {
+      "path": "src/m68k_diagnostics.h",
+      "size": 1802,
+      "sha256": "17af17a9b9fdc027f3fb9e95854b99af5ac449ecb36a7ec2ffd1144e418e8dd2"
+    },
+    {
+      "path": "src/m68k_direct_body_worklist.inc",
+      "size": 14969,
+      "sha256": "baabe3e593135331d35e7b6ef6c73435f06039daf2795e50d05fb261b18d0ca6"
+    },
+    {
+      "path": "src/m68k_direct_call_graph.inc",
+      "size": 14264,
+      "sha256": "0b773f816de7258b148908c54451b05961d6322d2e884b1360b1042a04e7a433"
+    },
+    {
+      "path": "src/m68k_disassembler.c",
+      "size": 44629,
+      "sha256": "f75ff6073bd4b3b3ede4fe0c3d092625d50b0c94078f2c155e9afb5b91916b8b"
+    },
+    {
+      "path": "src/m68k_disassembler.h",
+      "size": 988,
+      "sha256": "110c8371e813ed13242d7c9e5c2902600100465c50c1457a7060f67a024e209e"
+    },
+    {
+      "path": "src/m68k_disassembler_lib.c",
+      "size": 3871,
+      "sha256": "881369e6ab3ffed7618d1f1c831eeb9eda080ce482c64e4af51035bbf129170d"
+    },
+    {
+      "path": "src/m68k_disassembler_lib.h",
+      "size": 1731,
+      "sha256": "c694b4c6becae78cfb0105a6de50cda1f239b74be8676449afb806fcce53073e"
+    },
+    {
+      "path": "src/m68k_fact_ir.c",
+      "size": 4415,
+      "sha256": "53dc325fc93fb858e22169de4558570ad075ad08c773cdae2c44ba5ddb40c1c2"
+    },
+    {
+      "path": "src/m68k_fact_ir.h",
+      "size": 3937,
+      "sha256": "6aef833edd7ecbfac634d69c54113e747afa7cdd83233e0f94bb578c220b9044"
+    },
+    {
+      "path": "src/m68k_guarded_call_prefix.inc",
+      "size": 12402,
+      "sha256": "4815cf08eff4ee451a82f721e4d9f77de28d59ee37c06bc820b4da6f35d2712e"
+    },
+    {
+      "path": "src/m68k_instruction_spec.c",
+      "size": 18611,
+      "sha256": "7c2a27fef86643270ae353582cb80de8b8702b7f329bb229551d1e415b1d7ebb"
+    },
+    {
+      "path": "src/m68k_instruction_spec.h",
+      "size": 2797,
+      "sha256": "5ed51e9baae625de4e3e12fca1005220b4ed028db9c0147c2221d5cba4e41f68"
+    },
+    {
+      "path": "src/m68k_ir.c",
+      "size": 340773,
+      "sha256": "c4a3dc446204b358c21220bf8b60bfb6a498ad052cfb9c5ee22aa77422f7b805"
+    },
+    {
+      "path": "src/m68k_ir.h",
+      "size": 139527,
+      "sha256": "1ebdacb03ee2746142a90d7d27398fd1d7179ce356b0755be31469d14b4b76eb"
+    },
+    {
+      "path": "src/m68k_ir_codec.c",
+      "size": 44440,
+      "sha256": "9e111b4045e47f4d496e4c99dcd7f478fadc164b2ad924cb5b36e09adce940c7"
+    },
+    {
+      "path": "src/m68k_ir_codec.h",
+      "size": 1112,
+      "sha256": "ba66644533374a55ef97ef85dfde71ffe30ba947d561f0030f0173e152a12790"
+    },
+    {
+      "path": "src/m68k_ir_parse.c",
+      "size": 895,
+      "sha256": "b60a8395fd3d65d6753b6a72792f0c0b304c3c9ef20e92a057b0795514bb95ca"
+    },
+    {
+      "path": "src/m68k_ir_parse.h",
+      "size": 274,
+      "sha256": "10278091153c49b6dee4781835b01204deeff456710197eefd3ecafdffdecf25"
+    },
+    {
+      "path": "src/m68k_ir_symbol_resolve.c",
+      "size": 2929,
+      "sha256": "c4fb90aa2c0d40c0bf7ca70f872edf443f61bc90853b914503b41fac1eb44237"
+    },
+    {
+      "path": "src/m68k_ir_symbol_resolve.h",
+      "size": 777,
+      "sha256": "89d5f6b1d6c2bff018674145bd8a1e6249af4fa0fa20e9fa6274e9fef621988d"
+    },
+    {
+      "path": "src/m68k_layout_projection.c",
+      "size": 7959,
+      "sha256": "2a986c93b0a02c6c19c52f7158fba27c65d9c4efb9e07455bc79c8126109dfd8"
+    },
+    {
+      "path": "src/m68k_layout_projection.h",
+      "size": 1357,
+      "sha256": "b3556b9a97ef482cb7f54a33f2856f3bf17171daf04b35bf5ee8866edf60ffd4"
+    },
+    {
+      "path": "src/m68k_memory_frame_prefix.inc",
+      "size": 9720,
+      "sha256": "f405b0fccd95b16475bd69a1ed6dcadb2d88f6f67c08b280b42fc7751441386b"
+    },
+    {
+      "path": "src/m68k_memory_layout.c",
+      "size": 11970,
+      "sha256": "3f0ab2c993a7ce2f1d3faab0d3a492d37b8d9bd440a5cff7aa7a0f9667eb380b"
+    },
+    {
+      "path": "src/m68k_memory_layout.h",
+      "size": 2484,
+      "sha256": "5aa9cd1f02ee23dc1ca3c93eb2dc8a1a77863b55feeec9d35b3f8b1a13051fd4"
+    },
+    {
+      "path": "src/m68k_memory_pointer_liveness.inc",
+      "size": 10606,
+      "sha256": "1f009cc76fd2567258fcbcd5348aa20dfcb1d1bec441de3b3c55a9142203fa44"
+    },
+    {
+      "path": "src/m68k_memory_region.inc",
+      "size": 30522,
+      "sha256": "c7234fb84e0afad3295d020bcfa2681646cfd8d2daeef5066624565e1e4a59c1"
+    },
+    {
+      "path": "src/m68k_memory_region_addresses.inc",
+      "size": 3592,
+      "sha256": "460b0f5882dd982e2f24a9fe4e7e1e0e595990f3c49eeebed4595914b2cd7116"
+    },
+    {
+      "path": "src/m68k_memory_region_proof.inc",
+      "size": 38109,
+      "sha256": "b78abe7a3660146ed3aa1218f3ad3ae84be19afbcdff6aa4a4e63d61b61b3ef2"
+    },
+    {
+      "path": "src/m68k_object.c",
+      "size": 7464,
+      "sha256": "4d5f50f9a72ece9da1e646bf1f2dc98105440cf3ba07241e8e0c5fd3b5cd87b3"
+    },
+    {
+      "path": "src/m68k_object.h",
+      "size": 6446,
+      "sha256": "620eb6fa655210eda75318c57fd8a72d92d5a4b0e34131ac393a3d05932d535c"
+    },
+    {
+      "path": "src/m68k_parse_util.c",
+      "size": 20881,
+      "sha256": "dc8efb7242db61b10547d2946ffbfeb05dac47780c393bcf31fe02bcbd77b67f"
+    },
+    {
+      "path": "src/m68k_parse_util.h",
+      "size": 4783,
+      "sha256": "b07d9fddee9d1741de96ef45ae7bdd91ef335c9dbc4bdb3c49218c879ca8c4e3"
+    },
+    {
+      "path": "src/m68k_plain_parse.c",
+      "size": 34833,
+      "sha256": "b4b5dc256c8dcc5f59dd7ef89af5aa47ec29863f56921d403f4acd879b0bb89c"
+    },
+    {
+      "path": "src/m68k_plain_parse.h",
+      "size": 427,
+      "sha256": "4193e1cbeb1070903251c186f5d5da76e7ec3cb8713896c7bffbc91a6434b7ae"
+    },
+    {
+      "path": "src/m68k_platform_projection.c",
+      "size": 22865,
+      "sha256": "0a50c2bc0a88550269485729dd690e417e7114059a5723c970152de856108ad4"
+    },
+    {
+      "path": "src/m68k_platform_projection.h",
+      "size": 1135,
+      "sha256": "b809db49875a2800967c402962a87da7e8e022ef2f57e437ff2af5f57771d65e"
+    },
+    {
+      "path": "src/m68k_platform_symbols.c",
+      "size": 7688,
+      "sha256": "a0b5bdbab8356bace69db3336da0633a93d0e592d28ea602fcd60c7aae9bb54a"
+    },
+    {
+      "path": "src/m68k_platform_symbols.h",
+      "size": 1122,
+      "sha256": "82ce78b17da2ee4bb58d0cd0bac1441c0d9d898187b534f07464cc13f7ff4d02"
+    },
+    {
+      "path": "src/m68k_pointer_dispatch.inc",
+      "size": 5997,
+      "sha256": "8d553123e5863bfab7e9bf8822114e5ec25214dd3256d86a40fc7a680d5acad7"
+    },
+    {
+      "path": "src/m68k_record_dispatch.inc",
+      "size": 23570,
+      "sha256": "e87a7843e51c14899718a6d146f42ef7853b2dd8f0fcc68ab658dbf4c84b9ae5"
+    },
+    {
+      "path": "src/m68k_register_value_alias.inc",
+      "size": 7988,
+      "sha256": "b5fb6bef5dda7819a4f129395a5163442050fb48be436b07ed44be6855b8165f"
+    },
+    {
+      "path": "src/m68k_render_ir.c",
+      "size": 685155,
+      "sha256": "b3a303b5784c491c038f49fe62719fc315e278952175ab50016fda1a6e4f9a1e"
+    },
+    {
+      "path": "src/m68k_render_ir.h",
+      "size": 3907,
+      "sha256": "2566e50ef09e9a33fedf8e16196fdcb52631db7955ac171879f1856aa5eefda8"
+    },
+    {
+      "path": "src/m68k_render_lookup_internal.h",
+      "size": 60911,
+      "sha256": "879cfe2cd1e5efc62e0bee0a725820537a8eba8d721735b10ebe177e74a1578f"
+    },
+    {
+      "path": "src/m68k_render_plan.c",
+      "size": 54385,
+      "sha256": "508777d97996140eda603438510b306784f5aadfdea6eb4425606a0ea8ef90de"
+    },
+    {
+      "path": "src/m68k_render_plan.h",
+      "size": 13655,
+      "sha256": "ee0a273596eff961c06426375eed2684c3e61dcfbdb2b617550f26988b1b5275"
+    },
+    {
+      "path": "src/m68k_reproduction_compare.c",
+      "size": 28796,
+      "sha256": "2f233b50f4645b792a1e32ba18cb8a8f3f090314e07ded88604bb180cbada013"
+    },
+    {
+      "path": "src/m68k_reproduction_compare.h",
+      "size": 3985,
+      "sha256": "856a9aae829ca9764db4543f77a30b9ef732a9cd5a428e6b471428ea9d9e3b3d"
+    },
+    {
+      "path": "src/m68k_runtime_allocation.inc",
+      "size": 29916,
+      "sha256": "ae205b130a91c46438d7adc464d5dd40a974bda13aadfc203a933a3e33cb82da"
+    },
+    {
+      "path": "src/m68k_runtime_allocation_batch.inc",
+      "size": 13825,
+      "sha256": "d11166145cf25700e911b999114f591d96ff353e5546e9ee0109bd0a4eccb402"
+    },
+    {
+      "path": "src/m68k_runtime_map.c",
+      "size": 4743,
+      "sha256": "f043c642951e7c4a78170eeed811420bfe9e822c350f7683605ede15aa94989b"
+    },
+    {
+      "path": "src/m68k_runtime_map.h",
+      "size": 1217,
+      "sha256": "e1e4ae69fa4c94cc08555b512c6b629cb99b07c0eb64d057a15df8abe6504958"
+    },
+    {
+      "path": "src/m68k_scalar_word_cells.inc",
+      "size": 12697,
+      "sha256": "91109f5581ce6356454a17d771a556d60d4caead1babbd7725cfd2480cf9b694"
+    },
+    {
+      "path": "src/m68k_simple_source.c",
+      "size": 12643,
+      "sha256": "d5bbe3f98241de362c8f08a814b9e6b04f2db9c17fc4f2ab563ff8c7e2f57809"
+    },
+    {
+      "path": "src/m68k_simple_source.h",
+      "size": 853,
+      "sha256": "9a1b5197cf3cc909b6adc24a7d35ba27e8b832d5748c751ef114ee5ca171d856"
+    },
+    {
+      "path": "src/m68k_simulator.c",
+      "size": 301933,
+      "sha256": "935a096479098b2f34f4cff9c116cc34959d5e3e3a01755acbefdabf6835bc61"
+    },
+    {
+      "path": "src/m68k_simulator.h",
+      "size": 23981,
+      "sha256": "c674d240d9c3a05cfeefb19c060895b82a44a375c580d1eca729d11ecf497b61"
+    },
+    {
+      "path": "src/m68k_source_constant_expr.c",
+      "size": 6063,
+      "sha256": "3a0e90cb49a3da15449cb9d51b3a029bbbf1dc2c378fc0c5ed65d8b12d85af5f"
+    },
+    {
+      "path": "src/m68k_source_constant_expr.h",
+      "size": 373,
+      "sha256": "2f988609e436d18101f655272c10cb45f682fc5a6ad57b48812346bd6752cf81"
+    },
+    {
+      "path": "src/m68k_source_data.c",
+      "size": 5218,
+      "sha256": "1ce2e4cc5791bb27bf1930aec630869714a386d2e1e2ad805c94d19726dec4e0"
+    },
+    {
+      "path": "src/m68k_source_data.h",
+      "size": 1266,
+      "sha256": "0a5896c6a6996c67d5a73c71744f72a849a660dc4a0e235e8762cca8db04e1ef"
+    },
+    {
+      "path": "src/m68k_source_export.h",
+      "size": 885,
+      "sha256": "973a22723c671aa3fb3a2baf95fb7028bdfdc03ab3a3bba76fd10aa7a9c343cf"
+    },
+    {
+      "path": "src/m68k_source_expr.c",
+      "size": 5531,
+      "sha256": "89d9c7c9ee89bdc3f92ce8707a88583c36429a85f2574346714f15b6c1df53fb"
+    },
+    {
+      "path": "src/m68k_source_expr.h",
+      "size": 1079,
+      "sha256": "4caaf0779126b72f5f73e209849280f1d08a062bb078acaf012af6a5a7f92d22"
+    },
+    {
+      "path": "src/m68k_source_file_emit.c",
+      "size": 27756,
+      "sha256": "4a78fcd70862ce0801e42ff510d4ad953955a01ad57e0a97dba02fa2bce7a0b1"
+    },
+    {
+      "path": "src/m68k_source_file_emit.h",
+      "size": 1522,
+      "sha256": "43a4498a7e846a483c5e5c7bc783f7057908bb4c9a44a68ed84fba89d77c3910"
+    },
+    {
+      "path": "src/m68k_source_file_parse.c",
+      "size": 52365,
+      "sha256": "93c0f1bbdffb8019ae715efa68b6483fc22e94e306737b7cfc547d180078e117"
+    },
+    {
+      "path": "src/m68k_source_file_parse.h",
+      "size": 360,
+      "sha256": "ca9095828f35b79179d31ea2781e67a15b8b9d0bd871c7d1ae2f294e03a80dfb"
+    },
+    {
+      "path": "src/m68k_source_image_allocation.inc",
+      "size": 12921,
+      "sha256": "0eeb9682487926ee862344e2bc1ae1979f6e332e6d8a6ec0e87c49ef70347f33"
+    },
+    {
+      "path": "src/m68k_source_image_data.inc",
+      "size": 5718,
+      "sha256": "708fa687c17e517cf4d968feeb77ef9b768e5f82df9e4cbbec4f2e34809bd32a"
+    },
+    {
+      "path": "src/m68k_source_image_relations.inc",
+      "size": 2128,
+      "sha256": "2f57d47a92947e1234ef1331e2918eb8fc76de7c5267bc6445404f6fd2fff877"
+    },
+    {
+      "path": "src/m68k_source_include.c",
+      "size": 20071,
+      "sha256": "f2a67396f3ef6071abb0a5329798379f032d21383e59dd310542134a42df9668"
+    },
+    {
+      "path": "src/m68k_source_include.h",
+      "size": 1252,
+      "sha256": "c8d1f5befe3bbf0ea1a511ffc4a7a6f03a296dfd3eada6c6cdb4746b93f4bd71"
+    },
+    {
+      "path": "src/m68k_source_instruction_resolve.c",
+      "size": 7083,
+      "sha256": "af410afbe2bd4dc2b33f614b8399d73efa6f2abbcb5d55c04291bde02989339e"
+    },
+    {
+      "path": "src/m68k_source_instruction_resolve.h",
+      "size": 1209,
+      "sha256": "f2f26ce8638806ca30a75620f47c477f9f86365cd0fe1a902def5d1920e2dcfb"
+    },
+    {
+      "path": "src/m68k_source_ir_api.c",
+      "size": 2124,
+      "sha256": "99fc1b2dbdbd922ec1d01001374d65928d44cca63802c1edbfc09d67bd5cfa25"
+    },
+    {
+      "path": "src/m68k_source_ir_render.c",
+      "size": 54292,
+      "sha256": "56645ba0082019b781c18ee82018e1ac9c7fc5ed6607f2b8b85a0f22aa006743"
+    },
+    {
+      "path": "src/m68k_source_ir_render.h",
+      "size": 1215,
+      "sha256": "e684530f5020ea3264afc6112b5cebf25fe982b59d632c0dc1ccb9b54359a908"
+    },
+    {
+      "path": "src/m68k_source_lookup.h",
+      "size": 436,
+      "sha256": "108ef344dc81a90d1af28085e85db8e879a028110bdaf6d262e4ab1e6907f91c"
+    },
+    {
+      "path": "src/m68k_source_macro.c",
+      "size": 6808,
+      "sha256": "642787dbb953d8715525feafc7e05072638263e2e5c1b484d7abc283eab2ea73"
+    },
+    {
+      "path": "src/m68k_source_macro.h",
+      "size": 397,
+      "sha256": "12ea6cde9d41ab99627b6e2591bdd0f057cda82696528fa51c8a79f874a30b6d"
+    },
+    {
+      "path": "src/m68k_source_model.c",
+      "size": 12861,
+      "sha256": "332ba68c6a824070ae0615d8b08093b68f39e67c40f13cb6951afb118d13e121"
+    },
+    {
+      "path": "src/m68k_source_model.h",
+      "size": 4588,
+      "sha256": "eee7bdc02d761700899351484334f04ea3cfa8488a79c6d90c150714bb42ecc7"
+    },
+    {
+      "path": "src/m68k_source_package.c",
+      "size": 21898,
+      "sha256": "012414cf67b9027e45be28ff7fdf40b89452de922fa7eee0ba1f58b2b0c23dab"
+    },
+    {
+      "path": "src/m68k_source_package.h",
+      "size": 860,
+      "sha256": "4142bf9a0bd287b22ba41235f8fb1895c7752911bd7fb846a53e4a20fed58a63"
+    },
+    {
+      "path": "src/m68k_source_pipeline.c",
+      "size": 2427,
+      "sha256": "c56d21120cb5f48e562f83e0850efd6585d43b80365edff753f5b0b20eea9550"
+    },
+    {
+      "path": "src/m68k_source_pipeline.h",
+      "size": 684,
+      "sha256": "5b29a0cb7e8fa6e8d376c267541ea0ad11aa95bc0dbe1ff1d078c7cfdd103398"
+    },
+    {
+      "path": "src/m68k_source_quality.c",
+      "size": 710222,
+      "sha256": "2df7de6768b35c71bbe488b81556f31a9d0734b858082eac9e8bc3029f3e14f2"
+    },
+    {
+      "path": "src/m68k_source_quality.h",
+      "size": 1301,
+      "sha256": "4e9e1ecc892fe0939453bb37c49216f3c23a220dadbeb025542c77ef3763ba50"
+    },
+    {
+      "path": "src/m68k_source_reference_inventory.inc",
+      "size": 3272,
+      "sha256": "3e7844601c183e3dd93c81f9692f94bad4961d19afa872b8333e5d4d0d87e2e2"
+    },
+    {
+      "path": "src/m68k_source_text_util.c",
+      "size": 7042,
+      "sha256": "6f8eb34b9d52d5385086baf73d78edc6cf6cf9f1cc3e65ea1ac48333e79f8a80"
+    },
+    {
+      "path": "src/m68k_source_text_util.h",
+      "size": 1069,
+      "sha256": "684640dbe4c7856815f0c791f0285976c6536fb4f9536b7960b9b1a901f4250d"
+    },
+    {
+      "path": "src/m68k_staged_record_flow.inc",
+      "size": 23066,
+      "sha256": "2d9ffff32ea0a95a92939f32a450c3212ac132d927f220b29f2e00fce1d914eb"
+    },
+    {
+      "path": "src/m68k_symbolic_parse.c",
+      "size": 19199,
+      "sha256": "dc1ff46ce92f7deac8e0a1ff030cd69c2510951e1a7a1a887406654c7e39f7bf"
+    },
+    {
+      "path": "src/m68k_symbolic_parse.h",
+      "size": 981,
+      "sha256": "43ba1c89e3a48c767f3d6b4be3f1679478366375e0e09b5c4ddf7e0073b0df29"
+    },
+    {
+      "path": "src/m68k_typed_read_relation.inc",
+      "size": 30582,
+      "sha256": "a6825cc9b96cb8d360c5d8310bfd719b638afdaf4987395abac06d2b28da998b"
+    },
+    {
+      "path": "src/m68k_typed_source_domains.inc",
+      "size": 11212,
+      "sha256": "8175da474f909bbc50cc57059d56c6ef0fe08f28387249ba4d126427a06e4d96"
+    },
+    {
+      "path": "src/m68k_word_value_domain.inc",
+      "size": 8266,
+      "sha256": "bba5357378eef0850c269f2fb0ec5870ee68c067625ddc21d8bc1d27d133888a"
+    },
+    {
+      "path": "src/platform_amiga_bootloader_analysis.c",
+      "size": 30829,
+      "sha256": "8b899b1e4e7953c1b35066ce98043b96960d387b0572c79316ff31061f80a079"
+    },
+    {
+      "path": "src/platform_amiga_bootloader_analysis.h",
+      "size": 393,
+      "sha256": "11a865190e244f2454a6c4f25f6425cb4e4c56e1fe265542a0c12adf8417a907"
+    },
+    {
+      "path": "src/platform_amiga_disk.c",
+      "size": 60638,
+      "sha256": "738c830000cafce1210e77d6469963c2c6628379024ac61acd1443f4c1668b5a"
+    },
+    {
+      "path": "src/platform_amiga_disk.h",
+      "size": 9598,
+      "sha256": "a7071768b20b383dc2ec5814eb03b9be25781d239ce6387b99fecb76c1b4c061"
+    },
+    {
+      "path": "src/platform_amiga_hunk.c",
+      "size": 69150,
+      "sha256": "9fee335b7a41a87ba4e25fd9aa088acbc0488117d82e097fe36d9952c2cdec22"
+    },
+    {
+      "path": "src/platform_atari_st.c",
+      "size": 38465,
+      "sha256": "b4d0bb8ec18dd34811d9727beb73887b9e37177a5f72764b482040e982314116"
+    },
+    {
+      "path": "src/platform_atari_st.h",
+      "size": 1050,
+      "sha256": "a85fbc7560fd147082f79b7b379be0876fa8a0054d0f253df4574927d3c3879c"
+    },
+    {
+      "path": "src/platform_atari_st_disk.c",
+      "size": 18977,
+      "sha256": "409537da8a7ae5c2b48feb398aa24b61c2e40ca7d7cd87077b4fb396907876a7"
+    },
+    {
+      "path": "src/platform_atari_st_disk.h",
+      "size": 1683,
+      "sha256": "c4381877dc59ef8fb4b843f302ef3a18330992eb704e3bdd2fcc138249465dd7"
+    },
+    {
+      "path": "src/platform_atari_stx.c",
+      "size": 11412,
+      "sha256": "03614e781e73564120998c0f6751698b73e812773bdcd7430555557ba7460874"
+    },
+    {
+      "path": "src/platform_atari_stx.h",
+      "size": 2816,
+      "sha256": "94b588c983cf38f453b002e9c4941f3cae841d43f752a6e4803b1de6c6d1c93d"
+    },
+    {
+      "path": "src/platform_binary_io.c",
+      "size": 6763,
+      "sha256": "98172a043906ba5c7c316ce5a65d40fc86650d1caba311b933ab8c9d5111c784"
+    },
+    {
+      "path": "src/platform_binary_io.h",
+      "size": 1613,
+      "sha256": "3fb6f13877fdaf276fb418cf0381a3ee4c6d2086b846ac9ddc09d0ab6d739a11"
+    },
+    {
+      "path": "src/platform_common.c",
+      "size": 28637,
+      "sha256": "61de3cc82fd5247df00c824abcacb7c13b320799b636e828a0682d90a7b29907"
+    },
+    {
+      "path": "src/platform_common.h",
+      "size": 15546,
+      "sha256": "102b45f691fc11ff010057c313df40a9aa2481fba6cd944788141d30930cd411"
+    },
+    {
+      "path": "src/platform_conditional_control_json.inc",
+      "size": 2814,
+      "sha256": "30f4b9f4b5f257fcafbcc3ccc8f756d9145f0e9665065c48a7cae6217278005c"
+    },
+    {
+      "path": "src/platform_disk_cli.c",
+      "size": 2544,
+      "sha256": "7d064c8def263c82473c600219474af53b74be34980fe515afaf69693d21359d"
+    },
+    {
+      "path": "src/platform_disk_lib.c",
+      "size": 88237,
+      "sha256": "7481322e64bef1c629f4535ffc17e9ec21ec7e242a2270d57f1f871abc916339"
+    },
+    {
+      "path": "src/platform_disk_lib.h",
+      "size": 2764,
+      "sha256": "fb68f64f55e64037667cf0f3b74ab309f7272573ce17347af42eb17ad2e9dc8d"
+    },
+    {
+      "path": "src/platform_executable_summary.h",
+      "size": 1835,
+      "sha256": "17791d3a8b5adf75461d344db171ee8c47b3c21c182cfbfb858277ce055ed09c"
+    },
+    {
+      "path": "src/platform_facts_v2.c",
+      "size": 75197,
+      "sha256": "dfd24bee5f8f783e716384d538b045ff4f43646b3c80d0af96d4f3243d1a211a"
+    },
+    {
+      "path": "src/platform_file_amiga.c",
+      "size": 336972,
+      "sha256": "359551deec1ab533913f64d3d7ec4319aa52a38646a5da6dd03c48fe8acaaa3c"
+    },
+    {
+      "path": "src/platform_file_atari_st.c",
+      "size": 5919,
+      "sha256": "c63b7970896a99c90a91b8f3e5f4a0f5ad3f3837f89c18733fe0bb33e1b69705"
+    },
+    {
+      "path": "src/platform_file_base_candidates.inc",
+      "size": 5493,
+      "sha256": "0c0b8bc2b4006b89a04dac0c3f76b019cae805e413756e9c5b5837ea7834668a"
+    },
+    {
+      "path": "src/platform_file_cli.c",
+      "size": 30205,
+      "sha256": "075faff62128967298c74d4a05b7a46374eac8d36061b87d79c4578c812e68f4"
+    },
+    {
+      "path": "src/platform_file_core.c",
+      "size": 80474,
+      "sha256": "7f1c1014b912c049a6ce611cbb86717eaec1f4b3d5b5f6543c1c983aa1767268"
+    },
+    {
+      "path": "src/platform_file_decompression.c",
+      "size": 36164,
+      "sha256": "092d3a2c0fd3882def9349b414409943302356acb87eac1d2a1b6d758a3207b0"
+    },
+    {
+      "path": "src/platform_file_decompression.h",
+      "size": 7773,
+      "sha256": "271d34e2408d1f2eca74cae8bc4dd4f3b1227b3de9a43b4e7f9e8553c85fc910"
+    },
+    {
+      "path": "src/platform_file_internal.h",
+      "size": 23389,
+      "sha256": "fbee2ae7ab3f2dc67af2ed53ba6d4923a6972d69beb2d4d08ff446295e22d24e"
+    },
+    {
+      "path": "src/platform_file_json.c",
+      "size": 652864,
+      "sha256": "da58dd0b2f7033896d24164f349302e42e2e562a96fd5e863afcdfc349eaa099"
+    },
+    {
+      "path": "src/platform_file_lib.c",
+      "size": 815976,
+      "sha256": "1008e054b6b2b3349c46a84c34ef88fd60c6b59385995efb86b0173443ec5117"
+    },
+    {
+      "path": "src/platform_file_lib.h",
+      "size": 23436,
+      "sha256": "bf816fc4aee5039584ae28ae7f4ea7dc898e7afd20060de7a60541be8988a223"
+    },
+    {
+      "path": "src/platform_file_platform.c",
+      "size": 3942,
+      "sha256": "73521f7a4e9b721427bf52651dbbd29751d8b136333dd2fd6c9dacb20687ed68"
+    },
+    {
+      "path": "src/platform_host_compat.h",
+      "size": 328,
+      "sha256": "eef64b49504b1dbce221fd8a3f1ae74bee90746c62bc14ec6c405fd444c14374"
+    },
+    {
+      "path": "src/platform_ipf.c",
+      "size": 17863,
+      "sha256": "628ee39af41bcd405a5083d487e2ac1cdebd9c4e1a58265cbb85e896771a25d1"
+    },
+    {
+      "path": "src/platform_ipf.h",
+      "size": 3082,
+      "sha256": "a93f82e99863e7c60d1a7fda9cfa29f78bda26705f836859337316bde133ea0e"
+    },
+    {
+      "path": "src/platform_macos_hfs.c",
+      "size": 11731,
+      "sha256": "8bbf45744a83172407bd3b3d1151987b9b97990caefcef211b5c24d1f10b8983"
+    },
+    {
+      "path": "src/platform_macos_hfs.h",
+      "size": 2446,
+      "sha256": "87f0605eef78d7bfc6fbc45634bef4f581ae6706824c28f6a88213e580f8f43f"
+    },
+    {
+      "path": "src/platform_macos_resource.c",
+      "size": 27532,
+      "sha256": "a2d774d7c1bacdc2b5fbaedf50b319051e3dcea1ea15893d829d44b819dfeef3"
+    },
+    {
+      "path": "src/platform_macos_resource.h",
+      "size": 7789,
+      "sha256": "ba0d7e00549e2c6c1534e94a52b9ab64420ba205a9d8e8a5c4a0af378252b652"
+    },
+    {
+      "path": "src/platform_name_table.c",
+      "size": 463,
+      "sha256": "f635e839c65444c9381ff9a9abd1e63c9a75024117180ecec0556fcf37c2bb91"
+    },
+    {
+      "path": "src/platform_name_table.h",
+      "size": 206,
+      "sha256": "9e26727bd02e770f3aa65378074bd113b021f3ebf77d7c6328adf36ec26d9779"
+    },
+    {
+      "path": "src/precommit.bat",
+      "size": 1031,
+      "sha256": "5cf3f27e3102bc9ae1ed3263761812c1c296a9809d92c29db4b6588cc4bd0959"
+    },
+    {
+      "path": "src/real_target_fixtures.py",
+      "size": 953,
+      "sha256": "a157a441f4d24c6589e68ea37e82178162ecaea4322f19bed01acbde6ec759e4"
+    },
+    {
+      "path": "src/restored_source_model.h",
+      "size": 2175,
+      "sha256": "19c5e941075eac036e6d50c03166acadd9579d89b54f436824410fac6add0042"
+    },
+    {
+      "path": "src/scripts/amiga_hardware_usage.py",
+      "size": 8805,
+      "sha256": "5e972deab6654862e55bad056fb3547259b2261fefa781d578a0d6b4888d3d82"
+    },
+    {
+      "path": "src/scripts/apply_macos_include_amendments.py",
+      "size": 6169,
+      "sha256": "e18212827fa47f7901dd500a250c7ed2fbe4058cbe0ff63bfc5cb33ec3e7b319"
+    },
+    {
+      "path": "src/scripts/apply_macos_text_amendments.py",
+      "size": 6289,
+      "sha256": "c08cb63df5a560165affb5ce68a1b16681ae123110f7c322f308c56e375da874"
+    },
+    {
+      "path": "src/scripts/audit_macos_docs_against_includes.py",
+      "size": 6646,
+      "sha256": "0ab3df890d6dd27ea6abbf9c509b3852051f1b5ec0a930d8259faf11226df0b6"
+    },
+    {
+      "path": "src/scripts/audit_macos_text_quality.py",
+      "size": 8468,
+      "sha256": "61f4f299d50b84f34c0321718a9bcd57ff64c8f5fdbd17ada39061b5ee6c5980"
+    },
+    {
+      "path": "src/scripts/build_platform_disk_manifest.py",
+      "size": 10693,
+      "sha256": "d7b08ddddbdf458040ba4e6b921c0aeb37e128a1c776a535f9ef431717543732"
+    },
+    {
+      "path": "src/scripts/build_platform_file_manifest.py",
+      "size": 12519,
+      "sha256": "38ce59856a67fb0834f8bc9132032815dded446b1701196da8669497c0006dda"
+    },
+    {
+      "path": "src/scripts/check_c_style.py",
+      "size": 14472,
+      "sha256": "e0e72bf7912b60b9735f83c712ef688ce81dee29a238fe877897711da87a2bfe"
+    },
+    {
+      "path": "src/scripts/check_mac_os_kb.py",
+      "size": 8407,
+      "sha256": "4e0c1cf01b36bbf0692aec0d8a4bbcb9088513f5bd96169115b2dcd9b4d7905e"
+    },
+    {
+      "path": "src/scripts/compare_corpus_artifacts.py",
+      "size": 3058,
+      "sha256": "5755d8fbfff04ec3cf14a2990c785da51bcee22086322318a498ca7d4a5714ad"
+    },
+    {
+      "path": "src/scripts/extract_atari_st_devpac_includes.py",
+      "size": 1814,
+      "sha256": "eaf37ffc2d8bdbf7d0cde5ebc3ccae36adae26f0c409ee5275914db7f66a5b99"
+    },
+    {
+      "path": "src/scripts/extract_classic_hfs.py",
+      "size": 9600,
+      "sha256": "041f9b4a4eb5523c35a8ed05461ffe845ef532e0f74162794898e9307d7e7009"
+    },
+    {
+      "path": "src/scripts/find_dead_code.py",
+      "size": 25193,
+      "sha256": "d3c1ddeb58bb56aad78504e991e09c67f2a4e25cb67283d08ebf0c05ced21e55"
+    },
+    {
+      "path": "src/scripts/generate_amiga_os_runtime.py",
+      "size": 178238,
+      "sha256": "81086029b9688e79904e89c2f54d164cf3856b0e1a3ee2f1c7538b20507bea51"
+    },
+    {
+      "path": "src/scripts/generate_atari_st_os_runtime.py",
+      "size": 18893,
+      "sha256": "33ec8b2b903b961cce567f02746499075e3a76a8b22544db2bdc23c06d174a83"
+    },
+    {
+      "path": "src/scripts/generate_atari_st_vector_runtime.py",
+      "size": 1371,
+      "sha256": "fef88e392f69764fb561daae06248111d12260160c326fd2cff321ba5b3cfb2f"
+    },
+    {
+      "path": "src/scripts/generate_c99_assembler_corpus.py",
+      "size": 108930,
+      "sha256": "6fe756b714cb48b5224f66990695f56de133b86f6d34ea4d85445443520993bf"
+    },
+    {
+      "path": "src/scripts/generate_c99_assembler_subset.py",
+      "size": 84413,
+      "sha256": "ae80d4b8ebdd09f9024be8d1440c2c2975921a261404491eaf8ca9ca08346af1"
+    },
+    {
+      "path": "src/scripts/generate_c99_disassembler_subset.py",
+      "size": 17690,
+      "sha256": "a70d969968f5fbf20f7c377f08c4d601deff49d17858db42229df5079e09d07f"
+    },
+    {
+      "path": "src/scripts/generate_c99_simulator_subset.py",
+      "size": 53716,
+      "sha256": "75eedbe86f1e90151fa6449070a7b3d59f87ef3d53a0e1b9f6d73144d341fcc3"
+    },
+    {
+      "path": "src/scripts/generate_m68k_cpu_runtime.py",
+      "size": 5291,
+      "sha256": "cae557c114a1b98b6dbc289c64a6fada3f59170b1d2e5e3a7d8a7bee951ddb39"
+    },
+    {
+      "path": "src/scripts/generate_mac_os_runtime.py",
+      "size": 25802,
+      "sha256": "bd7b81bc5b6a4b486b686273d72a49233647511ea0ef9c97b6a4394ef4c71c08"
+    },
+    {
+      "path": "src/scripts/generate_platform_format_runtime.py",
+      "size": 38603,
+      "sha256": "713183b27ff085247444c660df68abaf20e557dde3eeec44f24ecb23cf5505c4"
+    },
+    {
+      "path": "src/scripts/generate_platform_symbol_contracts.py",
+      "size": 3319,
+      "sha256": "cb4ac4e76398d6afd78aee8738c229cd036c5b80ea6e07e9d115f62b81d0342e"
+    },
+    {
+      "path": "src/scripts/index_macos_includes.py",
+      "size": 7165,
+      "sha256": "cbb9fd8435715460f760b641593d60c6cdf2d72f85dc9113bc3a4e2d700d8c98"
+    },
+    {
+      "path": "src/scripts/inspect_mac_resource_fork.py",
+      "size": 1172,
+      "sha256": "0f01e514ab9f721ee68e38eed656959444b2683e96842f4469437b137058a593"
+    },
+    {
+      "path": "src/scripts/kb/apply_pdf_md_amendments.py",
+      "size": 3358,
+      "sha256": "2e6f466202d5822e2d674c8150cf43373e9522daee35cd5d63b609a5c53ff778"
+    },
+    {
+      "path": "src/scripts/kb/clean_pdf_md.py",
+      "size": 4744,
+      "sha256": "10416d655a4d3a65cf017b74ebcd50d12ce5445807ad4d8a67f3f0641165581d"
+    },
+    {
+      "path": "src/scripts/kb/glm_ocr_amendments.py",
+      "size": 5324,
+      "sha256": "1cfc7e708fa9da28492957fd1a1edd56763449527b700b9e0bb627fd2f5df050"
+    },
+    {
+      "path": "src/scripts/kb/m68k_parser.py",
+      "size": 430306,
+      "sha256": "959dfab1b8994f6c5006d08d3aec8a42bdd406c51db72fb8a408cf83686c11d9"
+    },
+    {
+      "path": "src/scripts/kb/ndk_parser.py",
+      "size": 145526,
+      "sha256": "87316cca02a7d32f89a7def3e71670401a894dca3a9a19c15caf3e8b229ff8cf"
+    },
+    {
+      "path": "src/scripts/kb/paths.py",
+      "size": 659,
+      "sha256": "a32be56c33512cfa4ded6933e7ef8442938f7e2f2a9c998dead90f5a481e469a"
+    },
+    {
+      "path": "src/scripts/kb/pdf_to_markdown.py",
+      "size": 4970,
+      "sha256": "8fc2cb66bf30dfeba627c82c9a5a9dae0fb3d53565c966840c9948cd72d1f908"
+    },
+    {
+      "path": "src/scripts/kb/sample_pdf_md_quality.py",
+      "size": 4481,
+      "sha256": "e026430b22d5fa7fef68c23bb68a83fed5054af7fb8fce5d47ab82eb3894ad5b"
+    },
+    {
+      "path": "src/scripts/m68k_assembler_subset.json",
+      "size": 1649,
+      "sha256": "273e9f29744e9f8a0d487fa7b7721dc76bab3c207dbbc3915c47c2228bb050a6"
+    },
+    {
+      "path": "src/scripts/m68k_canonical_model.py",
+      "size": 6480,
+      "sha256": "3d68a208d2772f572c06ba1b8636a3b28abb8260739d1418d66bd24c9165c51a"
+    },
+    {
+      "path": "src/scripts/parse_hw_manual.py",
+      "size": 35049,
+      "sha256": "9b5de868d83764296a346152721731c6a7a5e1bd596ce98385f54e4a18a20533"
+    },
+    {
+      "path": "src/scripts/parse_iff_specs.py",
+      "size": 30728,
+      "sha256": "44c8cb1f643a48a78e8de3280fcf1bb832e5885bb67416e768572b993c302c5d"
+    },
+    {
+      "path": "src/scripts/platform_manifest_io.py",
+      "size": 3143,
+      "sha256": "cbed73495713052f0c2263eeccd5982e39d5c35a04c30dd9a6615da0bab4d79c"
+    },
+    {
+      "path": "src/scripts/probe_vasm_mmu_oracle.py",
+      "size": 10908,
+      "sha256": "2a51c7529d253e77cffa6e1c71d148e240632b5288e846b162bda315d295388f"
+    },
+    {
+      "path": "src/scripts/project_amiga_hardware_facts.py",
+      "size": 1670,
+      "sha256": "3d80cac74bbd3abc7365fe5f9307499701c76986afc7e3202c880ef87c4c1876"
+    },
+    {
+      "path": "src/scripts/query_macos_include_index.py",
+      "size": 1856,
+      "sha256": "c49b62892fce367c53d5998cad7d7d39703bcd995296af513f507d99a14b70db"
+    },
+    {
+      "path": "src/scripts/run_corpus_projection_conformance.py",
+      "size": 5577,
+      "sha256": "6507b21ca5220fbb9ec3079ea0e4a55f8ad71fc82aa1a8e3172d39ff678b00ff"
+    },
+    {
+      "path": "src/scripts/run_precommit.py",
+      "size": 23462,
+      "sha256": "71b2a667c49f0ad29d95043b9877a227c8a9aba639ee17c13a1335bbb88bf4c9"
+    },
+    {
+      "path": "src/scripts/sync_amiga_includes.py",
+      "size": 5323,
+      "sha256": "98fe48d46a91c53b417f0882f520c77c63a471990e931ae644ae3156ec5ef75d"
+    },
+    {
+      "path": "src/scripts/target_usage_manifest.py",
+      "size": 610598,
+      "sha256": "b040fa01f08e2246abc7ac5ba59d7405ff9d883313bf105ee568809cd4d3672e"
+    },
+    {
+      "path": "src/scripts/update_real_target_fixtures.py",
+      "size": 4084,
+      "sha256": "0afb5673240031720129abdfc56191957d92596051a9b0a96dcea0d38df0ab17"
+    },
+    {
+      "path": "src/scripts/verify_macos_docs.py",
+      "size": 6232,
+      "sha256": "979345c02f90cf736352a0b113cd9c296733d911a038eb4e95de9fd5e8f3a8f7"
+    },
+    {
+      "path": "src/scripts/with_build_lock.py",
+      "size": 2395,
+      "sha256": "d2853c0414b45a3365f67cc8d4eb9c9dab4413581bf41f75a79e3a1287b00a3b"
+    },
+    {
+      "path": "src/test.bat",
+      "size": 1062,
+      "sha256": "0eb02401dfd1695b11b7e5fd02aae7ca64bbd1e2ea3330d1b53f4368b3d82b4a"
+    },
+    {
+      "path": "src/test_corpus_index.bat",
+      "size": 498,
+      "sha256": "784bb4e39b0cfc8f82bf6378dcf64e5b0678d6b38ea88d7b386469c1fc2149a5"
+    },
+    {
+      "path": "src/test_explicit.bat",
+      "size": 780,
+      "sha256": "599c96a024c921a4482f87ecaf0f114e850b77356a2b0e720c060db4d5302a06"
+    },
+    {
+      "path": "src/test_integration.bat",
+      "size": 1036,
+      "sha256": "cbd8af6950fb1f6ebb64889c493c816b728a1d6ab4326a1851270dd8f924fc41"
+    },
+    {
+      "path": "src/test_m68k_c_main.c",
+      "size": 800,
+      "sha256": "573fd7a246b09ec79d1be14941bd96c3a1dc82e97a5c1d78ce71d47ef154845e"
+    },
+    {
+      "path": "src/test_m68k_container_metadata.c",
+      "size": 41185,
+      "sha256": "de90342ab2577c8e0ee75610f448c04a07c4cd52a5882f4bd712470afb667c07"
+    },
+    {
+      "path": "src/test_m68k_diagnostics.c",
+      "size": 1507,
+      "sha256": "cec5f5473bfecfd73e928943b143c6571e38ff680a95c7a8a986df29db0869ba"
+    },
+    {
+      "path": "src/test_m68k_instruction_spec.c",
+      "size": 8317,
+      "sha256": "6de68e7a4bda5062fdbf89a369a3e4b07524f163b24c71a2cb599337b5b10de2"
+    },
+    {
+      "path": "src/test_m68k_ir.c",
+      "size": 2077113,
+      "sha256": "80ebb6d2b48b5c90f53f51abd9585f7fe5dc2fb2d2392965aa38a1b14a66c517"
+    },
+    {
+      "path": "src/test_m68k_parse_util.c",
+      "size": 17310,
+      "sha256": "554f602bcaefaea4ed546fbee58638b2fe4fdae5ffbcd2ff98a47b2b4366c95a"
+    },
+    {
+      "path": "src/test_m68k_policy_storage.c",
+      "size": 25882,
+      "sha256": "59b732bbcd3beaa66ee1f017ce449c4e012b71fde338e7f08131329e5e38a9f7"
+    },
+    {
+      "path": "src/test_m68k_render_plan.c",
+      "size": 31397,
+      "sha256": "d5513ae2b5c09ce03b5af9cbf8cb4828a693a8dbbf75e95d53423326d1b0f141"
+    },
+    {
+      "path": "src/test_m68k_simulator.c",
+      "size": 30698,
+      "sha256": "0dd79a0b5c53116b66136cd870f7b511a60c539ded1cb227a46d40f5506499d9"
+    },
+    {
+      "path": "src/test_m68k_source_package.c",
+      "size": 22199,
+      "sha256": "30c8144c95d0c893c8e45860be7826ffd43479ee083e45433874bd1bbb229648"
+    },
+    {
+      "path": "src/test_mac_os_runtime.c",
+      "size": 5811,
+      "sha256": "795dfcfbd54f69d538aacf017788de5fd9a065a1ba81eb95d923942f8fca3b11"
+    },
+    {
+      "path": "src/test_platform_decompression.c",
+      "size": 7184,
+      "sha256": "cf931aebcf235b231b405f87800f1ebed02addb320dca5f126927b2c4e4fc721"
+    },
+    {
+      "path": "src/test_platform_macos_hfs.c",
+      "size": 7379,
+      "sha256": "42fed72fcf074fa4f1a4ac624e0763a9c1d0e5a41b6416b5043f63576f8c342d"
+    },
+    {
+      "path": "src/test_platform_macos_resource.c",
+      "size": 21642,
+      "sha256": "72a515b6f7e8e8c4617736bba016561e6652c3a78bcf84575a94557f68454293"
+    },
+    {
+      "path": "src/test_util_arena.c",
+      "size": 12895,
+      "sha256": "7e8b7d32fad2c55582db83d8c1bc63039e0bed0506f0512a4fe988494ad74a26"
+    },
+    {
+      "path": "src/tests/_build_helpers.py",
+      "size": 2184,
+      "sha256": "46040ffbee4ef4482079c1ab52ee8a8916c9fada4ccf9412bea1f3ac4de08476"
+    },
+    {
+      "path": "src/tests/_oracle_matrix_helpers.py",
+      "size": 921,
+      "sha256": "f4f1902784ee60c872da6fdae32c6dfcad34eaa70f04664baa3190dce65de06c"
+    },
+    {
+      "path": "src/tests/_platform_backend_test_utils.py",
+      "size": 19337,
+      "sha256": "decd5c0ba40584b561b23b0a8f447db22558c763eb904a7d3bde178bc517259c"
+    },
+    {
+      "path": "src/tests/_platform_disk_test_utils.py",
+      "size": 5833,
+      "sha256": "e8285e754fc1704cccb3a44cc82c8f97853f4afd7a3cfa308c6743638462bdc5"
+    },
+    {
+      "path": "src/tests/fixtures/incbin/assets/empty.bin",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "src/tests/fixtures/incbin/assets/first.bin",
+      "size": 5,
+      "sha256": "7ddcfd606bae97252e189a533f82645ff247b2f6f5330a051738c917f952a97a"
+    },
+    {
+      "path": "src/tests/fixtures/incbin/assets/second, odd.bin",
+      "size": 3,
+      "sha256": "ecb9435e861ad9b2895d11f41810a4952cd4067a078802ab4d32cd6cc7519020"
+    },
+    {
+      "path": "src/tests/fixtures/incbin/source.s",
+      "size": 179,
+      "sha256": "df4302cd802b84f44236cefb39782f4b4e4c6fe74c39ea65ee83276eafc24fda"
+    },
+    {
+      "path": "src/tests/fixtures/type_flow_baseline.json",
+      "size": 7482,
+      "sha256": "df1dee2cabd240c0cf60d822aa8d254fdce5d15d01eb1e1ab49b718f183d7f2c"
+    },
+    {
+      "path": "src/tests/ipf_sanitizer_driver.c",
+      "size": 2832,
+      "sha256": "f8f9e90b108e3f303decb383d3fd7d20b739ad95ced3597e35bae7a81e07c070"
+    },
+    {
+      "path": "src/tests/stx_sanitizer_driver.c",
+      "size": 2555,
+      "sha256": "a5cf0c9767d12a9c5d72b1cfccd9bc3301ef9c571d270818a95228bc4df9a43d"
+    },
+    {
+      "path": "src/tests/test_c99_assembler_codegen.py",
+      "size": 36580,
+      "sha256": "19a00aa1337b22e1e9ff5d65cf7ed63c1e8f1cde5d15989b4f33983ed3d33ae1"
+    },
+    {
+      "path": "src/tests/test_c99_assembler_corpus.py",
+      "size": 16573,
+      "sha256": "5e3ebef197686d404b7fd01b3af9d1ecf66eaf172656635069b48dae102bfd21"
+    },
+    {
+      "path": "src/tests/test_c99_disassembler_corpus.py",
+      "size": 16680,
+      "sha256": "4f73198c45e37421c9434c7e52b52fe5edefae521ea8a88381747bc9d0f01674"
+    },
+    {
+      "path": "src/tests/test_c_style.py",
+      "size": 14377,
+      "sha256": "9c1c9dcba8be02332c8807cae754dea431d5cdeb066bfe5e01b9b379327e5d3e"
+    },
+    {
+      "path": "src/tests/test_generate_c99_assembler_subset.py",
+      "size": 9071,
+      "sha256": "a9b9966e5e3f2254a446b729500130e4baa48637a180f9ab0f80bd285153838d"
+    },
+    {
+      "path": "src/tests/test_generate_c99_disassembler_subset.py",
+      "size": 5464,
+      "sha256": "58ec7e75e06e08a1b1514f60b4a0267aa270b97c782b24bf282793421fc2a8f8"
+    },
+    {
+      "path": "src/tests/test_generate_c99_simulator_subset.py",
+      "size": 35658,
+      "sha256": "26682400b21d542b3f3ba546af9c51e55eacd2bb08d3b5378304c3500bb7dce1"
+    },
+    {
+      "path": "src/tests/test_ir_policy_dll.py",
+      "size": 46905,
+      "sha256": "83caf642088978e9f8ae059ab6cbd68ce63a67ceb0baf9cdde910c9e969ee00c"
+    },
+    {
+      "path": "src/tests/test_m68k_simulator_abstract.py",
+      "size": 13812,
+      "sha256": "612afa22079ebf315571941d3784a98db8a7a1f25ba84f419f1ccfa5f823886a"
+    },
+    {
+      "path": "src/tests/test_m68k_simulator_abstract_ea_updates.py",
+      "size": 6574,
+      "sha256": "4ed9906bae48d131152882b65f8adcc9750d2ac5dc5bc1661f176076ca3f1bef"
+    },
+    {
+      "path": "src/tests/test_m68k_simulator_arithmetic.py",
+      "size": 14243,
+      "sha256": "41b5aece7f8330f6a039cb78de641d1c73df693d06cb33509e0cb01296ae3f29"
+    },
+    {
+      "path": "src/tests/test_m68k_simulator_ea_updates.py",
+      "size": 10541,
+      "sha256": "8b6ac2bfbf712810a8ae3476688d5c927b8ca859c8fd48194abf3f9cc3f70673"
+    },
+    {
+      "path": "src/tests/test_m68k_simulator_moveq.py",
+      "size": 2136,
+      "sha256": "bddf66de58966ca1822e46419b4db343ae35f0bb6a338e11921cb3902bdc3dc7"
+    },
+    {
+      "path": "src/tests/test_m68k_simulator_oracle.py",
+      "size": 34701,
+      "sha256": "d3f3523b776b8c0372e4e2edc74ba88bf783301bc12d0b859371ed1a180eea29"
+    },
+    {
+      "path": "src/tests/test_m68k_source_include.py",
+      "size": 10383,
+      "sha256": "222091b2813cd0fe5ccc47ea9298f8ca4a9fa92016fcbf3d8bb64ab585dfd5fe"
+    },
+    {
+      "path": "src/tests/test_platform_amiga_disk.py",
+      "size": 16804,
+      "sha256": "3af260e5cb21650c36ca553a93bfdd3ab5da21b7074b10c9fe01e5b4e4c1db63"
+    },
+    {
+      "path": "src/tests/test_platform_atari_st_disk.py",
+      "size": 10419,
+      "sha256": "13c8ca0bc74f7cefa5c288bfae725b4308a983dba61bff87b00c86fe89356cb8"
+    },
+    {
+      "path": "src/tests/test_platform_atari_stx.py",
+      "size": 18123,
+      "sha256": "452d2154e09d582601dfccdbab21d0568a12645dd25026b837b631c1a19f15ae"
+    },
+    {
+      "path": "src/tests/test_platform_backends.py",
+      "size": 7153,
+      "sha256": "9ddcb0038281be7ba964fa4523806424891b508cd9b06e122d0e91b491eafc1c"
+    },
+    {
+      "path": "src/tests/test_platform_disk_cli.py",
+      "size": 19469,
+      "sha256": "70687400f460a450c6393e476f60a291b0fa5d6a1273d64169e663593af97a32"
+    },
+    {
+      "path": "src/tests/test_platform_disk_lib.py",
+      "size": 2174,
+      "sha256": "7b4839a5769a1dcab53da75c26dfe250257bcdc82ae2a4e90a6704507746d1eb"
+    },
+    {
+      "path": "src/tests/test_platform_file_manifest.py",
+      "size": 19520,
+      "sha256": "591d3d549ba7855342fa0df11fa66634427e06eecba7b9f940975d3340b22025"
+    },
+    {
+      "path": "src/tests/test_platform_format_codegen.py",
+      "size": 9621,
+      "sha256": "d2e7eaa0d60e3f76375ca34985d71cad7b60393faae1cc108e92f04de20f4591"
+    },
+    {
+      "path": "src/tests/test_platform_ipf.py",
+      "size": 15755,
+      "sha256": "0c2be95f99e72c49c51bc8d732c94c1c2cc3e361415181693a34169c940105fc"
+    },
+    {
+      "path": "src/tests/test_static_m68k_runtime.py",
+      "size": 4595,
+      "sha256": "245a0098f6e6a242198c0cd4004de4f3c4d24ce37ff4023fef39216a6d3a55a2"
+    },
+    {
+      "path": "src/tests/test_target_usage_manifest.py",
+      "size": 234851,
+      "sha256": "849f190c36747f7f6b737ad575e14bced691a8da1e2d4ebbd0aad2fb15110272"
+    },
+    {
+      "path": "src/tests/test_timing_decode.py",
+      "size": 5227,
+      "sha256": "a4e2b71c7d1a0e866f5385f3f1298b89e38595a16f2302e3af69286b5edff64b"
+    },
+    {
+      "path": "src/tests_integration/test_c99_assembler_corpus_integration.py",
+      "size": 1365,
+      "sha256": "225508a14ca6ead0936ea3290b814acb9282e4c14bbba5bcdad8091d7e77d634"
+    },
+    {
+      "path": "src/tests_integration/test_c99_disassembler_corpus_integration.py",
+      "size": 1773,
+      "sha256": "08bed4396fb9ec3e51a9ad8f5521f068453ec9da04a51d4740d6f05d7c7a7bc2"
+    },
+    {
+      "path": "src/tests_integration/test_m68k_simulator_oracle_integration.py",
+      "size": 1188,
+      "sha256": "52b2dff230f1a59e144b0f609d952dd3fae5e592847562a894b6b82ced937e04"
+    },
+    {
+      "path": "src/tests_integration/test_platform_backends_integration.py",
+      "size": 4130,
+      "sha256": "1f2bbb9f9de23e49e97ae5dcc30dad42af8222edaffa560f8b1931fb20835eee"
+    },
+    {
+      "path": "src/tests_integration/test_platform_manifest_integration.py",
+      "size": 1533,
+      "sha256": "c7316072803a596ce492315358b302e75a0fbbab3de8b369b106fd1f04eb4a22"
+    },
+    {
+      "path": "src/tests_integration/test_target_usage_manifest_integration.py",
+      "size": 2653,
+      "sha256": "37ba8c7837aca060a269b89c655836d7d8294b36e6e9971b62f1d0de61ce9967"
+    },
+    {
+      "path": "src/tests_integration/test_vasm_mmu_oracle_integration.py",
+      "size": 1538,
+      "sha256": "e6c2347cbfc8f56f832029e0b5cd593a085d44f2e251c9d0878df0d9c4b423d2"
+    },
+    {
+      "path": "src/tools/build_timing_decode.bat",
+      "size": 1383,
+      "sha256": "601eee0f2e3435195f2dbf968a0a3caa9a299f2267e61e8fc10379c488dbb6cb"
+    },
+    {
+      "path": "src/tools/m68k_timing_decode_main.c",
+      "size": 8246,
+      "sha256": "48a41ae964418ea00ad77c9b1cffad5922ce7625163390add6c9dd648a133fff"
+    },
+    {
+      "path": "src/tools/timing_decode_msvc_deps.rsp",
+      "size": 256,
+      "sha256": "94f0d6dfca5579c931e4d068552f8dcd13ae9b621d11db31d686be7157fd9876"
+    },
+    {
+      "path": "src/tools/timing_decode_sources.rsp",
+      "size": 415,
+      "sha256": "2440fdd9b2937a0e1c2d6d73de2676a10110877b6003903e135318f9826ea9ab"
+    },
+    {
+      "path": "src/util_arena.c",
+      "size": 13493,
+      "sha256": "7d61a1ab618aafeee252bbb8d5ad6fefe64435b78df33a6f017f613f8ca6c083"
+    },
+    {
+      "path": "src/util_arena.h",
+      "size": 2785,
+      "sha256": "38ac738f5f8048ade383ce26414eb2353e72e994ae000691da3c861954e73a1c"
+    },
+    {
+      "path": "tools/.gitkeep",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tools/amiga_allocmem_probe.s",
+      "size": 1050,
+      "sha256": "f9cadfa63f3b35a2231f848f069a9f62832ae85170c78dfa717f3e78be17e315"
+    },
+    {
+      "path": "tools/amiga_direct_payload_bootblock.s",
+      "size": 2898,
+      "sha256": "a6d51b0f8a47bd986025eb29064faec857dae6141a63cffbe18d777a587eeafb"
+    },
+    {
+      "path": "tools/amiga_os_entry_probe.s",
+      "size": 854,
+      "sha256": "584a54e89f6d07c990279f07edadaa0e2126f3ff86c042412063c7f5e5344b79"
+    },
+    {
+      "path": "tools/amiga_os_lease_probe.s",
+      "size": 1027,
+      "sha256": "1a0f6b35096b5daa8be646f0b2202cbf20c4a34dffa122e94e172566fbbf7e2b"
+    },
+    {
+      "path": "tools/amiga_os_takeover_probe.s",
+      "size": 3355,
+      "sha256": "cf075e6895c4fd40a61171b33d5cdca09be0021dec7a6fd9729dd28f2b94a0bc"
+    },
+    {
+      "path": "tools/amiga_pandora_OS.s",
+      "size": 6648,
+      "sha256": "d05c30919ee8faa0d116b74ce08f4ca18877457b35f3f0b2719dbc972dedc713"
+    },
+    {
+      "path": "tools/amiga_pandora_OS_audio.i",
+      "size": 3008,
+      "sha256": "f2576fc60fcce64a3a700875134ae1029f15b4fe1fddcdba614b964864fac20e"
+    },
+    {
+      "path": "tools/amiga_pandora_OS_fields.i",
+      "size": 2587,
+      "sha256": "a4f17b238d0d4d5473aa084796918f152ad1581c24c796ee0b34fab438b0ac67"
+    },
+    {
+      "path": "tools/amiga_pandora_OS_takeover.i",
+      "size": 4200,
+      "sha256": "55138ebb6a08ebd1511b3dfda5d9ddde1c4a60845cd0f5a307894a5819637dfc"
+    },
+    {
+      "path": "tools/amiga_pandora_package_build.py",
+      "size": 3444,
+      "sha256": "0d5dd9cb92ee901d78ba70033bc61a131737badaff942df7e834594961f24a14"
+    },
+    {
+      "path": "tools/amiga_runtime_allocation.i",
+      "size": 2163,
+      "sha256": "9487618fbe13c07f206e7681c56737cf495ced2ef4f2a1de2ad7c182bf73c348"
+    },
+    {
+      "path": "tools/amiga_runtime_allocation_unwind.i",
+      "size": 1482,
+      "sha256": "13fe969c2cdd9563e4fb53cf168ccc6da1cc6b404335ea61e6d171e2befe9e6b"
+    },
+    {
+      "path": "tools/audit_member_analysis.py",
+      "size": 3405,
+      "sha256": "e5b5d045f6f0cc3fe3fe1c9b846c192274c62346a8323ba084538557c98ed3a8"
+    },
+    {
+      "path": "tools/build_starglider2_retail_pair.py",
+      "size": 7703,
+      "sha256": "236aeb8cd6de7aadd5e37b85f86656614e50ca0c3b31d784989879d79c66dd9e"
+    },
+    {
+      "path": "tools/check_starglider2_retail_execution.py",
+      "size": 5128,
+      "sha256": "3dc68eb299666cbb8f3aaee2b2c9ef3923cb25be771f981ae6c53c3c29d1d667"
+    },
+    {
+      "path": "tools/foft_action_ownership_audit.py",
+      "size": 11734,
+      "sha256": "0738936b28c51bac7aad3cb5222540e932d4086d2c0ed8e28f7af0eaa94e86ae"
+    },
+    {
+      "path": "tools/foft_audio_layout_probe.py",
+      "size": 7821,
+      "sha256": "85073ad8d4dc5512e68d80246a76d5efaa0916327e9d4c1363259eda82edd898"
+    },
+    {
+      "path": "tools/foft_baseline.py",
+      "size": 9416,
+      "sha256": "1d3942ebb8669ca35c69b995106f60cb5c90d84f9438bea0c021e70c37a7c8a2"
+    },
+    {
+      "path": "tools/foft_burst_audit.py",
+      "size": 10081,
+      "sha256": "5da3c9209b173570b8db3f21bb2e604c2198d3a3feedae752e3effe9eea1d1bb"
+    },
+    {
+      "path": "tools/foft_deployment_emission_audit.py",
+      "size": 10523,
+      "sha256": "522117a1497a1e4e87fd7f0bf9469c3c12756a97aba3d0fdb014cb6e13c3ba11"
+    },
+    {
+      "path": "tools/foft_disk.py",
+      "size": 8702,
+      "sha256": "79c5c9932110d2e55adf9ef837ce71ab943b3a005d817784c55c4112ebfa65ac"
+    },
+    {
+      "path": "tools/foft_display_provenance_audit.py",
+      "size": 8294,
+      "sha256": "2a4e2a54ebc60d4b30fa40f85fd0d9cfac103ab143b6370d29f43785d3256a33"
+    },
+    {
+      "path": "tools/foft_draw_lifetime_audit.py",
+      "size": 23296,
+      "sha256": "cfeef2cb1d394d53f0bda6b3d5d767d21cda999986f80f993c0e6d517ac02aa3"
+    },
+    {
+      "path": "tools/foft_flight_motion_audit.py",
+      "size": 12946,
+      "sha256": "79a81de834aae1d623b8a9231a3333fa0505e90de5bec85f2a1021d4f84ff15c"
+    },
+    {
+      "path": "tools/foft_frame_panel_audit.py",
+      "size": 12785,
+      "sha256": "6acd84c94a505c798127a754ddd336735f755ad635b3b0c5584390f117b0381e"
+    },
+    {
+      "path": "tools/foft_initial_music_map_audit.py",
+      "size": 10444,
+      "sha256": "c27df8775fcecf71c1adb04624e19590c415700228be8d8369e3b0e7eeaa111d"
+    },
+    {
+      "path": "tools/foft_interrupt_frame_audit.py",
+      "size": 17117,
+      "sha256": "c5273ccba5d2756ebc90fe67b10c6e08efe1e8ac6065884477148971a1eb703d"
+    },
+    {
+      "path": "tools/foft_irq_write_audit.py",
+      "size": 19043,
+      "sha256": "20e96186a975b42b17fae6bb742bee8395aa59c4287d329cb8a63baaba3d46fc"
+    },
+    {
+      "path": "tools/foft_mesh_frame_audit.py",
+      "size": 8194,
+      "sha256": "1422254ec825bf7acfc65b12d75ff86a5f86a40c924c7335627ce5059a35bf07"
+    },
+    {
+      "path": "tools/foft_model_audit.py",
+      "size": 7926,
+      "sha256": "224fd55905e0b294e8a1a5c01b6075ccc96cc1347121d70fd9ba3bf382b8ecf0"
+    },
+    {
+      "path": "tools/foft_model_header_audit.py",
+      "size": 16273,
+      "sha256": "4e91123de0bae2bd74dbaf6b1c4350768e86213089ab40d8bd8600b2cf41861d"
+    },
+    {
+      "path": "tools/foft_music_menu_probe.py",
+      "size": 4187,
+      "sha256": "ec5b9bed7157b3b3ec30e7f2b1273e208d583feaa35d0cbd68a56502d0f8df7d"
+    },
+    {
+      "path": "tools/foft_music_voice_effects_audit.py",
+      "size": 17384,
+      "sha256": "8420b13d416441ee48c47ea4258b1a381291844f8d84654066aa22207d4025c0"
+    },
+    {
+      "path": "tools/foft_near_scenery_audit.py",
+      "size": 27379,
+      "sha256": "69a43698ec1d8ea646f6c92fa85c7d3c85f3a743360173f70ae1c5bee6466bf7"
+    },
+    {
+      "path": "tools/foft_object_motion_count_audit.py",
+      "size": 14401,
+      "sha256": "20c7dca9c89cbeb7ad0aa8e30790193a578cf613a2fab4346b91a448c855cab6"
+    },
+    {
+      "path": "tools/foft_pattern_audit.py",
+      "size": 5238,
+      "sha256": "601d35dab75fe93b82162bdabf8dc7a68e04ef574fe7e69323b914c02d868b0e"
+    },
+    {
+      "path": "tools/foft_projectile_state_audit.py",
+      "size": 11222,
+      "sha256": "f2e5bd83f24e318c7ede954c5f434093ff384a32527bdb163a0371b735935466"
+    },
+    {
+      "path": "tools/foft_record_closure_audit.py",
+      "size": 7461,
+      "sha256": "0758c8d13c1f5b31ba3635a54ed4171d3bf3eccc7523906a00ef1c132650dbc7"
+    },
+    {
+      "path": "tools/foft_render_contract_audit.py",
+      "size": 72409,
+      "sha256": "0117ca580624a0e3d72f2fab32c765bb6e3392363a866835b73198de08b7c2b5"
+    },
+    {
+      "path": "tools/foft_reply_audit.py",
+      "size": 7570,
+      "sha256": "22f26ab56fd6ee5bfc6febc90956c0fd6bf7b719e6e294926a45c16b497b8a5c"
+    },
+    {
+      "path": "tools/foft_resource5_audio_probe.py",
+      "size": 3832,
+      "sha256": "caa5aff9c199e829d596486889ba738b737880660f6c33826fc1f8aad4353b84"
+    },
+    {
+      "path": "tools/foft_scenery_lifetime_audit.py",
+      "size": 14264,
+      "sha256": "82385ef1aa97e21fe0f5c0a0bf4ad80be6c1f7423e75152f9b47b065fbcfab8b"
+    },
+    {
+      "path": "tools/foft_ship_specs_audit.py",
+      "size": 9924,
+      "sha256": "1aff60fa74505496bef2f41c4376b8adade56d768589a216d7cd4a295d73ef59"
+    },
+    {
+      "path": "tools/foft_small_round_audit.py",
+      "size": 13733,
+      "sha256": "4114a8dc888ed3f82ffb05218d007ff6f091c718f90fc620d056a087058c4953"
+    },
+    {
+      "path": "tools/foft_trig_view_audit.py",
+      "size": 12654,
+      "sha256": "3f986b70a1f3fd54326b2aca76bc3ab4bfb27cd4e714cc6d5dc24d41a69c9e3d"
+    },
+    {
+      "path": "tools/import_foft_boot_loader.py",
+      "size": 5143,
+      "sha256": "70d0d71149c77f06db26a576c023f3601ba1904f5b75e119a45b25122cd40f12"
+    },
+    {
+      "path": "tools/import_foft_music_resource.py",
+      "size": 4603,
+      "sha256": "a9e39184a0b04f830f5e2343f7041b07265b7bfb4334e147b63513e582655bb3"
+    },
+    {
+      "path": "tools/import_foft_music_resource5.py",
+      "size": 8535,
+      "sha256": "a94caf32ab952da78b7584e2d38dc1fee3f3dea1e5f3b8407a9c7095fac22401"
+    },
+    {
+      "path": "tools/import_foft_reference.py",
+      "size": 19811,
+      "sha256": "7fbf582d2ae589561d9904922600f20b187c134e2dbb2c410cb06b9b0d552ada"
+    },
+    {
+      "path": "tools/linux_smoke.py",
+      "size": 4108,
+      "sha256": "57a8e72da5058cf4b9a403f38d3638c133028b47cd4266c77f03c970efc0fb5f"
+    },
+    {
+      "path": "tools/migrate_foft_disk_set.py",
+      "size": 13015,
+      "sha256": "c0bc37440350c4e4324993533e2d113fe524b6f6c4a0d8548ce479fa1b931459"
+    },
+    {
+      "path": "tools/regenerate_starglider2_retail_source.py",
+      "size": 6268,
+      "sha256": "d0b23012f29793ea3a91aa8e1438e39ae158143f1a69b7cfaf7c210ba124fec8"
+    },
+    {
+      "path": "tools/replay_launch_targets.py",
+      "size": 6994,
+      "sha256": "217bc0c57b615caaed92e084f2ed5b50164c8c044ee2ddb82ce485fd9cc2864d"
+    },
+    {
+      "path": "tools/stx_reference_probe.py",
+      "size": 8951,
+      "sha256": "23a0d2aa1d96a71ba0066f8b1e760ecbb735c3fb307d7957df86459f20c44e19"
+    }
+  ]
+}
